@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Hub Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header p-4 mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="mb-1">Welcome back, {{ user.first_name }}!</h1>
+                <p class="text-muted mb-0">Here's what's happening with your projects today.</p>
+            </div>
+            <div class="col-auto">
+                <div class="d-flex align-items-center text-muted">
+                    <i class="bi bi-calendar-event me-2"></i>
+                    <span id="current-date"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card p-4 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-primary-gradient text-white me-3">
+                        <i class="bi bi-folder"></i>
+                    </div>
+                    <div>
+                        <div class="h4 mb-0">12</div>
+                        <div class="text-muted small">Active Projects</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card p-4 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-success-gradient text-white me-3">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div>
+                        <div class="h4 mb-0">24</div>
+                        <div class="text-muted small">Completed Tasks</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card p-4 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-warning-gradient text-white me-3">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div>
+                        <div class="h4 mb-0">8</div>
+                        <div class="text-muted small">Active Clients</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card p-4 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-info-gradient text-white me-3">
+                        <i class="bi bi-clock"></i>
+                    </div>
+                    <div>
+                        <div class="h4 mb-0">142.5</div>
+                        <div class="text-muted small">Hours This Month</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity & Quick Actions -->
+    <div class="row g-4">
+        <!-- Recent Activity -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-activity me-2"></i>Recent Activity
+                    </h5>
+                    <a href="#" class="btn btn-outline-primary btn-sm">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="stat-icon bg-success-gradient text-white me-3" style="width: 2rem; height: 2rem; font-size: 0.875rem;">
+                            <i class="bi bi-check"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-medium">Task completed: "Update client dashboard"</div>
+                            <div class="text-muted small">Project: Website Redesign • 2 hours ago</div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="stat-icon bg-primary-gradient text-white me-3" style="width: 2rem; height: 2rem; font-size: 0.875rem;">
+                            <i class="bi bi-plus"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-medium">New project created: "Mobile App Development"</div>
+                            <div class="text-muted small">Client: TechCorp Inc. • 4 hours ago</div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="stat-icon bg-info-gradient text-white me-3" style="width: 2rem; height: 2rem; font-size: 0.875rem;">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-medium">Time logged: 3.5 hours</div>
+                            <div class="text-muted small">Project: E-commerce Platform • Yesterday</div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-start">
+                        <div class="stat-icon bg-warning-gradient text-white me-3" style="width: 2rem; height: 2rem; font-size: 0.875rem;">
+                            <i class="bi bi-person-plus"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-medium">New client added: "Innovation Labs"</div>
+                            <div class="text-muted small">2 days ago</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightning me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('projects') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-plus-circle me-2"></i>New Project
+                        </a>
+                        <a href="{{ url_for('clients') }}" class="btn btn-outline-success">
+                            <i class="bi bi-person-plus me-2"></i>Add Client
+                        </a>
+                        <a href="#" class="btn btn-outline-info">
+                            <i class="bi bi-clock me-2"></i>Log Time
+                        </a>
+                        <a href="{{ url_for('reports') }}" class="btn btn-outline-warning">
+                            <i class="bi bi-bar-chart me-2"></i>View Reports
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming Deadlines -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-calendar-check me-2"></i>Upcoming Deadlines
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="small text-muted mb-2">
+                        <i class="bi bi-circle-fill text-danger me-2" style="font-size: 0.5rem;"></i>
+                        Website Launch - 2 days
+                    </div>
+                    <div class="small text-muted mb-2">
+                        <i class="bi bi-circle-fill text-warning me-2" style="font-size: 0.5rem;"></i>
+                        Client Review - 5 days
+                    </div>
+                    <div class="small text-muted">
+                        <i class="bi bi-circle-fill text-success me-2" style="font-size: 0.5rem;"></i>
+                        Monthly Report - 12 days
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Update current date
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        const options = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        };
+        document.getElementById('current-date').textContent = now.toLocaleDateString('en-US', options);
+    });
+</script>
+{% endblock %} 
