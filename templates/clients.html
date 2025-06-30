@@ -21,9 +21,9 @@
     <!-- Clients List -->
     <div class="row">
         <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    {% if clients %}
+            {% if clients %}
+                <div class="card">
+                    <div class="card-body">
                         <div class="table-responsive">
                             <table class="table table-hover table-sm mb-0">
                                 <thead class="table-light">
@@ -100,18 +100,18 @@
                                 </tbody>
                             </table>
                         </div>
-                    {% else %}
-                        <div class="text-center py-4 text-muted">
-                            <i class="bi bi-building fs-1 mb-3 d-block"></i>
-                            <div class="fw-medium">No clients found</div>
-                            <div class="small mb-3">Create your first client to get started</div>
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">
-                                <i class="bi bi-plus-circle me-2"></i>Add Client
-                            </button>
-                        </div>
-                    {% endif %}
+                    </div>
                 </div>
-            </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-people fs-1 mb-3 d-block"></i>
+                    <div class="fw-medium">No clients found</div>
+                    <div class="small mb-3">Create your first client to get started</div>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">
+                        <i class="bi bi-plus-circle me-2"></i>Add Client
+                    </button>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>

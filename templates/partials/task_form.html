@@ -1,10 +1,10 @@
 <!-- Smart Task Form with Alpine.js -->
-<div class="quick-task-form" x-data="taskForm()" x-init="init()" @set-preset-project="handlePresetProject($event)" @set-preset-user="handlePresetUser($event)"
+<div class="quick-task-form" x-data="taskForm()" x-init="init()" @set-preset-project="handlePresetProject($event)" @set-preset-user="handlePresetUser($event)">
     <form method="POST" action="{{ url_for('add_task') }}" @submit="onSubmit()">
         <!-- Main Input Area -->
-        <div class="position-relative">
+        <div class="task-input-wrapper">
             <div class="d-flex align-items-center">
-                <div class="flex-grow-1 me-3">
+                <div class="flex-grow-1 me-3 position-relative">
                     <input 
                         type="text" 
                         name="description" 
@@ -18,33 +18,33 @@
                         @keydown="handleKeydown($event)"
                         x-ref="taskInput"
                     >
+                    
+                    <!-- Autocomplete Dropdown -->
+                    <div x-show="showAutocomplete" 
+                         class="autocomplete-dropdown"
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="opacity-100 scale-100"
+                         x-transition:leave-end="opacity-0 scale-95">
+                        <div class="bg-white border rounded-3 shadow-lg">
+                            <template x-for="(item, index) in filteredItems" :key="item.id">
+                                <div class="autocomplete-item px-3 py-2 cursor-pointer border-bottom"
+                                     :class="{ 'bg-primary text-white': index === selectedIndex }"
+                                     @click="selectItem(item)"
+                                     @mouseenter="selectedIndex = index">
+                                    <div x-text="item.display || item.name"></div>
+                                    <small class="opacity-75" x-show="item.client_name" x-text="'Client: ' + item.client_name"></small>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary task-submit-btn">
                     <i class="bi bi-plus-circle"></i>
                     <span class="d-none d-sm-inline ms-1">Add Task</span>
                 </button>
-            </div>
-
-            <!-- Autocomplete Dropdown -->
-            <div x-show="showAutocomplete" 
-                 class="autocomplete-dropdown position-absolute w-100 mt-1"
-                 x-transition:enter="transition ease-out duration-100"
-                 x-transition:enter-start="opacity-0 scale-95"
-                 x-transition:enter-end="opacity-100 scale-100"
-                 x-transition:leave="transition ease-in duration-75"
-                 x-transition:leave-start="opacity-100 scale-100"
-                 x-transition:leave-end="opacity-0 scale-95">
-                <div class="bg-white border rounded-3 shadow-lg">
-                    <template x-for="(item, index) in filteredItems" :key="item.id">
-                        <div class="autocomplete-item px-3 py-2 cursor-pointer border-bottom"
-                             :class="{ 'bg-primary text-white': index === selectedIndex }"
-                             @click="selectItem(item)"
-                             @mouseenter="selectedIndex = index">
-                            <div x-text="item.display || item.name"></div>
-                            <small class="opacity-75" x-show="item.client_name" x-text="'Client: ' + item.client_name"></small>
-                        </div>
-                    </template>
-                </div>
             </div>
         </div>
 

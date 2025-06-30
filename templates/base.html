@@ -129,7 +129,7 @@
     {% if session.user_id %}
     <div x-data="logEntryModal()">
         <div class="floating-action-btn">
-            <button class="fab-main" type="button" @click="openModal()" title="Log Entry">
+            <button class="fab-main" type="button" @click="openModal()" title="Log Effort">
                 <i class="bi bi-clock"></i>
             </button>
         </div>
@@ -139,7 +139,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="logEntryModalLabel">Log Entry</h5>
+                    <h5 class="modal-title" id="logEntryModalLabel">Log Effort</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -200,7 +200,7 @@
             <div class="modal-content">
                 <form method="POST" action="{{ url_for('add_time_log') }}">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="timeLogModalLabel">Time Log Entry</h5>
+                        <h5 class="modal-title" id="timeLogModalLabel">Log Effort</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">

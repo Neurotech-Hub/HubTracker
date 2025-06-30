@@ -4,6 +4,7 @@ from datetime import datetime
 import pytz
 import os
 import markdown
+from sqlalchemy import func, desc, text
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -1042,29 +1043,40 @@ def reports():
     
     # Daily log activity for chart
     log_activity_data = []
-    for i in range(30):
-        date = thirty_days_ago + timedelta(days=i)
-        date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
-        date_end = date_start + timedelta(days=1)
-        
-        touch_count = Log.query.filter(
-            Log.created_at >= date_start,
-            Log.created_at < date_end,
-            Log.is_touch == True
-        ).count()
-        
-        detailed_count = Log.query.filter(
-            Log.created_at >= date_start,
-            Log.created_at < date_end,
-            Log.is_touch == False
-        ).count()
-        
+    
+    # If there are no logs at all, just return empty data for today
+    if total_logs_last_30 == 0:
+        today = get_current_time()
         log_activity_data.append({
-            'date': date.strftime('%Y-%m-%d'),
-            'touch_logs': touch_count,
-            'detailed_logs': detailed_count,
-            'total_logs': touch_count + detailed_count
+            'date': today.strftime('%Y-%m-%d'),
+            'touch_logs': 0,
+            'detailed_logs': 0,
+            'total_logs': 0
         })
+    else:
+        for i in range(30):
+            date = thirty_days_ago + timedelta(days=i)
+            date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+            date_end = date_start + timedelta(days=1)
+            
+            touch_count = Log.query.filter(
+                Log.created_at >= date_start,
+                Log.created_at < date_end,
+                Log.is_touch == True
+            ).count()
+            
+            detailed_count = Log.query.filter(
+                Log.created_at >= date_start,
+                Log.created_at < date_end,
+                Log.is_touch == False
+            ).count()
+            
+            log_activity_data.append({
+                'date': date.strftime('%Y-%m-%d'),
+                'touch_logs': touch_count,
+                'detailed_logs': detailed_count,
+                'total_logs': touch_count + detailed_count
+            })
     
     # Most logged projects (last 30 days)
     most_logged_projects = db.session.query(
@@ -1072,8 +1084,8 @@ def reports():
         Client.name.label('client_name'),
         func.count(Log.id).label('log_count'),
         func.sum(Log.hours).label('total_hours'),
-        func.sum(func.case([(Log.is_touch == True, 1)], else_=0)).label('touch_count'),
-        func.sum(func.case([(Log.is_touch == False, 1)], else_=0)).label('detailed_count')
+        func.sum(text('CASE WHEN is_touch = 1 THEN 1 ELSE 0 END')).label('touch_count'),
+        func.sum(text('CASE WHEN is_touch = 0 THEN 1 ELSE 0 END')).label('detailed_count')
     ).join(Client).join(Log).filter(
         Log.created_at >= thirty_days_ago
     ).group_by(Project.id, Project.name, Client.name).order_by(desc('log_count')).limit(8).all()
@@ -1084,8 +1096,8 @@ def reports():
         User.last_name,
         func.count(Log.id).label('log_count'),
         func.sum(Log.hours).label('total_hours'),
-        func.sum(func.case([(Log.is_touch == True, 1)], else_=0)).label('touch_count'),
-        func.sum(func.case([(Log.is_touch == False, 1)], else_=0)).label('detailed_count')
+        func.sum(text('CASE WHEN is_touch = 1 THEN 1 ELSE 0 END')).label('touch_count'),
+        func.sum(text('CASE WHEN is_touch = 0 THEN 1 ELSE 0 END')).label('detailed_count')
     ).join(Log).filter(
         Log.created_at >= thirty_days_ago
     ).group_by(User.id).order_by(desc('log_count')).limit(8).all()

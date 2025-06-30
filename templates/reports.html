@@ -141,11 +141,19 @@
                         </div>
                     </div>
 
+                    {% if total_logs_last_30 > 0 %}
                     <!-- Log Activity Chart -->
                     <div class="mb-4">
                         <h6 class="text-muted mb-3">Daily Log Activity</h6>
                         <canvas id="logActivityChart" width="400" height="200"></canvas>
                     </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-journal-text fs-1 mb-3 d-block"></i>
+                        <div class="fw-medium">No logging activity</div>
+                        <div class="small">Log some time to see activity trends</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -398,6 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Log Activity Chart
+    {% if total_logs_last_30 > 0 %}
     const logCtx = document.getElementById('logActivityChart').getContext('2d');
     
     // Data from backend
@@ -446,6 +455,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     stacked: true,
                     grid: {
                         color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    suggestedMax: 5,
+                    ticks: {
+                        stepSize: 1
                     }
                 },
                 x: {
@@ -457,6 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+    {% endif %}
 });
 </script>
 {% endblock %} 

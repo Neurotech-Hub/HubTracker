@@ -156,7 +156,7 @@ body {
     border: none;
     transition: all 0.3s ease;
     position: relative;
-    overflow: hidden;
+    overflow: visible !important;
 }
 
 .quick-task-form::before {
@@ -241,16 +241,67 @@ body {
     }
 }
 
+/* Task Input Wrapper */
+.task-input-wrapper {
+    position: relative;
+}
+
 /* Autocomplete Dropdown */
 .autocomplete-dropdown {
-    z-index: 1000;
-    max-height: 200px;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    margin-top: 4px;
+    max-height: 300px;
     overflow-y: auto;
+}
+
+/* Ensure dropdown container is always on top and properly positioned */
+.task-input-wrapper .autocomplete-dropdown {
+    position: absolute !important;
+    z-index: 999999 !important;
+}
+
+/* Override any Bootstrap modal z-index */
+.modal {
+    z-index: 99990;
+}
+
+/* Reset stacking context for all containers */
+.container-fluid,
+.row,
+.col-12,
+.card,
+.card-body,
+.task-list-section,
+.task-section-header-compact {
+    position: static !important;
+    transform: none !important;
+}
+
+.task-input-wrapper>div {
+    overflow: visible !important;
+}
+
+.autocomplete-dropdown .bg-white {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .autocomplete-item {
     cursor: pointer;
     transition: all 0.15s ease;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    display: block;
+    width: 100%;
+    white-space: nowrap;
 }
 
 .autocomplete-item:hover {
@@ -266,7 +317,14 @@ body {
     background-color: var(--primary-color) !important;
 }
 
-/* Task Assignments Display */
+.autocomplete-item small {
+    display: block;
+    margin-top: 0.25rem;
+    opacity: 0.75;
+    white-space: nowrap;
+}
+
+/* Task Assignment Display */
 .task-assignments {
     min-height: 2rem;
     padding-left: 0.25rem;
@@ -1791,8 +1849,6 @@ h2.mb-0 {
     font-weight: 500;
 }
 
-
-
 /* Clean placeholder styling */
 .form-control::placeholder,
 .form-select::placeholder,
@@ -2124,8 +2180,6 @@ textarea:focus::placeholder {
     --random-x: -1.5;
     --random-y: 0.8;
 }
-
-
 
 /* Drag and Drop Visual Feedback */
 .sortable-drag {
