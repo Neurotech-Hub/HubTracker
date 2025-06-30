@@ -1,0 +1,67 @@
+<!-- Task List Items -->
+<div class="task-list">
+    <template x-for="task in filteredTasks" :key="task.id">
+        <div class="task-item-compact" :class="{ 'task-completed': task.is_complete }">
+            <!-- Checkbox for completion -->
+            <form :action="'/task/' + task.id + '/complete'" method="POST" class="task-checkbox-form">
+                <!-- Assignment indicator (pulsating LED) - positioned absolutely -->
+                <div class="task-assignment-indicator" x-show="isAssignedToMe(task)" x-transition>
+                    <div class="assignment-led"></div>
+                </div>
+                <button type="submit" class="task-checkbox" :class="{ 'checked': task.is_complete }" :title="task.is_complete ? 'Mark Incomplete' : 'Mark Complete'">
+                    <i class="bi bi-check" x-show="task.is_complete"></i>
+                </button>
+            </form>
+            
+            <!-- Task Content -->
+            <div class="task-content-compact">
+                <!-- Main task description -->
+                <div class="task-description-main" x-html="getDisplayDescription(task)" :class="{ 'completed-text': task.is_complete }"></div>
+                
+                <!-- Metadata - visible on hover -->
+                <div class="task-metadata">
+                    <!-- Project -->
+                    <span x-show="task.project_name" class="task-meta-item task-project-meta">
+                        <i class="bi bi-folder"></i>
+                        <span x-text="task.project_name + (task.client_name ? ' (' + task.client_name + ')' : '')"></span>
+                    </span>
+                    
+                    <!-- Assigned To -->
+                    <span x-show="task.assigned_to_name" class="task-meta-item task-assignee-meta">
+                        <i class="bi bi-person"></i>
+                        <span x-text="'Assigned to ' + task.assigned_to_name"></span>
+                    </span>
+                    
+                    <!-- Date -->
+                    <span class="task-meta-item task-date-meta" x-text="formatDate(task.created_at)"></span>
+                </div>
+            </div>
+            
+            <!-- Action buttons - visible on hover -->
+            <div class="task-actions-compact">
+                <!-- Flag/Unflag -->
+                <form :action="'/task/' + task.id + '/' + (task.is_flagged ? 'unflag' : 'flag')" method="POST" style="display: inline;">
+                    <button type="submit" class="task-action-btn-compact" :title="task.is_flagged ? 'Unflag Task' : 'Flag Task'">
+                        <i class="bi bi-flag-fill" :class="task.is_flagged ? 'text-primary' : 'text-muted'"></i>
+                    </button>
+                </form>
+                <!-- Edit -->
+                <button type="button" class="task-action-btn-compact" title="Edit Task" @click="editTask(task)">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <!-- Delete -->
+                <form :action="'/task/' + task.id + '/delete'" method="POST" style="display: inline;">
+                    <button type="submit" class="task-action-btn-compact task-delete-btn" title="Delete Task">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </template>
+
+    <!-- Empty State -->
+    <div x-show="filteredTasks.length === 0" class="task-empty-state text-center py-4">
+        <i class="bi bi-inbox display-4 text-muted mb-3"></i>
+        <p class="text-muted mb-0" x-text="searchQuery ? 'No tasks match your filter' : 'No tasks found'"></p>
+    </div>
+</div> 

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Task: {{ task.description }} - Hub Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('tasks') }}">Tasks</a></li>
+                    <li class="breadcrumb-item active">{{ task.description[:50] }}{% if task.description|length > 50 %}...{% endif %}</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2>{{ task.description }}</h2>
+                    <p class="text-muted mb-0">
+                        {% if task.project %}
+                        Project: <a href="{{ url_for('project_detail', project_id=task.project.id) }}">{{ task.project.name }}</a>
+                        {% if task.project.client %}
+                        ({{ task.project.client.name }})
+                        {% endif %}
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <!-- Flag toggle -->
+                    <form method="POST" action="{{ url_for('unflag_task' if is_flagged else 'flag_task', task_id=task.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-link text-decoration-none p-1" title="{{ 'Unflag Task' if is_flagged else 'Flag Task' }}">
+                            <i class="bi bi-flag-fill {{ 'text-primary' if is_flagged else 'text-muted' }}"></i>
+                        </button>
+                    </form>
+                    
+                    <form method="POST" action="{{ url_for('complete_task', task_id=task.id) }}" class="d-inline">
+                        <button type="submit" class="btn {% if task.is_complete %}btn-success{% else %}btn-outline-success{% endif %}">
+                            {% if task.is_complete %}
+                            <i class="bi bi-check-circle-fill me-1"></i>Completed
+                            {% else %}
+                            <i class="bi bi-circle me-1"></i>Mark Complete
+                            {% endif %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Task Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-sm-3 text-muted">Status:</div>
+                                <div class="col-sm-9">
+                                    {% if task.is_complete %}
+                                    <span class="badge-clean badge-status-completed">Completed</span>
+                                    {% else %}
+                                    <span class="badge-clean badge-status-pending">Pending</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-sm-3 text-muted">Created:</div>
+                                <div class="col-sm-9">{{ task.created_at.strftime('%Y-%m-%d %I:%M %p') }}</div>
+                            </div>
+                            
+                            {% if task.assigned_to %}
+                            <div class="row mb-3">
+                                <div class="col-sm-3 text-muted">Assigned to:</div>
+                                <div class="col-sm-9">{{ task.assignee.full_name }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if task.creator %}
+                            <div class="row mb-3">
+                                <div class="col-sm-3 text-muted">Created by:</div>
+                                <div class="col-sm-9">{{ task.creator.full_name }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if task.is_complete and task.completed_on %}
+                            <div class="row mb-3">
+                                <div class="col-sm-3 text-muted">Completed:</div>
+                                <div class="col-sm-9">{{ task.completed_on.strftime('%Y-%m-%d %I:%M %p') }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if task.is_complete and task.completer %}
+                            <div class="row mb-3">
+                                <div class="col-sm-3 text-muted">Completed by:</div>
+                                <div class="col-sm-9">{{ task.completer.full_name }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    {% if project_logs %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Related Project Activity</h6>
+                        </div>
+                        <div class="card-body">
+                            {% for log in project_logs %}
+                            <div class="mb-2">
+                                {% if log.is_touch %}
+                                <i class="bi bi-finger-index text-success"></i> Touch log
+                                {% else %}
+                                <i class="bi bi-clock text-primary"></i> Time log
+                                {% if log.hours %}({{ log.hours }}h){% endif %}
+                                {% endif %}
+                                <br>
+                                <small class="text-muted">{{ log.user.full_name }} - {{ log.created_at.strftime('%m/%d %I:%M %p') }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6>Quick Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-column gap-2">
+                                <button class="action-btn-clean btn-edit align-self-start" data-bs-toggle="modal" data-bs-target="#editTaskModal" title="Edit Task">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {% if task.project %}
+                                <a href="{{ url_for('project_detail', project_id=task.project.id) }}" class="action-btn-clean btn-view align-self-start" title="View Project">
+                                    <i class="bi bi-folder"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Task Modal -->
+<div class="modal fade" id="editTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('edit_task', task_id=task.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editDescription" class="form-label">Description *</label>
+                        <input type="text" class="form-control" id="editDescription" name="description" value="{{ task.description }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editProject" class="form-label">Project</label>
+                        <select class="form-select" id="editProject" name="project_id">
+                            <option value="">No Project</option>
+                            {% for project in projects %}
+                            <option value="{{ project.id }}" {% if task.project_id == project.id %}selected{% endif %}>
+                                {{ project.name }} ({{ project.client.name }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editAssignee" class="form-label">Assign To</label>
+                        <select class="form-select" id="editAssignee" name="assigned_to">
+                            <option value="">Unassigned</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}" {% if task.assigned_to == user.id %}selected{% endif %}>
+                                {{ user.full_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,27 +4,325 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="mb-1">Memberships</h1>
-            <p class="text-muted mb-0">Track client memberships and subscription status</p>
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">Memberships</h2>
+                </div>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMembershipModal">
+                    <i class="bi bi-plus-circle me-2"></i>Add Membership
+                </button>
+            </div>
         </div>
-        <button class="btn btn-info">
-            <i class="bi bi-plus-circle me-2"></i>New Membership
-        </button>
     </div>
 
+    <!-- Memberships List -->
     <div class="row">
         <div class="col-12">
-            <div class="card">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-card-list display-1 text-muted mb-3"></i>
-                    <h4>Membership Management</h4>
-                    <p class="text-muted">This section will contain membership management functionality.</p>
-                    <p class="text-muted small">Features coming soon: Membership creation, renewal tracking, billing management, and status monitoring.</p>
+            {% if memberships %}
+                <div class="row g-4">
+                    {% for membership in memberships %}
+                    <div class="col-lg-6 col-xl-4">
+                        <div class="card h-100 membership-card" onclick="window.location.href='{{ url_for('membership_detail', membership_id=membership.id) }}'" style="cursor: pointer;">
+                            <div class="card-header d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="card-title mb-1">
+                                        Membership #{{ membership.id }}
+                                        {% if membership.is_annual %}
+                                        <span class="badge-clean badge-membership-annual ms-2">Annual</span>
+                                        {% else %}
+                                        <span class="badge-clean badge-membership-monthly ms-2">Monthly</span>
+                                        {% endif %}
+                                    </h5>
+                                    {% if membership.start_date %}
+                                    <small class="text-muted">Started {{ membership.start_date.strftime('%b %d, %Y') }}</small>
+                                    {% else %}
+                                    <small class="text-muted">No start date</small>
+                                    {% endif %}
+                                </div>
+                                <div class="dropdown" onclick="event.stopPropagation();">
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <button class="dropdown-item" type="button"
+                                                    onclick="editMembership({{ membership.id }}, '{{ membership.start_date.strftime('%Y-%m-%d') if membership.start_date else '' }}', {{ membership.is_annual|lower }}, '{{ membership.cost or '' }}', '{{ membership.time or '' }}', '{{ membership.budget or '' }}', '{{ membership.notes or '' }}')"
+                                                    data-bs-toggle="modal" data-bs-target="#editMembershipModal">
+                                                <i class="bi bi-pencil me-2"></i>Edit Membership
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        {% if membership.clients.count() == 0 %}
+                                            <li>
+                                                <button class="dropdown-item text-danger" type="button"
+                                                        onclick="confirmDelete('Membership #{{ membership.id }}', '{{ url_for('delete_membership', membership_id=membership.id) }}')">
+                                                    <i class="bi bi-trash me-2"></i>Delete Membership
+                                                </button>
+                                            </li>
+                                        {% else %}
+                                            <li>
+                                                <span class="dropdown-item-text text-muted small">
+                                                    <i class="bi bi-info-circle me-1"></i>
+                                                    Cannot delete - has clients
+                                                </span>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- Budget Information Grid -->
+                                <div class="row mb-3">
+                                    {% if membership.cost %}
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <div class="text-muted small">Cost</div>
+                                            <div class="badge-clean badge-cost">${{ "%.2f"|format(membership.cost) }}</div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if membership.time %}
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <div class="text-muted small">Hours</div>
+                                            <div class="badge-clean badge-count">{{ membership.time }}h</div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if membership.budget %}
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <div class="text-muted small">Budget</div>
+                                            <div class="badge-clean badge-cost">${{ "%.2f"|format(membership.budget) }}</div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Notes Section - Always shown -->
+                                <div class="notes-section">
+                                    <h6 class="text-muted mb-2">Notes</h6>
+                                    {% if membership.notes %}
+                                    <div class="rendered-notes">
+                                        {{ membership.notes|markdown|safe }}
+                                    </div>
+                                    {% else %}
+                                    <div class="text-muted small">No notes added</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white border-top">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        {% set open_projects = namespace(count=0) %}
+                                        {% for client in membership.clients %}
+                                            {% for project in client.projects %}
+                                                {% if project.status != 'Archived' %}
+                                                    {% set open_projects.count = open_projects.count + 1 %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endfor %}
+                                        {{ membership.clients.count() }} Client{{ 's' if membership.clients.count() != 1 else '' }}, {{ open_projects.count }} Open Project{{ 's' if open_projects.count != 1 else '' }}
+                                    </small>
+                                    <div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-card-list fs-1 mb-3 d-block"></i>
+                    <div class="fw-medium">No memberships found</div>
+                    <div class="small mb-3">Create your first membership to get started</div>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMembershipModal">
+                        <i class="bi bi-plus-circle me-2"></i>Add Membership
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Membership Modal -->
+<div class="modal fade" id="addMembershipModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('add_membership') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Membership</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="addMembershipStartDate" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="addMembershipStartDate" name="start_date">
+                        <div class="form-text">Optional - when did this membership begin?</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="addMembershipAnnual" name="is_annual">
+                            <label class="form-check-label" for="addMembershipAnnual">
+                                Annual Membership
+                            </label>
+                            <div class="form-text">Enable for yearly memberships, disable for monthly</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addMembershipCost" class="form-label">Cost</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="addMembershipCost" name="cost" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="form-text">Optional - monthly or annual cost</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addMembershipTime" class="form-label">Time Budget</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="addMembershipTime" name="time" min="0" placeholder="0">
+                                    <span class="input-group-text">hrs</span>
+                                </div>
+                                <div class="form-text">Optional - hours included</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addMembershipBudget" class="form-label">Dollar Budget</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="addMembershipBudget" name="budget" step="0.01" min="0" placeholder="0.00">
+                                </div>
+                                <div class="form-text">Optional - dollar budget</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addMembershipNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="addMembershipNotes" name="notes" rows="4" placeholder="Optional notes - supports Markdown formatting"></textarea>
+                        <div class="form-text">You can use **bold**, *italic*, and other Markdown formatting</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Membership</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Membership Modal -->
+<div class="modal fade" id="editMembershipModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="editMembershipForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Membership</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editMembershipStartDate" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="editMembershipStartDate" name="start_date">
+                        <div class="form-text">Optional - when did this membership begin?</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="editMembershipAnnual" name="is_annual">
+                            <label class="form-check-label" for="editMembershipAnnual">
+                                Annual Membership
+                            </label>
+                            <div class="form-text">Enable for yearly memberships, disable for monthly</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editMembershipCost" class="form-label">Cost</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="editMembershipCost" name="cost" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="form-text">Optional - monthly or annual cost</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editMembershipTime" class="form-label">Time Budget</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="editMembershipTime" name="time" min="0" placeholder="0">
+                                    <span class="input-group-text">hrs</span>
+                                </div>
+                                <div class="form-text">Optional - hours included</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editMembershipBudget" class="form-label">Dollar Budget</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="editMembershipBudget" name="budget" step="0.01" min="0" placeholder="0.00">
+                                </div>
+                                <div class="form-text">Optional - dollar budget</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editMembershipNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="editMembershipNotes" name="notes" rows="4" placeholder="Optional notes - supports Markdown formatting"></textarea>
+                        <div class="form-text">You can use **bold**, *italic*, and other Markdown formatting</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Membership</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete "<span id="deleteItemName"></span>"?</p>
+                <p class="text-muted mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" id="deleteForm" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function editMembership(id, startDate, isAnnual, cost, time, budget, notes) {
+    document.getElementById('editMembershipForm').action = `/edit_membership/${id}`;
+    document.getElementById('editMembershipStartDate').value = startDate;
+    document.getElementById('editMembershipAnnual').checked = isAnnual;
+    document.getElementById('editMembershipCost').value = cost || '';
+    document.getElementById('editMembershipTime').value = time || '';
+    document.getElementById('editMembershipBudget').value = budget || '';
+    document.getElementById('editMembershipNotes').value = notes || '';
+}
+
+function confirmDelete(itemName, deleteUrl) {
+    document.getElementById('deleteItemName').textContent = itemName;
+    document.getElementById('deleteForm').action = deleteUrl;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
 {% endblock %} 

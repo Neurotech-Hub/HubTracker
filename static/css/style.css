@@ -2,8 +2,8 @@
 
 :root {
     --sidebar-width: 250px;
-    --sidebar-bg: #2c3e50;
-    --sidebar-hover: #34495e;
+    --sidebar-bg: #1a1a1a;
+    --sidebar-hover: #2d2d2d;
     --primary-color: #3498db;
 }
 
@@ -29,6 +29,26 @@ body {
 .sidebar-header {
     padding: 1.5rem 1rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Logo Styling */
+.sidebar-logo {
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.logo-hub {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.logo-tracker {
+    color: var(--primary-color);
+    font-weight: 400;
+    margin-left: 0.1em;
 }
 
 .sidebar-nav {
@@ -72,6 +92,1010 @@ body {
 
 .main-content.with-sidebar {
     margin-left: var(--sidebar-width);
+}
+
+/* Flash Messages */
+.flash-messages-container {
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    padding: 1rem 0 0 0;
+    background: rgba(248, 249, 250, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    margin-bottom: 0;
+}
+
+.flash-messages-container .alert {
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+.flash-messages-container .alert:last-child {
+    margin-bottom: 1rem;
+}
+
+/* Login Page Flash Messages */
+.flash-messages-container.login-page-messages {
+    position: fixed;
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    max-width: 500px;
+    background: transparent;
+    backdrop-filter: none;
+    border-bottom: none;
+    padding: 0;
+}
+
+.flash-messages-container.login-page-messages .container-fluid {
+    padding: 0 1rem;
+}
+
+.flash-messages-container.login-page-messages .alert {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Hide empty flash container */
+.flash-messages-container:empty,
+.flash-messages-container .container-fluid:empty {
+    display: none;
+}
+
+/* Quick Task Form */
+.quick-task-form {
+    background: linear-gradient(135deg, #ff6b9d, #c44be6, #8b5cf6, #06b6d4);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 30px rgba(139, 92, 246, 0.3);
+    padding: 1.5rem;
+    border: none;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.quick-task-form::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
+    background: white;
+    border-radius: 0.625rem;
+    z-index: 1;
+}
+
+.quick-task-form>* {
+    position: relative;
+    z-index: 2;
+}
+
+.quick-task-form:hover {
+    box-shadow: 0 8px 40px rgba(139, 92, 246, 0.4);
+    transform: translateY(-2px);
+}
+
+.task-input {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 0.5rem;
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.task-input:focus {
+    border-color: rgba(255, 255, 255, 0.8);
+    background: white;
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.3);
+}
+
+.task-input::placeholder {
+    color: #adb5bd !important;
+    font-weight: 400;
+    opacity: 0.7 !important;
+    font-style: italic;
+}
+
+.task-submit-btn {
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #8b5cf6 !important;
+    border: 2px solid rgba(255, 255, 255, 0.5) !important;
+    padding: 0.875rem 1.25rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    backdrop-filter: blur(10px);
+}
+
+.task-submit-btn:hover {
+    background: white !important;
+    color: #8b5cf6 !important;
+    border-color: rgba(255, 255, 255, 0.8) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.4);
+}
+
+.task-submit-btn:active {
+    transform: translateY(0);
+}
+
+/* Responsive task form */
+@media (max-width: 576px) {
+    .task-submit-btn span {
+        display: none !important;
+    }
+
+    .task-submit-btn {
+        padding: 0.875rem;
+        width: auto;
+        min-width: 50px;
+    }
+}
+
+/* Autocomplete Dropdown */
+.autocomplete-dropdown {
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.autocomplete-item {
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.autocomplete-item:hover {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none !important;
+}
+
+.autocomplete-item.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+/* Task Assignments Display */
+.task-assignments {
+    min-height: 2rem;
+    padding-left: 0.25rem;
+}
+
+.task-assignments small {
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.assignment-tag {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(52, 152, 219, 0.1);
+    color: var(--primary-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem;
+    font-weight: 500;
+    border: 1px solid rgba(52, 152, 219, 0.2);
+    font-size: 0.7rem !important;
+    transition: all 0.2s ease;
+}
+
+.assignment-tag i {
+    opacity: 0.8;
+    font-size: 0.65rem;
+}
+
+.task-assignments .fst-italic {
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+/* Enhanced input for better UX */
+.task-input {
+    font-size: 1rem;
+    line-height: 1.5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.task-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.15);
+}
+
+/* Tag-like appearance for bracketed content in input */
+.task-input {
+    background: linear-gradient(transparent, transparent);
+    background-size: 1px 1px;
+    background-repeat: no-repeat;
+}
+
+/* Visual hint for tag format */
+.task-input::placeholder {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Smooth transitions */
+.quick-task-form * {
+    transition: all 0.2s ease;
+}
+
+/* Floating Action Button */
+.floating-action-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.fab-main {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    background: var(--primary-color);
+    border: none;
+    color: white;
+    font-size: 1.25rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fab-main:hover {
+    background: #2980b9;
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
+}
+
+.fab-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    transform-origin: bottom center;
+}
+
+.fab-action {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.fab-action:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: scale(1.1);
+    text-decoration: none;
+}
+
+.fab-action::before {
+    content: attr(title);
+    position: absolute;
+    right: 3.5rem;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    pointer-events: none;
+}
+
+.fab-action:hover::before {
+    opacity: 1;
+    visibility: visible;
+    right: 4rem;
+}
+
+/* FAB icon transitions */
+.fab-main i {
+    transition: all 0.2s ease;
+}
+
+/* Responsive FAB */
+@media (max-width: 768px) {
+    .floating-action-btn {
+        bottom: 1rem;
+        right: 1rem;
+    }
+
+    .fab-main {
+        width: 3rem;
+        height: 3rem;
+        font-size: 1rem;
+    }
+
+    .fab-action {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 0.875rem;
+    }
+
+    .fab-action::before {
+        display: none;
+        /* Hide tooltips on mobile */
+    }
+}
+
+/* Task List Styles */
+.task-list-section {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Compact Section Headers */
+.task-section-header-compact {
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.task-section-header-compact h6 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+}
+
+/* Round Task Count Bubbles */
+.task-count-bubble {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    background: #f1f5f9;
+    color: #64748b;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0 0.25rem;
+}
+
+/* Project Name Badges (reasonable radius, not circular) */
+.project-name-badge {
+    display: inline-flex;
+    align-items: center;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+/* Project Grouping Styles */
+.project-group {
+    margin-bottom: 2rem;
+}
+
+.project-section-header {
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.project-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    color: #64748b !important;
+}
+
+.task-count-small {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.task-creator-meta {
+    color: #94a3b8;
+}
+
+.task-search .input-group {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.task-search .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.15);
+}
+
+.task-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 600px;
+}
+
+/* Compact Task Items (Todoist-style) */
+.task-item-compact {
+    display: flex;
+    align-items: flex-start;
+    padding: 0.4rem 0.75rem;
+    margin-bottom: 1px;
+    background: white;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    gap: 0.75rem;
+}
+
+/* Task Assignment LED Indicator */
+.task-assignment-indicator {
+    position: absolute;
+    left: -0.6rem;
+    /* Simple positioning */
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 0.5rem;
+    height: 0.5rem;
+    z-index: 1;
+}
+
+.assignment-led {
+    width: 0.375rem;
+    height: 0.375rem;
+    background: #10b981;
+    /* Emerald green */
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    animation: pulse-led 2s infinite;
+}
+
+@keyframes pulse-led {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: scale(0.9);
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+    }
+}
+
+.task-item-compact:hover {
+    background: #f8f9fa;
+}
+
+.task-item-compact.task-completed {
+    opacity: 0.6;
+}
+
+/* Task Checkbox */
+.task-checkbox-form {
+    margin: 0;
+    flex-shrink: 0;
+    position: relative;
+    /* For absolute positioning of LED */
+}
+
+.task-checkbox {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    margin-top: 0.125rem;
+}
+
+.task-checkbox:hover {
+    border-color: var(--primary-color);
+    background: rgba(52, 152, 219, 0.1);
+}
+
+.task-checkbox.checked {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.task-checkbox i {
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+/* Task Content */
+.task-content-compact {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-description-main {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: #374151;
+    margin-bottom: 0;
+    word-break: break-word;
+}
+
+.task-description-main.completed-text {
+    text-decoration: line-through;
+    color: #9ca3af;
+}
+
+/* Styled tags within task descriptions */
+.task-tag {
+    display: inline;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid;
+    margin: 0 0.125rem;
+    white-space: nowrap;
+}
+
+.task-tag-project {
+    background: rgba(52, 152, 219, 0.1);
+    color: var(--primary-color);
+    border-color: rgba(52, 152, 219, 0.2);
+}
+
+.task-tag-user {
+    background: rgba(5, 150, 105, 0.1);
+    color: #059669;
+    border-color: rgba(5, 150, 105, 0.2);
+}
+
+/* Muted tags in completed tasks */
+.task-description-main.completed-text .task-tag {
+    opacity: 0.6;
+    background: rgba(156, 163, 175, 0.1);
+    color: #9ca3af;
+    border-color: rgba(156, 163, 175, 0.2);
+}
+
+/* Task Metadata - Hidden by default, expands on hover */
+.task-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    margin-top: 0;
+}
+
+.task-item-compact:hover .task-metadata {
+    max-height: 2rem;
+    opacity: 1;
+    margin-top: 0.375rem;
+}
+
+.task-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.task-meta-item i {
+    font-size: 0.65rem;
+    opacity: 0.8;
+}
+
+.task-project-meta {
+    color: var(--primary-color);
+}
+
+.task-assignee-meta {
+    color: #059669;
+}
+
+.task-date-meta {
+    color: #9ca3af;
+    font-size: 0.7rem;
+}
+
+/* Task Actions - Always visible but subtle */
+.task-actions-compact {
+    display: flex;
+    gap: 0.25rem;
+    opacity: 0.6;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    align-items: flex-start;
+    padding-top: 0.125rem;
+}
+
+.task-item-compact:hover .task-actions-compact {
+    opacity: 1;
+}
+
+.task-action-btn-compact {
+    width: 1.5rem;
+    height: 1.5rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    transition: all 0.1s ease;
+    cursor: pointer;
+}
+
+.task-action-btn-compact:hover {
+    background: #e5e7eb;
+    color: #374151;
+    transform: scale(1.05);
+}
+
+.task-delete-btn:hover {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+/* Clean Action Buttons - for use throughout the app */
+.action-btn-clean {
+    width: 1.75rem;
+    height: 1.75rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: #9ca3af;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    text-decoration: none;
+    margin: 0 0.125rem;
+}
+
+.action-btn-clean:hover {
+    background: #e5e7eb;
+    color: #374151;
+    transform: scale(1.05);
+    text-decoration: none;
+}
+
+.action-btn-clean:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* Specific hover colors for different actions */
+.action-btn-clean.btn-view:hover {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.action-btn-clean.btn-edit:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.action-btn-clean.btn-add:hover {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+.action-btn-clean.btn-delete:hover {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.action-btn-clean.btn-disabled {
+    color: #d1d5db;
+    cursor: not-allowed;
+}
+
+.action-btn-clean.btn-disabled:hover {
+    background: transparent;
+    color: #d1d5db;
+    transform: none;
+}
+
+/* Button groups with clean styling */
+.action-btn-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+}
+
+.task-empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+/* Task Search */
+.task-search {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+}
+
+/* Subtle Inline Filter */
+.task-filter-inline .form-control {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    color: #6c757d;
+    transition: all 0.2s ease;
+}
+
+.task-filter-inline .form-control:focus {
+    color: #495057;
+    background: rgba(52, 152, 219, 0.05) !important;
+    border-radius: 0.25rem;
+    outline: none;
+}
+
+.task-filter-inline .form-control::placeholder {
+    color: #adb5bd !important;
+    opacity: 0.7 !important;
+    font-style: italic;
+}
+
+/* Tasks Created Footer */
+.tasks-created-footer {
+    margin-top: 12px;
+    border-top: 1px solid #eee;
+}
+
+.footer-toggle {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.footer-toggle:hover {
+    background-color: #f8f9fa;
+}
+
+.reference-tasks-container {
+    padding: 8px;
+    margin-top: 4px;
+}
+
+.reference-tasks-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+.reference-tasks-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+}
+
+.reference-tasks-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px;
+}
+
+.reference-tasks-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* CRUD Interface Styles */
+.project-list .bg-light,
+.client-list .bg-light {
+    transition: background-color 0.15s ease;
+}
+
+.project-list .bg-light:hover,
+.client-list .bg-light:hover {
+    background-color: #e9ecef !important;
+}
+
+.membership-stats .stat-item {
+    padding: 0.5rem;
+}
+
+.membership-stats .stat-number {
+    font-size: 1.25rem;
+    line-height: 1.2;
+}
+
+.membership-stats .stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.clients-section,
+.projects-section {
+    background: transparent;
+}
+
+.dropdown-menu {
+    border: 1px solid #e9ecef;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+}
+
+.card.border {
+    border-color: #e9ecef !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card.border:hover {
+    border-color: #dee2e6 !important;
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.075);
+}
+
+/* Form enhancements */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.15);
+}
+
+/* Muted placeholder text - override Bootstrap defaults */
+.form-control::placeholder,
+.form-select::placeholder,
+input::placeholder,
+textarea::placeholder {
+    color: #adb5bd !important;
+    opacity: 0.7 !important;
+    font-style: italic;
+}
+
+.form-control:focus::placeholder,
+.form-select:focus::placeholder,
+input:focus::placeholder,
+textarea:focus::placeholder {
+    color: #ced4da !important;
+    opacity: 0.5 !important;
+}
+
+/* Make sure disabled form elements are also muted */
+.form-control:disabled::placeholder,
+.form-select:disabled::placeholder,
+input:disabled::placeholder,
+textarea:disabled::placeholder {
+    color: #d1d5db !important;
+    opacity: 0.5 !important;
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.table-responsive {
+    border-radius: 0.375rem;
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    color: #6c757d;
+    border-bottom: 2px solid #dee2e6;
+    padding: 0.75rem;
+}
+
+.table td {
+    padding: 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Badge enhancements */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.025em;
+}
+
+.badge.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.badge.bg-success {
+    background-color: #10b981 !important;
+}
+
+.badge.bg-info {
+    background-color: #06b6d4 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6b7280 !important;
+}
+
+/* Responsive task list */
+@media (max-width: 768px) {
+    .task-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+
+    .task-description {
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+    }
+
+    .task-actions {
+        justify-content: flex-end;
+    }
+
+    .task-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .task-badge {
+        font-size: 0.65rem;
+        padding: 0.1rem 0.375rem;
+    }
+
+    /* Slightly smaller LED on mobile */
+    .assignment-led {
+        width: 0.3rem;
+        height: 0.3rem;
+    }
+
+    /* Adjust LED position on mobile */
+    .task-assignment-indicator {
+        left: -0.5rem;
+        /* Closer on mobile */
+    }
 }
 
 /* Login Page Styles */
@@ -248,4 +1272,919 @@ body {
 .spinner-border-sm {
     width: 1rem;
     height: 1rem;
+}
+
+/* Log Entry Modal Styles */
+.projects-list .project-item {
+    padding: 12px;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.projects-list .project-item:hover {
+    background-color: #f8f9fa;
+}
+
+.projects-list .project-item .fw-bold {
+    font-size: 0.95rem;
+    color: #2d3748;
+}
+
+.projects-list .project-item .text-muted {
+    font-size: 0.8rem;
+    color: #718096;
+}
+
+/* Project Touch Area with Full Card Overlay */
+.project-touch-area {
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.touch-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(52, 152, 219, 0.9);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.project-touch-area:hover .touch-overlay {
+    opacity: 1;
+}
+
+.touch-overlay i {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.touch-overlay span {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Time Log Button - matches fab-main styling with higher z-index */
+.log-time-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: var(--primary-color);
+    border: none;
+    color: white;
+    font-size: 0.875rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+}
+
+.log-time-btn:hover {
+    background: #2980b9;
+    transform: scale(1.05);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+    color: white;
+}
+
+.log-time-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+}
+
+/* Responsive adjustments for log modal */
+@media (max-width: 768px) {
+    .projects-list .project-item {
+        padding: 8px;
+    }
+
+    .projects-list .project-item .fw-bold {
+        font-size: 0.9rem;
+    }
+
+    .projects-list .btn-sm {
+        padding: 3px 6px;
+        font-size: 0.75rem;
+    }
+}
+
+/* Pinned Projects Sidebar Section */
+.sidebar-section {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 1rem;
+}
+
+.sidebar-section-header h6 {
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+}
+
+.pinned-projects-list {
+    padding: 0;
+}
+
+.pinned-project-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.4rem;
+    margin: 0 0.75rem 0.2rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    text-decoration: none;
+    color: rgba(255, 255, 255, 0.8);
+    transition: all 0.2s;
+    gap: 0.5rem;
+}
+
+.pinned-project-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    text-decoration: none;
+}
+
+.pinned-project-item.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.pinned-project-item .project-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.pinned-project-item .project-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    margin-bottom: 0.125rem;
+}
+
+.pinned-project-item small {
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+.pinned-project-item .task-count-bubble {
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 0.65rem;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.2rem;
+}
+
+.pinned-project-item:hover .task-count-bubble {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.pinned-project-item.active .task-count-bubble {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Rendered Markdown Styles */
+.rendered-notes {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: #374151;
+}
+
+.rendered-notes p {
+    margin-bottom: 0.75rem;
+}
+
+.rendered-notes p:last-child {
+    margin-bottom: 0;
+}
+
+.rendered-notes h1,
+.rendered-notes h2,
+.rendered-notes h3,
+.rendered-notes h4,
+.rendered-notes h5,
+.rendered-notes h6 {
+    margin-top: 1.25rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.rendered-notes h1:first-child,
+.rendered-notes h2:first-child,
+.rendered-notes h3:first-child,
+.rendered-notes h4:first-child,
+.rendered-notes h5:first-child,
+.rendered-notes h6:first-child {
+    margin-top: 0;
+}
+
+.rendered-notes strong {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.rendered-notes em {
+    font-style: italic;
+    color: #4b5563;
+}
+
+.rendered-notes ul,
+.rendered-notes ol {
+    margin: 0.75rem 0;
+    padding-left: 1.5rem;
+}
+
+.rendered-notes li {
+    margin-bottom: 0.25rem;
+}
+
+.rendered-notes code {
+    background: #f3f4f6;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.8125rem;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    color: #dc2626;
+}
+
+.rendered-notes pre {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+    overflow-x: auto;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+.rendered-notes pre code {
+    background: none;
+    padding: 0;
+    color: #374151;
+}
+
+.rendered-notes blockquote {
+    border-left: 4px solid #e5e7eb;
+    padding-left: 1rem;
+    margin: 0.75rem 0;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.rendered-notes a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.rendered-notes a:hover {
+    text-decoration: underline;
+}
+
+/* Membership Card Styles */
+.membership-details {
+    background: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+}
+
+.notes-section {
+    border-top: 1px solid #e9ecef;
+    padding-top: 0.75rem;
+}
+
+.notes-section h6 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Subtle Membership Cards with Bootstrap-like styling */
+.membership-card {
+    border: 1px solid #dee2e6;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.membership-card:hover {
+    border-color: #adb5bd;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Ensure dropdown in cards doesn't inherit pointer cursor */
+.membership-card .dropdown {
+    cursor: default;
+}
+
+/* Clean Badge System - replaces Bootstrap badges */
+.badge-clean {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    margin: 0 0.125rem;
+}
+
+/* Membership Term Badges */
+.badge-membership-annual {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.badge-membership-monthly {
+    background: rgba(6, 182, 212, 0.1);
+    color: #06b6d4;
+    border-color: rgba(6, 182, 212, 0.2);
+}
+
+/* Status Badges */
+.badge-status-active {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.badge-status-prospective {
+    background: rgba(6, 182, 212, 0.1);
+    color: #06b6d4;
+    border-color: rgba(6, 182, 212, 0.2);
+}
+
+.badge-status-archived {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+    border-color: rgba(107, 114, 128, 0.2);
+}
+
+.badge-status-completed {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.badge-status-pending {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
+/* Count Badges */
+.badge-count {
+    background: rgba(52, 152, 219, 0.1);
+    color: var(--primary-color);
+    border-color: rgba(52, 152, 219, 0.2);
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+}
+
+/* Special Purpose Badges */
+.badge-default {
+    background: rgba(6, 182, 212, 0.1);
+    color: #06b6d4;
+    border-color: rgba(6, 182, 212, 0.2);
+}
+
+.badge-cost {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.2);
+    font-weight: 600;
+}
+
+.badge-rank {
+    background: rgba(52, 152, 219, 0.1);
+    color: var(--primary-color);
+    border-color: rgba(52, 152, 219, 0.2);
+    font-weight: 600;
+}
+
+/* Size variants */
+.badge-clean.badge-sm {
+    font-size: 0.65rem;
+    padding: 0.125rem 0.375rem;
+}
+
+.badge-clean.badge-lg {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.6rem;
+}
+
+/* Interactive badges (hover effects for clickable ones) */
+.badge-clean.badge-interactive {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.badge-clean.badge-interactive:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-decoration: none;
+}
+
+/* Override Bootstrap badges in favor of clean badges */
+.badge.bg-primary.use-clean {
+    background: rgba(52, 152, 219, 0.1) !important;
+    color: var(--primary-color) !important;
+    border: 1px solid rgba(52, 152, 219, 0.2) !important;
+    border-radius: 0.75rem !important;
+}
+
+/* Dashboard Styling */
+.dashboard-welcome-simple {
+    margin-bottom: 1rem;
+}
+
+.dashboard-title-simple {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0;
+    letter-spacing: -0.01em;
+}
+
+.dashboard-name-colorful {
+    background: linear-gradient(135deg, #ff6b9d, #c44be6, #8b5cf6, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 600;
+}
+
+/* Dashboard Action Buttons */
+.dashboard-action-btn {
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.dashboard-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced Page Titles */
+h2.mb-0 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 2rem;
+    letter-spacing: -0.01em;
+}
+
+/* Activity Icons */
+.activity-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+/* Compact Activity Icons for Recent Activity */
+.activity-icon-compact {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+}
+
+/* Task Description Styling in Activity Feed */
+.task-description {
+    color: #495057;
+    font-weight: 500;
+}
+
+
+
+/* Clean placeholder styling */
+.form-control::placeholder,
+.form-select::placeholder,
+textarea::placeholder {
+    color: #adb5bd !important;
+    opacity: 0.7 !important;
+    font-style: italic !important;
+}
+
+/* Even lighter when focused */
+.form-control:focus::placeholder,
+.form-select:focus::placeholder,
+textarea:focus::placeholder {
+    opacity: 0.5 !important;
+}
+
+/* Compact Archive Zone for Dashboard */
+.archive-zone-compact {
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    position: relative;
+    min-height: 50px;
+}
+
+.archive-zone-compact:hover {
+    border-color: #6c757d;
+    background: #f1f3f4;
+}
+
+.archive-zone-compact-body {
+    position: relative;
+}
+
+/* Project Add Task Button */
+.project-add-task-btn {
+    background: rgba(108, 117, 125, 0.1);
+    border: 1px solid rgba(108, 117, 125, 0.2);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.project-add-task-btn:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Task Add Button (for tasks page) */
+.task-add-btn {
+    background: rgba(108, 117, 125, 0.1);
+    border: 1px solid rgba(108, 117, 125, 0.2);
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 0.65rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.task-add-btn:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Clean Task Modal Styling */
+#taskModal .modal-content {
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+}
+
+#taskModal .modal-body {
+    border-radius: 1rem;
+}
+
+/* Let the task form use its original beautiful styling */
+#taskModal .quick-task-form {
+    /* Inherit the original task form styles */
+}
+
+#taskModal .btn-link {
+    text-decoration: none;
+    font-weight: 500;
+}
+
+#taskModal .btn-link:hover {
+    text-decoration: none;
+}
+
+/* Kanban Board Styles */
+.kanban-column {
+    background: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    height: fit-content;
+    min-height: 400px;
+}
+
+.kanban-column-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.kanban-column-body {
+    padding: 0.75rem;
+    min-height: 350px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.kanban-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.375rem;
+    cursor: grab;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.kanban-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #dee2e6;
+}
+
+.kanban-card:active {
+    cursor: grabbing;
+}
+
+.kanban-card-header {
+    margin-bottom: 0.25rem;
+}
+
+.kanban-card-header .fw-medium {
+    font-weight: 600;
+    color: #2c3e50;
+    line-height: 1.2;
+    font-size: 0.875rem;
+    margin-bottom: 0.125rem;
+}
+
+.kanban-card-header small {
+    line-height: 1.1;
+}
+
+.kanban-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.25rem;
+}
+
+.kanban-card-ghost {
+    opacity: 0.5;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+}
+
+.kanban-card-chosen {
+    transform: rotate(5deg);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.kanban-card-drag {
+    transform: rotate(5deg);
+    opacity: 0.9;
+}
+
+/* Archive Zone */
+.archive-zone {
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 0.75rem;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.archive-zone-body {
+    padding: 1.5rem;
+    min-height: 120px;
+    position: relative;
+}
+
+.archive-zone:hover {
+    border-color: #6c757d;
+    background: #f1f3f4;
+}
+
+/* Poof Animation */
+.poof-animation {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.poof-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #ffd700;
+    border-radius: 50%;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+}
+
+.poof-animation.animate .poof-particle {
+    animation: poofExplosion 0.8s ease-out forwards;
+}
+
+.poof-animation.animate .poof-particle:nth-child(1) {
+    animation-delay: 0s;
+    background: #ff6b9d;
+}
+
+.poof-animation.animate .poof-particle:nth-child(2) {
+    animation-delay: 0.1s;
+    background: #c44be6;
+}
+
+.poof-animation.animate .poof-particle:nth-child(3) {
+    animation-delay: 0.2s;
+    background: #8b5cf6;
+}
+
+.poof-animation.animate .poof-particle:nth-child(4) {
+    animation-delay: 0.05s;
+    background: #06b6d4;
+}
+
+.poof-animation.animate .poof-particle:nth-child(5) {
+    animation-delay: 0.15s;
+    background: #ffd700;
+}
+
+.poof-animation.animate .poof-particle:nth-child(6) {
+    animation-delay: 0.1s;
+    background: #ff4757;
+}
+
+.poof-animation.animate .poof-particle:nth-child(7) {
+    animation-delay: 0.25s;
+    background: #2ed573;
+}
+
+.poof-animation.animate .poof-particle:nth-child(8) {
+    animation-delay: 0.05s;
+    background: #ff9ff3;
+}
+
+@keyframes poofExplosion {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0);
+    }
+
+    20% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(calc(-50% + (20px * (var(--random-x, 1)))),
+                calc(-50% + (20px * (var(--random-y, 1))))) scale(0.3);
+    }
+}
+
+.poof-animation.animate .poof-particle:nth-child(1) {
+    --random-x: 1.5;
+    --random-y: -1.2;
+}
+
+.poof-animation.animate .poof-particle:nth-child(2) {
+    --random-x: -1.8;
+    --random-y: -0.8;
+}
+
+.poof-animation.animate .poof-particle:nth-child(3) {
+    --random-x: 0.5;
+    --random-y: 1.5;
+}
+
+.poof-animation.animate .poof-particle:nth-child(4) {
+    --random-x: -1.2;
+    --random-y: 1.8;
+}
+
+.poof-animation.animate .poof-particle:nth-child(5) {
+    --random-x: 2.0;
+    --random-y: 0.2;
+}
+
+.poof-animation.animate .poof-particle:nth-child(6) {
+    --random-x: -0.8;
+    --random-y: -1.5;
+}
+
+.poof-animation.animate .poof-particle:nth-child(7) {
+    --random-x: 1.0;
+    --random-y: -2.0;
+}
+
+.poof-animation.animate .poof-particle:nth-child(8) {
+    --random-x: -1.5;
+    --random-y: 0.8;
+}
+
+
+
+/* Drag and Drop Visual Feedback */
+.sortable-drag {
+    opacity: 0.6;
+}
+
+.sortable-ghost {
+    opacity: 0.4;
+    background: #e3f2fd;
+    border: 2px dashed #2196f3;
+}
+
+/* Column scrollbars */
+.kanban-column-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.kanban-column-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.kanban-column-body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.kanban-column-body::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Responsive Design */
+@media (max-width: 991px) {
+    .kanban-column {
+        margin-bottom: 1.5rem;
+        min-height: 300px;
+    }
+
+    .kanban-column-body {
+        max-height: 400px;
+    }
+}
+
+@media (max-width: 576px) {
+    .kanban-card {
+        padding: 0.375rem 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .kanban-column-header {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .kanban-column-body {
+        padding: 0.5rem;
+        max-height: 300px;
+    }
+
+    .kanban-card-header .fw-medium {
+        font-size: 0.8rem;
+    }
 }

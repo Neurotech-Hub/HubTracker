@@ -23,9 +23,12 @@ class User(db.Model):
     
     # Relationships
     created_tasks = db.relationship('Task', foreign_keys='Task.created_by', backref='creator', lazy='dynamic')
+    assigned_tasks = db.relationship('Task', foreign_keys='Task.assigned_to', backref='assignee', lazy='dynamic')
     completed_tasks = db.relationship('Task', foreign_keys='Task.completed_by_user_id', backref='completer', lazy='dynamic')
     logs = db.relationship('Log', backref='user', lazy='dynamic')
     led_projects = db.relationship('Project', backref='project_leader', lazy='dynamic')
+    pinned_projects = db.relationship('UserProjectPin', backref='user', lazy='dynamic')
+    flagged_tasks = db.relationship('UserTaskFlag', backref='user', lazy='dynamic')
     
     def __repr__(self):
         return f'<User {self.first_name} {self.last_name or ""}>'
@@ -33,6 +36,10 @@ class User(db.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name or ''}".strip()
+    
+    def set_last_name(self, value):
+        """Set last_name, converting empty strings to None"""
+        self.last_name = value.strip() if value and value.strip() else None
 
 class Membership(db.Model):
     __tablename__ = 'memberships'
@@ -40,6 +47,10 @@ class Membership(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     start_date = db.Column(db.DateTime(timezone=True), nullable=True)
     is_annual = db.Column(db.Boolean, default=False, nullable=False)
+    cost = db.Column(db.Float, nullable=True)  # Monthly or annual cost
+    time = db.Column(db.Integer, nullable=True)  # Time budget in hours
+    budget = db.Column(db.Float, nullable=True)  # Dollar budget
+    notes = db.Column(db.Text, nullable=True)  # Markdown-enabled notes
     
     # Relationships
     clients = db.relationship('Client', backref='membership', lazy='dynamic')
@@ -69,12 +80,15 @@ class Project(db.Model):
     notes = db.Column(db.Text, nullable=True)
     client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
     project_lead_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    is_default = db.Column(db.Boolean, default=False, nullable=False)
+    status = db.Column(db.String(20), default='Active', server_default='Active', nullable=True)  # Active, Prospective, Archived
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
     
     # Relationships
     tasks = db.relationship('Task', backref='project', lazy='dynamic')
     logs = db.relationship('Log', backref='project', lazy='dynamic')
+    pins = db.relationship('UserProjectPin', backref='project', lazy='dynamic')
     
     def __repr__(self):
         return f'<Project {self.name}>'
@@ -83,13 +97,18 @@ class Task(db.Model):
     __tablename__ = 'tasks'
     
     id = db.Column(db.Integer, primary_key=True)
-    description = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String(255), nullable=False)  # Clean description without tags
+    original_input = db.Column(db.String(255), nullable=True)  # Original input with tags
     is_complete = db.Column(db.Boolean, default=False, nullable=False)
     completed_on = db.Column(db.DateTime(timezone=True), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    assigned_to = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Task assignment
     completed_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)  # Adding project relationship
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    
+    # Relationships
+    flags = db.relationship('UserTaskFlag', backref='task', lazy='dynamic')
     
     def __repr__(self):
         return f'<Task {self.description[:30]}...>'
@@ -99,6 +118,15 @@ class Task(db.Model):
         self.is_complete = True
         self.completed_by_user_id = user_id
         self.completed_on = get_current_time()
+    
+    def toggle_complete(self, user_id):
+        """Toggle task completion status"""
+        if self.is_complete:
+            self.is_complete = False
+            self.completed_by_user_id = None
+            self.completed_on = None
+        else:
+            self.mark_complete(user_id)
 
 class Log(db.Model):
     __tablename__ = 'logs'
@@ -114,4 +142,32 @@ class Log(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
     
     def __repr__(self):
-        return f'<Log {self.id} - {self.user.first_name if self.user else "Unknown"}>' 
+        return f'<Log {self.id} - {self.user.first_name if self.user else "Unknown"}>'
+
+class UserProjectPin(db.Model):
+    __tablename__ = 'user_project_pins'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    
+    # Ensure one pin per user-project pair
+    __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project_pin'),)
+    
+    def __repr__(self):
+        return f'<UserProjectPin {self.user_id}:{self.project_id}>'
+
+class UserTaskFlag(db.Model):
+    __tablename__ = 'user_task_flags'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    
+    # Ensure one flag per user-task pair
+    __table_args__ = (db.UniqueConstraint('user_id', 'task_id', name='unique_user_task_flag'),)
+    
+    def __repr__(self):
+        return f'<UserTaskFlag {self.user_id}:{self.task_id}>' 

@@ -45,7 +45,7 @@ def init_database():
             User(first_name="Sarah", last_name="Johnson", is_admin=False),
             User(first_name="Mike", last_name="Brown", is_admin=False),
             User(first_name="Emily", last_name="Davis", is_admin=False),
-            User(first_name="Alex", last_name="", is_admin=False),  # Test user with no last name
+            User(first_name="Alex", last_name=None, is_admin=False),  # Test user with no last name
         ]
         
         db.session.add_all(users)
@@ -80,6 +80,13 @@ def init_database():
         
         # Create sample projects
         projects = [
+            Project(
+                name="General Tasks",
+                client_id=clients[0].id,
+                project_lead_id=users[0].id,
+                is_default=True,
+                notes="Default project for tasks without specific project assignment"
+            ),
             Project(
                 name="Website Redesign",
                 client_id=clients[0].id,
@@ -121,6 +128,7 @@ def init_database():
                 description="Create wireframes for homepage",
                 project_id=projects[0].id,
                 created_by=users[1].id,
+                assigned_to=users[1].id,
                 is_complete=True,
                 completed_by_user_id=users[1].id,
                 completed_on=datetime.now(TIMEZONE) - timedelta(days=2)
@@ -129,12 +137,14 @@ def init_database():
                 description="Implement user authentication",
                 project_id=projects[1].id,
                 created_by=users[2].id,
+                assigned_to=users[2].id,
                 is_complete=False
             ),
             Task(
                 description="Set up database schema",
                 project_id=projects[2].id,
                 created_by=users[1].id,
+                assigned_to=users[3].id,
                 is_complete=True,
                 completed_by_user_id=users[3].id,
                 completed_on=datetime.now(TIMEZONE) - timedelta(hours=6)
@@ -143,6 +153,7 @@ def init_database():
                 description="Design patient dashboard",
                 project_id=projects[3].id,
                 created_by=users[3].id,
+                assigned_to=users[3].id,
                 is_complete=False
             ),
         ]
@@ -193,7 +204,7 @@ def init_database():
             print(f"  - {user.full_name}{admin_status}")
         
         print(f"\nSample Clients: {len(clients)}")
-        print(f"Sample Projects: {len(projects)}")
+        print(f"Sample Projects: {len(projects)} (including 1 default)")
         print(f"Sample Tasks: {len(tasks)}")
         print(f"Sample Logs: {len(logs)}")
 

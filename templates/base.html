@@ -9,6 +9,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     
@@ -19,7 +21,9 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <h4 class="text-white mb-0">Hub Tracker</h4>
+            <h4 class="sidebar-logo text-white mb-0">
+                <span class="logo-hub">Hub</span><span class="logo-tracker">Tracker</span>
+            </h4>
         </div>
         
         <div class="sidebar-nav">
@@ -27,6 +31,11 @@
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
                         <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'tasks' %}active{% endif %}" href="{{ url_for('tasks') }}">
+                        <i class="bi bi-list-task me-2"></i>Tasks
                     </a>
                 </li>
                 <li class="nav-item">
@@ -46,16 +55,46 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}" href="{{ url_for('reports') }}">
-                        <i class="bi bi-bar-chart me-2"></i>Reports
+                        <i class="bi bi-graph-up me-2"></i>Analytics
                     </a>
                 </li>
             </ul>
+            
+            <!-- Pinned Projects Section -->
+            {% if session.user_id %}
+            {% set pinned_projects = get_pinned_projects() %}
+            {% if pinned_projects %}
+            <div class="sidebar-section mt-4">
+                <div class="sidebar-section-header px-3">
+                    <h6 class="text-white-50 text-uppercase small fw-bold mb-2">
+                        <i class="bi bi-pin me-1"></i>Pinned Projects
+                    </h6>
+                </div>
+                <div class="pinned-projects-list">
+                    {% for project in pinned_projects %}
+                    <a class="pinned-project-item {% if request.endpoint == 'project_detail' and request.view_args.get('project_id') == project.id %}active{% endif %}" 
+                       href="{{ url_for('project_detail', project_id=project.id) }}">
+                        <div class="project-content">
+                            <div class="project-name">{{ project.name }}</div>
+                            <small class="text-white-50">{{ project.client.name }}</small>
+                        </div>
+                        {% if project.open_tasks_count > 0 %}
+                        <span class="task-count-bubble">{{ project.open_tasks_count }}</span>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
         </div>
         
         <div class="sidebar-footer">
             <div class="user-info">
-                <div class="text-white-50 small">Logged in as:</div>
-                <div class="text-white fw-bold">{{ session.user_name }}</div>
+                <a href="{{ url_for('profile') }}" class="text-white text-decoration-none">
+                    <div class="text-white fw-bold">{{ session.user_name }}</div>
+                    <small class="text-white-50">Edit Profile</small>
+                </a>
             </div>
             <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm mt-2">
                 <i class="bi bi-box-arrow-right me-1"></i>Logout
@@ -69,13 +108,15 @@
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="container-fluid mb-3">
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    {% endfor %}
+                <div class="flash-messages-container {% if request.endpoint == 'login' %}login-page-messages{% endif %}" id="flash-container">
+                    <div class="container-fluid">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" onclick="checkEmptyContainer()"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
             {% endif %}
         {% endwith %}
@@ -84,10 +125,824 @@
         {% block content %}{% endblock %}
     </div>
 
+    <!-- Floating Action Button - Log Entry -->
+    {% if session.user_id %}
+    <div x-data="logEntryModal()">
+        <div class="floating-action-btn">
+            <button class="fab-main" type="button" @click="openModal()" title="Log Entry">
+                <i class="bi bi-clock"></i>
+            </button>
+        </div>
+        
+        <!-- Log Entry Modal -->
+        <div class="modal fade" id="logEntryModal" tabindex="-1" aria-labelledby="logEntryModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="logEntryModalLabel">Log Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Project Search -->
+                    <div class="mb-3 position-relative">
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="projectSearch" 
+                            x-model="searchQuery"
+                            @input="filterProjects()"
+                            placeholder="Filter by project..."
+                            x-ref="searchInput"
+                        >
+                    </div>
+                    
+                    <!-- Projects List -->
+                    <div class="projects-list" style="max-height: 400px; overflow-y: auto;">
+                        <template x-for="project in filteredProjects" :key="project.id">
+                            <div class="project-item border-bottom pb-2 mb-2 position-relative project-touch-area" @click="touchLog(project)" style="cursor: pointer;">
+                                <!-- Touch overlay for entire card -->
+                                <div class="touch-overlay">
+                                    <i class="bi bi-fingerprint"></i>
+                                    <span>Touch Project</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <!-- Project content -->
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold" x-text="project.name"></div>
+                                        <small class="text-muted" x-text="project.client_name"></small>
+                                    </div>
+                                    <!-- Time Log Button - positioned to the right -->
+                                    <button 
+                                        type="button" 
+                                        class="log-time-btn"
+                                        @click.stop="openTimeLogForm(project)"
+                                        title="Detailed Time Log"
+                                    >
+                                        <i class="bi bi-clock"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <div x-show="filteredProjects.length === 0" class="text-center text-muted py-4">
+                            <div x-show="searchQuery === ''">Loading projects...</div>
+                            <div x-show="searchQuery !== ''">No projects found matching your search.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Time Log Form Modal -->
+    <div class="modal fade" id="timeLogModal" tabindex="-1" aria-labelledby="timeLogModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('add_time_log') }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="timeLogModalLabel">Time Log Entry</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <div id="selectedProjectInfo">
+                                <div id="selectedProjectName" class="fw-bold"></div>
+                                <small id="selectedClientName" class="text-muted"></small>
+                            </div>
+                            <input type="hidden" name="project_id" id="selectedProjectId">
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="hours" class="form-label">Hours</label>
+                                <input type="number" class="form-control" id="hours" name="hours" step="0.01" min="0" max="24">
+                                <div class="form-text">Optional - Hours worked</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="fixed_cost" class="form-label">Fixed Cost</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="fixed_cost" name="fixed_cost" step="0.01" min="0">
+                                </div>
+                                <div class="form-text">Optional - Fixed amount</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" required></textarea>
+                            <div class="form-text">Required - Describe the work performed</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Log Time</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    </div>
+    {% endif %}
+
+    <!-- Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Alpine.js with Collapse Plugin -->
+    <script defer src="https://unpkg.com/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Task Form Alpine Component -->
+    <script>
+        function taskForm() {
+            return {
+                rawInput: '',
+                cleanDescription: '',
+                projects: [],
+                users: [],
+                selectedProject: {},
+                selectedUser: {},
+                showAutocomplete: false,
+                autocompleteType: '', // 'project' or 'user'
+                filteredItems: [],
+                selectedIndex: 0,
+                
+                async init() {
+                    // Load projects and users
+                    await this.loadData();
+                    // Set default project
+                    this.setDefaultProject();
+                    // Ensure input is focused
+                    this.$nextTick(() => {
+                        this.$refs.taskInput.focus();
+                    });
+                },
+                
+                async loadData() {
+                    try {
+                        const [projectsRes, usersRes] = await Promise.all([
+                            fetch('/api/projects'),
+                            fetch('/api/users')
+                        ]);
+                        
+                        const projectsData = await projectsRes.json();
+                        const usersData = await usersRes.json();
+                        
+                        this.projects = projectsData.projects || [];
+                        this.users = usersData.users || [];
+                    } catch (error) {
+                        console.error('Failed to load data:', error);
+                    }
+                },
+                
+                setDefaultProject() {
+                    const defaultProject = this.projects.find(p => p.is_default);
+                    if (defaultProject) {
+                        this.selectedProject = defaultProject;
+                    }
+                },
+                
+                parseInput() {
+                    const input = this.rawInput;
+                    let cleanDesc = input;
+                    
+                    // Reset autocomplete
+                    this.showAutocomplete = false;
+                    
+                    // Check for # (project) - handle multi-word projects with brackets
+                    const projectMatch = input.match(/#\[([^\]]*)\]|#([^\s@\[]*)/);
+                    if (projectMatch) {
+                        const query = projectMatch[1] || projectMatch[2]; // Bracket content or single word
+                        if (query && query.length > 0 && !projectMatch[1]) { // Only show autocomplete for incomplete tags
+                            this.showProjectAutocomplete(query);
+                        }
+                        // Remove project tag from description
+                        cleanDesc = cleanDesc.replace(/#\[[^\]]*\]|\s*#[^\s@\[]*\s?/, '').trim();
+                    } else {
+                        // Reset to default project if no # tag
+                        this.setDefaultProject();
+                    }
+                    
+                    // Check for @ (user) - handle multi-word names with brackets
+                    const userMatch = input.match(/@\[([^\]]*)\]|@([^\s#\[]*)/);
+                    if (userMatch) {
+                        const query = userMatch[1] || userMatch[2]; // Bracket content or single word
+                        if (query && query.length > 0 && !userMatch[1]) { // Only show autocomplete for incomplete tags
+                            this.showUserAutocomplete(query);
+                        }
+                        // Remove user tag from description
+                        cleanDesc = cleanDesc.replace(/@\[[^\]]*\]|\s*@[^\s#\[]*\s?/, '').trim();
+                    } else {
+                        // Clear user assignment if no @ tag
+                        this.selectedUser = {};
+                    }
+                    
+                    this.cleanDescription = cleanDesc;
+                },
+                
+                showProjectAutocomplete(query) {
+                    this.autocompleteType = 'project';
+                    this.filteredItems = this.projects.filter(p => 
+                        p.display_name.toLowerCase().includes(query.toLowerCase())
+                    ).slice(0, 5);
+                    this.showAutocomplete = this.filteredItems.length > 0;
+                    this.selectedIndex = 0;
+                },
+                
+                showUserAutocomplete(query) {
+                    this.autocompleteType = 'user';
+                    this.filteredItems = this.users.filter(u => 
+                        u.name.toLowerCase().includes(query.toLowerCase())
+                    ).slice(0, 5);
+                    this.showAutocomplete = this.filteredItems.length > 0;
+                    this.selectedIndex = 0;
+                },
+                
+                selectItem(item) {
+                    if (this.autocompleteType === 'project') {
+                        this.selectedProject = item;
+                        // Replace #query with bracketed project name for multi-word support
+                        this.rawInput = this.rawInput.replace(/#[^\s@\[]*/, `#[${item.name}] `);
+                    } else if (this.autocompleteType === 'user') {
+                        this.selectedUser = item;
+                        // Replace @query with bracketed user name
+                        this.rawInput = this.rawInput.replace(/@[^\s#\[]*/, `@[${item.name}] `);
+                    }
+                    
+                    this.showAutocomplete = false;
+                    this.selectedIndex = 0;
+                    
+                    // Focus back to input and move cursor to end
+                    this.$nextTick(() => {
+                        this.$refs.taskInput.focus();
+                        const input = this.$refs.taskInput;
+                        input.setSelectionRange(input.value.length, input.value.length);
+                    });
+                },
+                
+                handleKeydown(event) {
+                    // Handle autocomplete navigation
+                    if (this.showAutocomplete) {
+                        switch (event.key) {
+                            case 'ArrowDown':
+                                event.preventDefault();
+                                this.selectedIndex = (this.selectedIndex + 1) % this.filteredItems.length;
+                                break;
+                            case 'ArrowUp':
+                                event.preventDefault();
+                                this.selectedIndex = this.selectedIndex === 0 ? 
+                                    this.filteredItems.length - 1 : this.selectedIndex - 1;
+                                break;
+                            case 'Enter':
+                                if (this.filteredItems[this.selectedIndex]) {
+                                    event.preventDefault();
+                                    this.selectItem(this.filteredItems[this.selectedIndex]);
+                                }
+                                break;
+                            case 'Escape':
+                                this.showAutocomplete = false;
+                                break;
+                        }
+                        return;
+                    }
+
+                    // Handle tag deletion with backspace
+                    if (event.key === 'Backspace') {
+                        this.handleTagDeletion(event);
+                    }
+                },
+
+                handleTagDeletion(event) {
+                    const input = event.target;
+                    const cursorPos = input.selectionStart;
+                    const value = input.value;
+                    
+                    // If cursor is at the start of input, nothing to delete
+                    if (cursorPos === 0) return;
+                    
+                    // Find tags that end at or near the cursor position
+                    const projectTagRegex = /#\[[^\]]*\]/g;
+                    const userTagRegex = /@\[[^\]]*\]/g;
+                    
+                    let match;
+                    let tagToDelete = null;
+                    
+                    // Check for project tags
+                    while ((match = projectTagRegex.exec(value)) !== null) {
+                        const tagEnd = match.index + match[0].length;
+                        if (tagEnd === cursorPos || (tagEnd === cursorPos - 1 && value[cursorPos] === ' ')) {
+                            tagToDelete = { start: match.index, end: tagEnd, type: 'project' };
+                            break;
+                        }
+                    }
+                    
+                    // Check for user tags if no project tag found
+                    if (!tagToDelete) {
+                        while ((match = userTagRegex.exec(value)) !== null) {
+                            const tagEnd = match.index + match[0].length;
+                            if (tagEnd === cursorPos || (tagEnd === cursorPos - 1 && value[cursorPos] === ' ')) {
+                                tagToDelete = { start: match.index, end: tagEnd, type: 'user' };
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // If we found a tag to delete, remove it entirely
+                    if (tagToDelete) {
+                        event.preventDefault();
+                        const newValue = value.slice(0, tagToDelete.start) + value.slice(tagToDelete.end).replace(/^\s+/, '');
+                        this.rawInput = newValue;
+                        
+                        // Reset selections based on what was deleted
+                        if (tagToDelete.type === 'project') {
+                            this.setDefaultProject();
+                        } else if (tagToDelete.type === 'user') {
+                            this.selectedUser = {};
+                        }
+                        
+                        // Move cursor to where tag started
+                        this.$nextTick(() => {
+                            input.setSelectionRange(tagToDelete.start, tagToDelete.start);
+                            this.parseInput();
+                        });
+                    }
+                },
+                
+                onSubmit() {
+                    // Store the original input before cleaning
+                    this.$refs.originalInput.value = this.rawInput;
+                    // Update the description to the clean version
+                    this.parseInput();
+                    this.$refs.taskInput.value = this.cleanDescription;
+                },
+                
+                handlePresetProject(event) {
+                    console.log('handlePresetProject called:', event.detail);
+                    const { projectId, projectName, lookupByName } = event.detail;
+                    
+                    // Find the project in our loaded data
+                    let project = null;
+                    if (lookupByName) {
+                        // Find project by name
+                        project = this.projects.find(p => p.name === projectName);
+                    } else if (projectId) {
+                        // Find project by ID
+                        project = this.projects.find(p => p.id == projectId);
+                    }
+                    
+                    if (project) {
+                        this.selectedProject = project;
+                        this.rawInput = `#[${project.name}] `;
+                        console.log('Project set via event:', project);
+                    } else {
+                        console.log('Project not found, creating fallback');
+                        // Fallback - create a minimal project object
+                        this.selectedProject = {
+                            id: projectId,
+                            name: projectName,
+                            display_name: projectName
+                        };
+                        this.rawInput = `#[${projectName}] `;
+                    }
+                    
+                    // Focus the input after setting
+                    this.$nextTick(() => {
+                        this.$refs.taskInput.focus();
+                        if (this.rawInput) {
+                            this.$refs.taskInput.setSelectionRange(this.rawInput.length, this.rawInput.length);
+                        }
+                    });
+                },
+                
+                handlePresetUser(event) {
+                    console.log('handlePresetUser called:', event.detail);
+                    const { userId, userName } = event.detail;
+                    
+                    // Find the user in our loaded data
+                    const user = this.users.find(u => u.id == userId);
+                    if (user) {
+                        this.selectedUser = user;
+                        this.rawInput = `@[${user.name}] `;
+                        console.log('User set via event:', user);
+                    } else {
+                        console.log('User not found, creating fallback');
+                        // Fallback - create a minimal user object
+                        this.selectedUser = {
+                            id: userId,
+                            name: userName
+                        };
+                        this.rawInput = `@[${userName}] `;
+                    }
+                    
+                    // Focus the input after setting
+                    this.$nextTick(() => {
+                        this.$refs.taskInput.focus();
+                        if (this.rawInput) {
+                            this.$refs.taskInput.setSelectionRange(this.rawInput.length, this.rawInput.length);
+                        }
+                    });
+                }
+            }
+        }
+
+        // Task List Alpine Component
+        function taskList(sectionId) {
+            return {
+                sectionId: sectionId,
+                tasks: [],
+                filteredTasks: [],
+                searchQuery: '',
+                currentUserId: null,
+                tasksICreated: [],
+                showTasksICreated: false,
+                showCompletedTasks: false,
+                
+                init() {
+                    // Read task data from script tag
+                    const dataScript = document.getElementById('tasks-data');
+                    if (dataScript) {
+                        try {
+                            const tasksData = JSON.parse(dataScript.textContent);
+                            if (this.sectionId === 'tasks-for-me') {
+                                this.tasks = tasksData.tasksForMe;
+                                this.tasksICreated = tasksData.tasksICreated; // Load tasks by me for reference
+                            } else if (this.sectionId === 'all-tasks') {
+                                this.tasks = tasksData.allTasks;
+                            } else if (this.sectionId === 'completed-tasks') {
+                                this.tasks = tasksData.completedTasks;
+                            }
+                            this.currentUserId = tasksData.currentUserId;
+                            console.log(`TaskList ${this.sectionId} initialized with ${this.tasks.length} tasks:`, this.tasks);
+                        } catch (error) {
+                            console.error('Failed to parse task data:', error);
+                            this.tasks = [];
+                        }
+                    }
+                    
+                    this.filteredTasks = [...this.tasks];
+                    console.log(`Filtered tasks now:`, this.filteredTasks);
+                },
+                
+                isAssignedToMe(task) {
+                    // Check if task is assigned to the current logged-in user
+                    return task.assigned_to_id === this.currentUserId;
+                },
+                
+                getDisplayDescription(task) {
+                    // Use original_input if available, otherwise fall back to clean description
+                    if (task.original_input) {
+                        return this.formatTaggedDescription(task);
+                    }
+                    return task.description || '';
+                },
+                
+                formatTaggedDescription(task) {
+                    let formatted = task.original_input;
+                    
+                    // Replace @[old_name] with current assigned user name
+                    if (task.assigned_to_name) {
+                        formatted = formatted.replace(
+                            /@\[[^\]]*\]/g, 
+                            `<span class="task-tag task-tag-user">@${task.assigned_to_name}</span>`
+                        );
+                    }
+                    
+                    // Replace #[old_project] with current project name  
+                    if (task.project_name) {
+                        formatted = formatted.replace(
+                            /#\[[^\]]*\]/g, 
+                            `<span class="task-tag task-tag-project">#${task.project_name}</span>`
+                        );
+                    }
+                    
+                    return formatted;
+                },
+                
+                filterTasks() {
+                    if (!this.searchQuery.trim()) {
+                        this.filteredTasks = [...this.tasks];
+                        return;
+                    }
+                    
+                    const query = this.searchQuery.toLowerCase();
+                    this.filteredTasks = this.tasks.filter(task => {
+                        return task.description.toLowerCase().includes(query) ||
+                               (task.project_name && task.project_name.toLowerCase().includes(query)) ||
+                               (task.client_name && task.client_name.toLowerCase().includes(query)) ||
+                               (task.assigned_to_name && task.assigned_to_name.toLowerCase().includes(query)) ||
+                               (task.creator_name && task.creator_name.toLowerCase().includes(query));
+                    });
+                },
+                
+                getTasksByProject() {
+                    // Group tasks by project for the All Tasks section
+                    if (this.sectionId !== 'all-tasks') {
+                        return null;
+                    }
+                    
+                    const grouped = {};
+                    this.filteredTasks.forEach(task => {
+                        const projectKey = task.project_name || 'No Project';
+                        if (!grouped[projectKey]) {
+                            grouped[projectKey] = [];
+                        }
+                        grouped[projectKey].push(task);
+                    });
+                    
+                    // Convert to sorted array
+                    return Object.keys(grouped)
+                        .sort()
+                        .map(projectName => ({
+                            name: projectName,
+                            tasks: grouped[projectName]
+                        }));
+                },
+                
+                clearSearch() {
+                    this.searchQuery = '';
+                    this.filterTasks();
+                },
+                
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const diffTime = now - date;
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays === 0) {
+                        const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+                        if (diffHours < 1) {
+                            const diffMinutes = Math.floor(diffTime / (1000 * 60));
+                            return diffMinutes < 1 ? 'Just now' : `${diffMinutes}m ago`;
+                        }
+                        return `${diffHours}h ago`;
+                    } else if (diffDays === 1) {
+                        return 'Yesterday';
+                    } else if (diffDays < 7) {
+                        return `${diffDays}d ago`;
+                    } else {
+                        return date.toLocaleDateString();
+                    }
+                },
+                
+                async editTask(task) {
+                    // Load projects and users for the edit form
+                    try {
+                        const [projectsRes, usersRes] = await Promise.all([
+                            fetch('/api/projects'),
+                            fetch('/api/users')
+                        ]);
+                        
+                        const projectsData = await projectsRes.json();
+                        const usersData = await usersRes.json();
+                        
+                        // Populate the edit form with clean description for editing
+                        document.getElementById('editDescription').value = task.description;
+                        document.getElementById('editTaskForm').action = `/task/${task.id}/edit`;
+                        
+                        // Populate project dropdown
+                        const projectSelect = document.getElementById('editProject');
+                        projectSelect.innerHTML = '<option value="">No Project</option>';
+                        projectsData.projects.forEach(project => {
+                            const option = document.createElement('option');
+                            option.value = project.id;
+                            option.textContent = project.display_name;
+                            if (task.project_name === project.name) {
+                                option.selected = true;
+                            }
+                            projectSelect.appendChild(option);
+                        });
+                        
+                        // Populate user dropdown
+                        const userSelect = document.getElementById('editAssignee');
+                        userSelect.innerHTML = '<option value="">Unassigned</option>';
+                        usersData.users.forEach(user => {
+                            const option = document.createElement('option');
+                            option.value = user.id;
+                            option.textContent = user.name;
+                            if (task.assigned_to_name === user.name) {
+                                option.selected = true;
+                            }
+                            userSelect.appendChild(option);
+                        });
+                        
+                        // Show the modal
+                        const modal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+                        modal.show();
+                        
+                    } catch (error) {
+                        console.error('Failed to load edit form data:', error);
+                    }
+                },
+                
+                addTaskToProject(projectGroup) {
+                    // Get the first task to extract project information
+                    if (projectGroup.tasks && projectGroup.tasks.length > 0) {
+                        const firstTask = projectGroup.tasks[0];
+                        if (firstTask.project_name && firstTask.project_name !== 'No Project') {
+                            // Find the project ID from the first task in this group
+                            // We need to make an educated guess or find it from task data
+                            // For now, we'll just use the project name
+                            openTaskModalWithProjectName(firstTask.project_name);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Log Entry Modal Alpine Component
+        function logEntryModal() {
+            return {
+                searchQuery: '',
+                allProjects: [],
+                filteredProjects: [],
+                
+                async openModal() {
+                    console.log('openModal called');
+                    
+                    // Load projects when modal opens
+                    await this.loadProjects();
+                    console.log('Projects loaded:', this.allProjects.length);
+                    
+                    // Clear any previous search
+                    this.searchQuery = '';
+                    this.filteredProjects = [...this.allProjects];
+                    
+                    // Show the modal
+                    const modalElement = document.getElementById('logEntryModal');
+                    console.log('Modal element:', modalElement);
+                    
+                    const modal = new bootstrap.Modal(modalElement);
+                    
+                    // Listen for when modal is hidden to clear search (with cleanup)
+                    const clearSearchOnHide = () => {
+                        this.searchQuery = '';
+                        this.filteredProjects = [...this.allProjects];
+                        modalElement.removeEventListener('hidden.bs.modal', clearSearchOnHide);
+                    };
+                    modalElement.addEventListener('hidden.bs.modal', clearSearchOnHide);
+                    
+                    modal.show();
+                    
+                    // Focus on search input
+                    this.$nextTick(() => {
+                        this.$refs.searchInput.focus();
+                    });
+                },
+                
+                async loadProjects() {
+                    try {
+                        const response = await fetch('/api/projects_for_logging');
+                        const data = await response.json();
+                        this.allProjects = data.projects || [];
+                        this.filteredProjects = [...this.allProjects];
+                    } catch (error) {
+                        console.error('Failed to load projects:', error);
+                        this.allProjects = [];
+                        this.filteredProjects = [];
+                    }
+                },
+                
+                filterProjects() {
+                    if (!this.searchQuery.trim()) {
+                        this.filteredProjects = [...this.allProjects];
+                        return;
+                    }
+                    
+                    const query = this.searchQuery.toLowerCase();
+                    this.filteredProjects = this.allProjects.filter(project => 
+                        project.name.toLowerCase().includes(query) ||
+                        project.client_name.toLowerCase().includes(query) ||
+                        project.display_name.toLowerCase().includes(query)
+                    );
+                },
+                
+                async touchLog(project) {
+                    try {
+                        const response = await fetch('/add_touch_log', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                project_id: project.id
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Close the modal
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('logEntryModal'));
+                            modal.hide();
+                            
+                            // Trigger confetti!
+                            confetti({
+                                particleCount: 100,
+                                spread: 70,
+                                origin: { y: 0.6 }
+                            });
+                        } else {
+                            this.showErrorMessage(result.error || 'Failed to log touch');
+                        }
+                    } catch (error) {
+                        console.error('Touch log error:', error);
+                        this.showErrorMessage('Failed to log touch');
+                    }
+                },
+                
+                openTimeLogForm(project) {
+                    // Clear form fields first
+                    document.getElementById('hours').value = '';
+                    document.getElementById('fixed_cost').value = '';
+                    document.getElementById('notes').value = '';
+                    
+                    // Populate project info in the time log form - match search list styling
+                    document.getElementById('selectedProjectName').textContent = project.name;
+                    document.getElementById('selectedClientName').textContent = project.client_name;
+                    document.getElementById('selectedProjectId').value = project.id;
+                    
+                    // Close log entry modal
+                    const logModal = bootstrap.Modal.getInstance(document.getElementById('logEntryModal'));
+                    logModal.hide();
+                    
+                    // Open time log modal with proper focus handling
+                    const timeModal = new bootstrap.Modal(document.getElementById('timeLogModal'));
+                    
+                    // Listen for when the modal is fully shown
+                    document.getElementById('timeLogModal').addEventListener('shown.bs.modal', function focusHours() {
+                        document.getElementById('hours').focus();
+                        // Remove the event listener after use to prevent memory leaks
+                        this.removeEventListener('shown.bs.modal', focusHours);
+                    });
+                    
+                    timeModal.show();
+                },
+                
+                showSuccessMessage(message) {
+                    // Create a temporary flash message
+                    const flashContainer = document.getElementById('flash-container') || this.createFlashContainer();
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-success alert-dismissible fade show';
+                    alert.innerHTML = `
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    flashContainer.querySelector('.container-fluid').appendChild(alert);
+                    flashContainer.style.display = 'block';
+                    
+                    // Auto-dismiss after 3 seconds
+                    setTimeout(() => {
+                        alert.remove();
+                        if (flashContainer.querySelectorAll('.alert').length === 0) {
+                            flashContainer.style.display = 'none';
+                        }
+                    }, 3000);
+                },
+                
+                showErrorMessage(message) {
+                    // Create a temporary flash message
+                    const flashContainer = document.getElementById('flash-container') || this.createFlashContainer();
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-danger alert-dismissible fade show';
+                    alert.innerHTML = `
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    flashContainer.querySelector('.container-fluid').appendChild(alert);
+                    flashContainer.style.display = 'block';
+                },
+                
+                createFlashContainer() {
+                    const container = document.createElement('div');
+                    container.id = 'flash-container';
+                    container.className = 'flash-messages-container';
+                    container.innerHTML = '<div class="container-fluid"></div>';
+                    document.querySelector('.main-content').prepend(container);
+                    return container;
+                }
+            }
+        }
+    </script>
+    
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- HTMX (for future use) -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    
+    <!-- Flash Messages Script -->
+    <script>
+        function checkEmptyContainer() {
+            // Wait for Bootstrap's alert close animation to complete
+            setTimeout(function() {
+                const container = document.getElementById('flash-container');
+                if (container && container.querySelectorAll('.alert').length === 0) {
+                    container.style.display = 'none';
+                }
+            }, 200);
+        }
+    </script>
     
     {% block extra_scripts %}{% endblock %}
 </body>

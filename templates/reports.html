@@ -1,30 +1,462 @@
 {% extends "base.html" %}
 
-{% block title %}Reports - Hub Tracker{% endblock %}
+{% block title %}Analytics - Hub Tracker{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="mb-1">Reports</h1>
-            <p class="text-muted mb-0">Generate insights and track performance metrics</p>
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">Analytics</h2>
+                </div>
+                <button class="btn btn-outline-primary">
+                    <i class="bi bi-download me-2"></i>Export Data
+                </button>
+            </div>
         </div>
-        <button class="btn btn-warning">
-            <i class="bi bi-download me-2"></i>Export Data
-        </button>
     </div>
 
-    <div class="row">
+    <!-- Top Metrics -->
+    <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-bar-chart display-1 text-muted mb-3"></i>
-                    <h4>Reports & Analytics</h4>
-                    <p class="text-muted">This section will contain reporting and analytics functionality.</p>
-                    <p class="text-muted small">Features coming soon: Time tracking reports, project analytics, client billing summaries, and performance dashboards.</p>
+            <div class="row g-3">
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card p-4 h-100">
+                        <div class="d-flex align-items-center">
+                            <div class="stat-icon bg-primary-gradient text-white me-3">
+                                <i class="bi bi-people"></i>
+                            </div>
+                            <div>
+                                <div class="h4 mb-0">{{ total_members }}</div>
+                                <div class="text-muted small">Members</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card p-4 h-100">
+                        <div class="d-flex align-items-center">
+                            <div class="stat-icon bg-success-gradient text-white me-3">
+                                <i class="bi bi-folder"></i>
+                            </div>
+                            <div>
+                                <div class="h4 mb-0">{{ total_projects }}</div>
+                                <div class="text-muted small">Projects</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card p-4 h-100">
+                        <div class="d-flex align-items-center">
+                            <div class="stat-icon bg-warning-gradient text-white me-3">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <div>
+                                <div class="h4 mb-0">{{ total_clients }}</div>
+                                <div class="text-muted small">Clients</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card p-4 h-100">
+                        <div class="d-flex align-items-center">
+                            <div class="stat-icon bg-info-gradient text-white me-3">
+                                <i class="bi bi-list-task"></i>
+                            </div>
+                            <div>
+                                <div class="h4 mb-0">{{ open_tasks }}</div>
+                                <div class="text-muted small">Open Tasks</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Task Completion Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up me-2"></i>Task Completion Trends
+                    </h5>
+                    <small class="text-muted">Last 30 days</small>
+                </div>
+                <div class="card-body">
+                    <canvas id="taskCompletionChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Analytics Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-journal-text me-2"></i>Log Activity Analytics
+                    </h5>
+                    <small class="text-muted">Last 30 days</small>
+                </div>
+                <div class="card-body">
+                    <!-- Log Summary Stats -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 mb-1 text-primary">{{ total_logs_last_30 }}</div>
+                                <div class="small text-muted">Total Log Entries</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 mb-1 text-success">{{ touch_logs_last_30 }}</div>
+                                <div class="small text-muted">Touch Logs</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 mb-1 text-info">{{ detailed_logs_last_30 }}</div>
+                                <div class="small text-muted">Detailed Logs</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 mb-1 text-warning">{{ total_hours_last_30 }}</div>
+                                <div class="small text-muted">Hours Logged</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Log Activity Chart -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">Daily Log Activity</h6>
+                        <canvas id="logActivityChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project and User Activity -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-trophy me-2"></i>Most Active Projects
+                    </h5>
+                    <small class="text-muted">By task completion (last 30 days)</small>
+                </div>
+                <div class="card-body">
+                    {% if most_active_projects %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="border-0">#</th>
+                                    <th class="border-0">Project</th>
+                                    <th class="border-0">Client</th>
+                                    <th class="border-0">Tasks</th>
+                                    <th class="border-0">Activity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for project in most_active_projects %}
+                                <tr>
+                                    <td>
+                                        <span class="badge-clean badge-rank">#{{ loop.index }}</span>
+                                    </td>
+                                    <td class="fw-medium">{{ project.name }}</td>
+                                    <td class="text-muted">{{ project.client_name }}</td>
+                                    <td>
+                                        <span class="badge-clean badge-status-completed">{{ project.completed_tasks }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-success" 
+                                                 style="width: {{ (project.completed_tasks / most_active_projects[0].completed_tasks * 100) if most_active_projects[0].completed_tasks > 0 else 0 }}%">
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-graph-up fs-1 mb-3 d-block"></i>
+                        <div class="fw-medium">No project activity</div>
+                        <div class="small">Complete some tasks to see project rankings</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-journal-check me-2"></i>Most Logged Projects
+                    </h5>
+                    <small class="text-muted">By log entries (last 30 days)</small>
+                </div>
+                <div class="card-body">
+                    {% if most_logged_projects %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="border-0">#</th>
+                                    <th class="border-0">Project</th>
+                                    <th class="border-0">Client</th>
+                                    <th class="border-0">Logs</th>
+                                    <th class="border-0">Hours</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for project in most_logged_projects %}
+                                <tr>
+                                    <td>
+                                        <span class="badge-clean badge-rank">#{{ loop.index }}</span>
+                                    </td>
+                                    <td class="fw-medium">{{ project.name }}</td>
+                                    <td class="text-muted">{{ project.client_name }}</td>
+                                    <td>
+                                        <span class="badge-clean badge-status-active">{{ project.log_count }}</span>
+                                        <small class="text-muted">({{ project.touch_count }}T + {{ project.detailed_count }}D)</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge-clean badge-count">{{ "%.1f"|format(project.total_hours or 0) }}h</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-journal-text fs-1 mb-3 d-block"></i>
+                        <div class="fw-medium">No logging activity</div>
+                        <div class="small">Log some time to see project rankings</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Most Active Loggers -->
+    {% if most_active_loggers %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-check me-2"></i>Most Active Loggers
+                    </h5>
+                    <small class="text-muted">Last 30 days</small>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="border-0">#</th>
+                                    <th class="border-0">User</th>
+                                    <th class="border-0">Total Logs</th>
+                                    <th class="border-0">Touch Logs</th>
+                                    <th class="border-0">Detailed Logs</th>
+                                    <th class="border-0">Hours Logged</th>
+                                    <th class="border-0">Activity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in most_active_loggers %}
+                                <tr>
+                                    <td>
+                                        <span class="badge-clean badge-rank">#{{ loop.index }}</span>
+                                    </td>
+                                    <td class="fw-medium">{{ user.first_name }} {{ user.last_name or '' }}</td>
+                                    <td>
+                                        <span class="badge-clean badge-status-active">{{ user.log_count }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge-clean badge-status-prospective">{{ user.touch_count }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge-clean badge-status-completed">{{ user.detailed_count }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge-clean badge-count">{{ "%.1f"|format(user.total_hours or 0) }}h</span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-primary" 
+                                                 style="width: {{ (user.log_count / most_active_loggers[0].log_count * 100) if most_active_loggers[0].log_count > 0 else 0 }}%">
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Task Completion Chart
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('taskCompletionChart').getContext('2d');
+    
+    // Data from backend
+    const completionData = {{ completion_data | tojson }};
+    
+    const labels = completionData.map(d => {
+        const date = new Date(d.date);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    
+    const allTasksData = completionData.map(d => d.all_tasks);
+    const myTasksData = completionData.map(d => d.my_tasks);
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'All Tasks',
+                data: allTasksData,
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'My Tasks',
+                data: myTasksData,
+                borderColor: '#2ecc71',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            elements: {
+                point: {
+                    radius: 3,
+                    hoverRadius: 5
+                }
+            }
+        }
+    });
+
+    // Log Activity Chart
+    const logCtx = document.getElementById('logActivityChart').getContext('2d');
+    
+    // Data from backend
+    const logActivityData = {{ log_activity_data | tojson }};
+    
+    const logLabels = logActivityData.map(d => {
+        const date = new Date(d.date);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    
+    const touchLogsData = logActivityData.map(d => d.touch_logs);
+    const detailedLogsData = logActivityData.map(d => d.detailed_logs);
+    
+    new Chart(logCtx, {
+        type: 'bar',
+        data: {
+            labels: logLabels,
+            datasets: [{
+                label: 'Touch Logs',
+                data: touchLogsData,
+                backgroundColor: 'rgba(46, 204, 113, 0.6)',
+                borderColor: '#2ecc71',
+                borderWidth: 1
+            }, {
+                label: 'Detailed Logs',
+                data: detailedLogsData,
+                backgroundColor: 'rgba(52, 152, 219, 0.6)',
+                borderColor: '#3498db',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    stacked: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                },
+                x: {
+                    stacked: true,
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %} 

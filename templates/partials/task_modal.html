@@ -1,0 +1,270 @@
+<!-- Task Modal -->
+<div class="modal fade" id="taskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-body p-4" x-data="modalTaskFormWrapper()" x-init="init()">
+                <!-- Include the beautiful task form -->
+                {% include 'partials/task_form.html' %}
+                
+                <!-- Modal-specific close button -->
+                <div class="text-center mt-3">
+                    <button type="button" class="btn btn-link text-muted" data-bs-dismiss="modal">
+                        <i class="bi bi-x me-1"></i>Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Modal wrapper for task form (only define if not already defined)
+if (typeof modalTaskFormWrapper === 'undefined') {
+    function modalTaskFormWrapper() {
+        return {
+            init() {
+                // Wait for the task form to initialize, then set up modal-specific behavior
+                this.$nextTick(() => {
+                    this.setupModalBehavior();
+                });
+            },
+            
+            setupModalBehavior() {
+                const modal = document.getElementById('taskModal');
+                
+                // Listen for modal shown event to handle preset projects
+                modal.addEventListener('shown.bs.modal', () => {
+                    this.handleModalShown();
+                });
+                
+                // Listen for modal hidden event to reset form
+                modal.addEventListener('hidden.bs.modal', () => {
+                    this.resetForm();
+                });
+                
+                // Listen for form submission to close modal
+                const form = modal.querySelector('form');
+                if (form) {
+                    form.addEventListener('submit', () => {
+                        // Small delay to allow form submission, then close modal
+                        setTimeout(() => {
+                            const bootstrapModal = bootstrap.Modal.getInstance(modal);
+                            if (bootstrapModal) {
+                                bootstrapModal.hide();
+                            }
+                        }, 100);
+                    });
+                }
+            },
+            
+            handleModalShown() {
+                const modal = document.getElementById('taskModal');
+                const presetProjectId = modal.dataset.presetProjectId;
+                const presetProjectName = modal.dataset.presetProjectName;
+                const presetUserId = modal.dataset.presetUserId;
+                const presetUserName = modal.dataset.presetUserName;
+                
+                console.log('Modal shown with preset:', presetProjectName, presetProjectId, presetUserName, presetUserId);
+                
+                // Wait a bit longer for Alpine.js to fully initialize
+                setTimeout(() => {
+                    // Find the task form Alpine component
+                    const taskFormElement = modal.querySelector('.quick-task-form');
+                    
+                    if (!taskFormElement) {
+                        console.log('Task form element not found');
+                        return;
+                    }
+                    
+                    // Try to get Alpine data multiple ways
+                    let taskFormData = null;
+                    
+                    // Method 1: Try _x_dataStack
+                    if (taskFormElement._x_dataStack && taskFormElement._x_dataStack.length > 0) {
+                        taskFormData = taskFormElement._x_dataStack[0];
+                    }
+                    
+                    // Method 2: Try Alpine.$data
+                    if (!taskFormData && window.Alpine && window.Alpine.$data) {
+                        taskFormData = window.Alpine.$data(taskFormElement);
+                    }
+                    
+                    // Method 3: Dispatch custom events to let the task form handle it
+                    if (!taskFormData) {
+                        console.log('Using event-based approach');
+                        if (presetProjectId && presetProjectName) {
+                            const event = new CustomEvent('set-preset-project', {
+                                detail: { 
+                                    projectId: presetProjectId === 'lookup' ? null : presetProjectId, 
+                                    projectName: presetProjectName,
+                                    lookupByName: presetProjectId === 'lookup'
+                                }
+                            });
+                            taskFormElement.dispatchEvent(event);
+                        } else if (presetUserId && presetUserName) {
+                            const event = new CustomEvent('set-preset-user', {
+                                detail: { userId: presetUserId, userName: presetUserName }
+                            });
+                            taskFormElement.dispatchEvent(event);
+                        }
+                        
+                        // Clear the preset data
+                        delete modal.dataset.presetProjectId;
+                        delete modal.dataset.presetProjectName;
+                        delete modal.dataset.presetUserId;
+                        delete modal.dataset.presetUserName;
+                        
+                        // Focus the input
+                        setTimeout(() => {
+                            const input = modal.querySelector('[x-ref="taskInput"]');
+                            if (input) {
+                                input.focus();
+                            }
+                        }, 200);
+                        return;
+                    }
+                    
+                    console.log('Found task form data:', taskFormData);
+                    
+                    if (presetProjectId && presetProjectName && taskFormData) {
+                        console.log('Setting preset project:', presetProjectName, presetProjectId);
+                        
+                        // Find the project in the loaded data
+                        let project = null;
+                        if (presetProjectId === 'lookup') {
+                            // Find project by name when we only have the project name
+                            project = taskFormData.projects ? taskFormData.projects.find(p => p.name === presetProjectName) : null;
+                        } else {
+                            // Find project by ID when we have the ID
+                            project = taskFormData.projects ? taskFormData.projects.find(p => p.id == presetProjectId) : null;
+                        }
+                        
+                        if (project) {
+                            taskFormData.selectedProject = project;
+                            taskFormData.rawInput = `#[${project.name}] `;
+                            console.log('Project set:', project);
+                        } else {
+                            console.log('Project not found, creating fallback');
+                            // Fallback - create a minimal project object
+                            taskFormData.selectedProject = {
+                                id: presetProjectId === 'lookup' ? null : presetProjectId,
+                                name: presetProjectName,
+                                display_name: presetProjectName
+                            };
+                            taskFormData.rawInput = `#[${presetProjectName}] `;
+                        }
+                        
+                        // Clear the preset data
+                        delete modal.dataset.presetProjectId;
+                        delete modal.dataset.presetProjectName;
+                    } else if (presetUserId && presetUserName && taskFormData) {
+                        console.log('Setting preset user:', presetUserName, presetUserId);
+                        
+                        // Find the user in the loaded data
+                        const user = taskFormData.users ? taskFormData.users.find(u => u.id == presetUserId) : null;
+                        if (user) {
+                            taskFormData.selectedUser = user;
+                            taskFormData.rawInput = `@[${user.name}] `;
+                            console.log('User set:', user);
+                        } else {
+                            console.log('User not found, creating fallback');
+                            // Fallback - create a minimal user object
+                            taskFormData.selectedUser = {
+                                id: presetUserId,
+                                name: presetUserName
+                            };
+                            taskFormData.rawInput = `@[${presetUserName}] `;
+                        }
+                        
+                        // Clear the preset data
+                        delete modal.dataset.presetUserId;
+                        delete modal.dataset.presetUserName;
+                    } else if (taskFormData) {
+                        // Reset to default project
+                        if (taskFormData.setDefaultProject) {
+                            taskFormData.setDefaultProject();
+                        }
+                        taskFormData.rawInput = '';
+                    }
+                    
+                    // Focus the input
+                    setTimeout(() => {
+                        const input = modal.querySelector('[x-ref="taskInput"]');
+                        if (input) {
+                            input.focus();
+                            if (taskFormData && taskFormData.rawInput) {
+                                input.setSelectionRange(taskFormData.rawInput.length, taskFormData.rawInput.length);
+                            }
+                        }
+                    }, 100);
+                }, 300); // Longer delay to ensure Alpine is ready
+            },
+            
+            resetForm() {
+                const modal = document.getElementById('taskModal');
+                const taskFormElement = modal.querySelector('[x-data*="taskForm"]');
+                if (taskFormElement && taskFormElement._x_dataStack) {
+                    const taskFormData = taskFormElement._x_dataStack[0];
+                    taskFormData.rawInput = '';
+                    taskFormData.selectedProject = {};
+                    taskFormData.selectedUser = {};
+                    taskFormData.showAutocomplete = false;
+                    taskFormData.setDefaultProject();
+                }
+                
+                // Clear any remaining preset data
+                delete modal.dataset.presetProjectId;
+                delete modal.dataset.presetProjectName;
+                delete modal.dataset.presetUserId;
+                delete modal.dataset.presetUserName;
+            }
+        }
+    }
+}
+
+// Global function to open task modal with project preset (reusable across templates)
+function openTaskModalWithProject(projectId, projectName) {
+    const modal = document.getElementById('taskModal');
+    
+    console.log('Opening task modal with project:', projectName, projectId);
+    
+    // Store project info to be used by Alpine when modal is shown
+    modal.dataset.presetProjectId = projectId;
+    modal.dataset.presetProjectName = projectName;
+    
+    // Show the modal
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+
+// Global function to open task modal with user preset (for "Tasks for Me" section)
+function openTaskModalWithUser(userId, userName) {
+    const modal = document.getElementById('taskModal');
+    
+    console.log('Opening task modal with user:', userName, userId);
+    
+    // Store user info to be used by Alpine when modal is shown
+    modal.dataset.presetUserId = userId;
+    modal.dataset.presetUserName = userName;
+    
+    // Show the modal
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+
+// Global function to open task modal with project name only (for tasks page project groups)
+function openTaskModalWithProjectName(projectName) {
+    const modal = document.getElementById('taskModal');
+    
+    console.log('Opening task modal with project name:', projectName);
+    
+    // Store project name to be used by Alpine when modal is shown
+    // We'll set a dummy ID and let the Alpine component handle finding the real project
+    modal.dataset.presetProjectId = 'lookup';
+    modal.dataset.presetProjectName = projectName;
+    
+    // Show the modal
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+</script> 
