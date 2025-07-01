@@ -57,7 +57,7 @@ class Membership(db.Model):
     clients = db.relationship('Client', backref='membership', lazy='dynamic')
     
     def __repr__(self):
-        return f'<Membership {self.id}>'
+        return f'<Membership {self.title}>'
 
 class Client(db.Model):
     __tablename__ = 'clients'
@@ -98,8 +98,7 @@ class Task(db.Model):
     __tablename__ = 'tasks'
     
     id = db.Column(db.Integer, primary_key=True)
-    description = db.Column(db.String(255), nullable=False)  # Clean description without tags
-    original_input = db.Column(db.String(255), nullable=True)  # Original input with tags
+    description = db.Column(db.String(255), nullable=False)  # Task description with tags (@[User] and #[Project])
     is_complete = db.Column(db.Boolean, default=False, nullable=False)
     completed_on = db.Column(db.DateTime(timezone=True), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

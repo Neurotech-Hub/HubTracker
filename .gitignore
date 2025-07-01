@@ -183,7 +183,6 @@ $RECYCLE.BIN/
 # Project specific
 *.db
 hubtracker.db
-migrations/
 .flask_session
 
 # IDE

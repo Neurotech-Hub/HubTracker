@@ -44,7 +44,7 @@ A modern, full-stack project management web application designed for teams and b
 
 ## Quick Start
 
-### Local Development (Clean Setup)
+### Local Development Setup
 
 1. **Clone the repository**
    ```bash
@@ -63,12 +63,24 @@ A modern, full-stack project management web application designed for teams and b
    pip install -r requirements.txt
    ```
 
-4. **Initialize clean database**
+4. **Database Setup**
+
+   HubTracker uses Flask-Migrate for database management. This ensures consistent database schema across all installations.
+
    ```bash
-   flask db upgrade        # Recommended: Uses Flask-Migrate
-   # OR
-   python init_clean_db.py # Alternative: Direct table creation
+   # First time setup only:
+   flask db upgrade   # This will create hubtracker.db and apply all migrations
    ```
+
+   If you want sample data to explore features:
+   ```bash
+   python init_db.py  # Creates tables AND adds sample users/projects/tasks
+   ```
+
+   ⚠️ **Important**: Only use `init_db.py` for initial exploration. For real usage:
+   - Use `flask db upgrade` for first-time setup
+   - Use migrations for all schema changes
+   - Never use `init_db.py` on a production database
 
 5. **Run the application**
    ```bash
@@ -79,16 +91,50 @@ A modern, full-stack project management web application designed for teams and b
    - Open your browser and go to `http://localhost:5000`
    - Create your first user account and start using the app
 
-### Development with Sample Data (Optional)
+### Database Migration Workflow
 
-If you want to explore features with sample data:
+HubTracker uses Flask-Migrate to manage database schema changes. Here's how to handle database changes:
 
-```bash
-python init_db.py  # Creates tables AND adds sample users/projects/tasks
-python app.py      # Start development server
-```
+1. **Making Schema Changes**
+   - Edit the models in `models.py`
+   - Generate a new migration:
+     ```bash
+     flask db migrate -m "Description of your changes"
+     ```
+   - Review the generated migration in `migrations/versions/`
+   - Apply the migration:
+     ```bash
+     flask db upgrade
+     ```
 
-Then select any sample user to explore the full feature set.
+2. **Common Migration Commands**
+   ```bash
+   flask db migrate -m "message"  # Create a new migration
+   flask db upgrade              # Apply pending migrations
+   flask db downgrade           # Rollback last migration
+   flask db history            # View migration history
+   flask db current           # Show current revision
+   ```
+
+3. **Best Practices**
+   - Always review generated migrations before applying
+   - Commit migrations to version control
+   - Test migrations on development before production
+   - Back up production database before migrating
+   - Never delete migration files once they're in use
+
+4. **Troubleshooting**
+   If you encounter migration issues:
+   ```bash
+   # View current database state
+   flask db current
+
+   # Force a specific revision
+   flask db stamp <revision_id>
+
+   # Show migration SQL
+   flask db upgrade --sql
+   ```
 
 ## Deployment
 
@@ -160,12 +206,12 @@ heroku run flask db upgrade  # Initialize database
 
 ### Environment Variables
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `FLASK_ENV` | Environment mode | `development` | No |
-| `SECRET_KEY` | Flask secret key | Random | **Yes (Production)** |
-| `DATABASE_URL` | Database connection string | `sqlite:///hub_tracker.db` | No |
-| `PORT` | Server port | `5000` | No |
+| Variable       | Description                | Default                    | Required             |
+| -------------- | -------------------------- | -------------------------- | -------------------- |
+| `FLASK_ENV`    | Environment mode           | `development`              | No                   |
+| `SECRET_KEY`   | Flask secret key           | Random                     | **Yes (Production)** |
+| `DATABASE_URL` | Database connection string | `sqlite:///hub_tracker.db` | No                   |
+| `PORT`         | Server port                | `5000`                     | No                   |
 
 ### Database Migration
 

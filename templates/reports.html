@@ -102,63 +102,6 @@
         </div>
     </div>
 
-    <!-- Log Analytics Section -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-journal-text me-2"></i>Log Activity Analytics
-                    </h5>
-                    <small class="text-muted">Last 30 days</small>
-                </div>
-                <div class="card-body">
-                    <!-- Log Summary Stats -->
-                    <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <div class="h4 mb-1 text-primary">{{ total_logs_last_30 }}</div>
-                                <div class="small text-muted">Total Log Entries</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <div class="h4 mb-1 text-success">{{ touch_logs_last_30 }}</div>
-                                <div class="small text-muted">Touch Logs</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <div class="h4 mb-1 text-info">{{ detailed_logs_last_30 }}</div>
-                                <div class="small text-muted">Detailed Logs</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <div class="h4 mb-1 text-warning">{{ total_hours_last_30 }}</div>
-                                <div class="small text-muted">Hours Logged</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {% if total_logs_last_30 > 0 %}
-                    <!-- Log Activity Chart -->
-                    <div class="mb-4">
-                        <h6 class="text-muted mb-3">Daily Log Activity</h6>
-                        <canvas id="logActivityChart" width="400" height="200"></canvas>
-                    </div>
-                    {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-journal-text fs-1 mb-3 d-block"></i>
-                        <div class="fw-medium">No logging activity</div>
-                        <div class="small">Log some time to see activity trends</div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Project and User Activity -->
     <div class="row">
         <div class="col-lg-6">
@@ -388,6 +331,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     beginAtZero: true,
                     grid: {
                         color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    suggestedMax: 15,
+                    ticks: {
+                        stepSize: 3
                     }
                 },
                 x: {
@@ -404,73 +351,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-
-    // Log Activity Chart
-    {% if total_logs_last_30 > 0 %}
-    const logCtx = document.getElementById('logActivityChart').getContext('2d');
-    
-    // Data from backend
-    const logActivityData = {{ log_activity_data | tojson }};
-    
-    const logLabels = logActivityData.map(d => {
-        const date = new Date(d.date);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    });
-    
-    const touchLogsData = logActivityData.map(d => d.touch_logs);
-    const detailedLogsData = logActivityData.map(d => d.detailed_logs);
-    
-    new Chart(logCtx, {
-        type: 'bar',
-        data: {
-            labels: logLabels,
-            datasets: [{
-                label: 'Touch Logs',
-                data: touchLogsData,
-                backgroundColor: 'rgba(46, 204, 113, 0.6)',
-                borderColor: '#2ecc71',
-                borderWidth: 1
-            }, {
-                label: 'Detailed Logs',
-                data: detailedLogsData,
-                backgroundColor: 'rgba(52, 152, 219, 0.6)',
-                borderColor: '#3498db',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-                title: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    stacked: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    },
-                    suggestedMax: 5,
-                    ticks: {
-                        stepSize: 1
-                    }
-                },
-                x: {
-                    stacked: true,
-                    grid: {
-                        display: false
-                    }
-                }
-            }
-        }
-    });
-    {% endif %}
 });
 </script>
 {% endblock %} 

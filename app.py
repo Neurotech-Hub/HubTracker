@@ -203,8 +203,7 @@ def add_task():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    description = request.form.get('description', '').strip()  # This is the clean description
-    original_input = request.form.get('original_input', '').strip()  # This is the tagged input
+    description = request.form.get('description', '').strip()  # This contains the full text with tags
     project_id = request.form.get('project_id')
     assigned_to = request.form.get('assigned_to')
     
@@ -215,8 +214,7 @@ def add_task():
             project_id = default_project.id if default_project else None
         
         task = Task(
-            description=description,
-            original_input=original_input if original_input else description,
+            description=description,  # Store the full text with tags
             created_by=session['user_id'],
             project_id=int(project_id) if project_id else None,
             assigned_to=int(assigned_to) if assigned_to else None
@@ -260,10 +258,7 @@ def edit_task(task_id):
     assigned_to = request.form.get('assigned_to')
     
     if description:
-        task.description = description
-        # For edited tasks, we'll use the plain description as original_input too
-        # since the edit form doesn't have the tag system
-        task.original_input = description
+        task.description = description  # Store the full text with tags
         task.project_id = int(project_id) if project_id else None
         task.assigned_to = int(assigned_to) if assigned_to else None
         db.session.commit()
