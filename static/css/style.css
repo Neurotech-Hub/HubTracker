@@ -259,14 +259,14 @@ body {
     margin-top: 4px;
     max-height: 250px;
     overflow-y: auto;
-    z-index: 10000;
+    z-index: 1045;
     isolation: isolate;
 }
 
 /* Ensure the input wrapper creates proper stacking context */
 .task-input-wrapper {
     position: relative;
-    z-index: 9999;
+    z-index: 1040;
     isolation: isolate;
 }
 
@@ -296,14 +296,14 @@ body {
     width: 100%;
     white-space: nowrap;
     position: relative;
-    z-index: 10001;
+    z-index: 1046;
 }
 
 .autocomplete-item:hover,
 .autocomplete-item.bg-primary {
     background-color: var(--primary-color) !important;
     color: white !important;
-    z-index: 10002 !important;
+    z-index: 1047 !important;
 }
 
 .autocomplete-item:last-child {
@@ -1064,11 +1064,11 @@ body {
     z-index: 3;
 }
 
-/* Ensure quick task form and its container stay on top */
+/* Ensure quick task form and its container stay on top but below modals */
 .quick-task-form,
 .quick-task-form .card,
 .task-input-wrapper {
-    z-index: 9998 !important;
+    z-index: 1040 !important;
     position: relative;
 }
 
