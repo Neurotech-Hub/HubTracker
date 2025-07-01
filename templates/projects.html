@@ -75,10 +75,6 @@
                                         </td>
                                         <td class="text-end">
                                             <div class="action-btn-group">
-                                                <a href="{{ url_for('project_detail', project_id=project.id) }}" 
-                                                   class="action-btn-clean btn-view" title="View Project">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
                                                 <button type="button" class="action-btn-clean btn-edit" 
                                                         onclick="editProject({{ project.id }}, '{{ project.name }}', {{ project.client_id }}, {{ project.project_lead_id or 'null' }}, '{{ project.notes or '' }}', '{{ project.status }}', {{ project.is_default|lower }})"
                                                         data-bs-toggle="modal" data-bs-target="#editProjectModal"
@@ -132,10 +128,6 @@
                                                         <i class="bi bi-pin-fill {{ 'text-warning' if project.is_pinned else 'text-muted' }}"></i>
                                                     </button>
                                                 </form>
-                                                <a href="{{ url_for('project_detail', project_id=project.id) }}" 
-                                                   class="action-btn-clean btn-view" title="View Project">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
                                                 <button type="button" class="action-btn-clean btn-edit" 
                                                         onclick="editProject({{ project.id }}, '{{ project.name }}', {{ project.client_id }}, {{ project.project_lead_id or 'null' }}, '{{ project.notes or '' }}', '{{ project.status }}', {{ project.is_default|lower }})"
                                                         data-bs-toggle="modal" data-bs-target="#editProjectModal"

@@ -45,6 +45,7 @@ class Membership(db.Model):
     __tablename__ = 'memberships'
     
     id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)  # Membership title/name
     start_date = db.Column(db.DateTime(timezone=True), nullable=True)
     is_annual = db.Column(db.Boolean, default=False, nullable=False)
     cost = db.Column(db.Float, nullable=True)  # Monthly or annual cost

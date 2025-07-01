@@ -70,10 +70,6 @@
                                         </td>
                                         <td class="text-end">
                                             <div class="action-btn-group">
-                                                <a href="{{ url_for('client_detail', client_id=client.id) }}" 
-                                                   class="action-btn-clean btn-view" title="View Client">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
                                                 <button type="button" class="action-btn-clean btn-edit" 
                                                         onclick="editClient({{ client.id }}, '{{ client.name }}', {{ client.membership_id or 'null' }}, '{{ client.notes or '' }}')"
                                                         data-bs-toggle="modal" data-bs-target="#editClientModal"

@@ -246,7 +246,7 @@ body {
     position: relative;
 }
 
-/* Autocomplete Dropdown */
+/* Autocomplete Dropdown - Simple and reliable */
 .autocomplete-dropdown {
     position: absolute;
     top: 100%;
@@ -255,66 +255,59 @@ body {
     background: white;
     border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 0.5rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     margin-top: 4px;
-    max-height: 300px;
+    max-height: 250px;
     overflow-y: auto;
+    z-index: 10000;
+    isolation: isolate;
 }
 
-/* Ensure dropdown container is always on top and properly positioned */
+/* Ensure the input wrapper creates proper stacking context */
+.task-input-wrapper {
+    position: relative;
+    z-index: 9999;
+    isolation: isolate;
+}
+
+/* Ensure task hover effects work properly */
+.task-item-compact:hover {
+    background: #f8f9fa;
+    z-index: 3 !important;
+}
+
+/* Ensure no other elements can block autocomplete interaction */
+.autocomplete-dropdown * {
+    pointer-events: auto;
+}
+
+/* Ensure autocomplete dropdown stays interactive */
 .task-input-wrapper .autocomplete-dropdown {
-    position: absolute !important;
-    z-index: 999999 !important;
+    pointer-events: auto;
 }
 
-/* Override any Bootstrap modal z-index */
-.modal {
-    z-index: 99990;
-}
-
-/* Reset stacking context for all containers */
-.container-fluid,
-.row,
-.col-12,
-.card,
-.card-body,
-.task-list-section,
-.task-section-header-compact {
-    position: static !important;
-    transform: none !important;
-}
-
-.task-input-wrapper>div {
-    overflow: visible !important;
-}
-
-.autocomplete-dropdown .bg-white {
-    border-radius: 0.5rem;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
+/* Autocomplete items - clean and functional */
 .autocomplete-item {
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease;
     padding: 0.75rem 1rem;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     display: block;
     width: 100%;
     white-space: nowrap;
+    position: relative;
+    z-index: 10001;
 }
 
-.autocomplete-item:hover {
+.autocomplete-item:hover,
+.autocomplete-item.bg-primary {
     background-color: var(--primary-color) !important;
     color: white !important;
+    z-index: 10002 !important;
 }
 
 .autocomplete-item:last-child {
-    border-bottom: none !important;
-}
-
-.autocomplete-item.bg-primary {
-    background-color: var(--primary-color) !important;
+    border-bottom: none;
 }
 
 .autocomplete-item small {
@@ -919,7 +912,13 @@ body {
     position: sticky;
     top: 0;
     background: white;
-    z-index: 10;
+    z-index: 1;
+}
+
+/* Ensure task search doesn't interfere with task interactions */
+.task-search .task-filter-inline,
+.task-search .task-filter-inline * {
+    z-index: auto;
 }
 
 /* Subtle Inline Filter */
@@ -1028,6 +1027,49 @@ body {
 .card.border:hover {
     border-color: #dee2e6 !important;
     box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.075);
+    /* Ensure hover doesn't interfere with autocomplete */
+    z-index: auto !important;
+}
+
+/* Ensure cards don't interfere with autocomplete dropdowns */
+.card {
+    position: relative;
+    z-index: 1;
+}
+
+/* Task page cards should not interfere with autocomplete but remain interactive */
+.task-list-section .card,
+.task-list-section .card-body {
+    z-index: 1;
+}
+
+/* Ensure all task elements remain fully interactive */
+.task-list-section,
+[x-data*="taskList"],
+.task-item-compact,
+.task-checkbox,
+.task-checkbox-form,
+.task-action-btn-compact,
+.task-actions-compact,
+.task-content-compact,
+.task-description-main {
+    position: relative;
+    z-index: 2;
+}
+
+/* Task interactions must be above everything except autocomplete */
+.task-item-compact:hover,
+.task-checkbox:hover,
+.task-action-btn-compact:hover {
+    z-index: 3;
+}
+
+/* Ensure quick task form and its container stay on top */
+.quick-task-form,
+.quick-task-form .card,
+.task-input-wrapper {
+    z-index: 9998 !important;
+    position: relative;
 }
 
 /* Form enhancements */

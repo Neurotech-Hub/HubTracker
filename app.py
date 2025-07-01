@@ -794,12 +794,17 @@ def add_membership():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
+    title = request.form.get('title', '').strip()
     start_date_str = request.form.get('start_date')
     is_annual = request.form.get('is_annual') == 'on'
     cost_str = request.form.get('cost', '').strip()
     time_str = request.form.get('time', '').strip()
     budget_str = request.form.get('budget', '').strip()
     notes = request.form.get('notes', '').strip()
+    
+    if not title:
+        flash('Title is required', 'error')
+        return redirect(url_for('memberships'))
     
     start_date = None
     if start_date_str:
@@ -835,6 +840,7 @@ def add_membership():
             return redirect(url_for('memberships'))
     
     membership = Membership(
+        title=title,
         start_date=start_date,
         is_annual=is_annual,
         cost=cost,
@@ -855,12 +861,17 @@ def edit_membership(membership_id):
     
     membership = Membership.query.get_or_404(membership_id)
     
+    title = request.form.get('title', '').strip()
     start_date_str = request.form.get('start_date')
     is_annual = request.form.get('is_annual') == 'on'
     cost_str = request.form.get('cost', '').strip()
     time_str = request.form.get('time', '').strip()
     budget_str = request.form.get('budget', '').strip()
     notes = request.form.get('notes', '').strip()
+    
+    if not title:
+        flash('Title is required', 'error')
+        return redirect(url_for('memberships'))
     
     start_date = None
     if start_date_str:
@@ -895,6 +906,7 @@ def edit_membership(membership_id):
             flash('Invalid budget format', 'error')
             return redirect(url_for('memberships'))
     
+    membership.title = title
     membership.start_date = start_date
     membership.is_annual = is_annual
     membership.cost = cost

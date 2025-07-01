@@ -22,117 +22,82 @@
     <div class="row">
         <div class="col-12">
             {% if memberships %}
-                <div class="row g-4">
-                    {% for membership in memberships %}
-                    <div class="col-lg-6 col-xl-4">
-                        <div class="card h-100 membership-card" onclick="window.location.href='{{ url_for('membership_detail', membership_id=membership.id) }}'" style="cursor: pointer;">
-                            <div class="card-header d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h5 class="card-title mb-1">
-                                        Membership #{{ membership.id }}
-                                        {% if membership.is_annual %}
-                                        <span class="badge-clean badge-membership-annual ms-2">Annual</span>
-                                        {% else %}
-                                        <span class="badge-clean badge-membership-monthly ms-2">Monthly</span>
-                                        {% endif %}
-                                    </h5>
-                                    {% if membership.start_date %}
-                                    <small class="text-muted">Started {{ membership.start_date.strftime('%b %d, %Y') }}</small>
-                                    {% else %}
-                                    <small class="text-muted">No start date</small>
-                                    {% endif %}
-                                </div>
-                                <div class="dropdown" onclick="event.stopPropagation();">
-                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li>
-                                            <button class="dropdown-item" type="button"
-                                                    onclick="editMembership({{ membership.id }}, '{{ membership.start_date.strftime('%Y-%m-%d') if membership.start_date else '' }}', {{ membership.is_annual|lower }}, '{{ membership.cost or '' }}', '{{ membership.time or '' }}', '{{ membership.budget or '' }}', '{{ membership.notes or '' }}')"
-                                                    data-bs-toggle="modal" data-bs-target="#editMembershipModal">
-                                                <i class="bi bi-pencil me-2"></i>Edit Membership
-                                            </button>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        {% if membership.clients.count() == 0 %}
-                                            <li>
-                                                <button class="dropdown-item text-danger" type="button"
-                                                        onclick="confirmDelete('Membership #{{ membership.id }}', '{{ url_for('delete_membership', membership_id=membership.id) }}')">
-                                                    <i class="bi bi-trash me-2"></i>Delete Membership
-                                                </button>
-                                            </li>
-                                        {% else %}
-                                            <li>
-                                                <span class="dropdown-item-text text-muted small">
-                                                    <i class="bi bi-info-circle me-1"></i>
-                                                    Cannot delete - has clients
-                                                </span>
-                                            </li>
-                                        {% endif %}
-                                    </ul>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <!-- Budget Information Grid -->
-                                <div class="row mb-3">
-                                    {% if membership.cost %}
-                                    <div class="col-4">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Cost</div>
-                                            <div class="badge-clean badge-cost">${{ "%.2f"|format(membership.cost) }}</div>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                    {% if membership.time %}
-                                    <div class="col-4">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Hours</div>
-                                            <div class="badge-clean badge-count">{{ membership.time }}h</div>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                    {% if membership.budget %}
-                                    <div class="col-4">
-                                        <div class="text-center">
-                                            <div class="text-muted small">Budget</div>
-                                            <div class="badge-clean badge-cost">${{ "%.2f"|format(membership.budget) }}</div>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                
-                                <!-- Notes Section - Always shown -->
-                                <div class="notes-section">
-                                    <h6 class="text-muted mb-2">Notes</h6>
-                                    {% if membership.notes %}
-                                    <div class="rendered-notes">
-                                        {{ membership.notes|markdown|safe }}
-                                    </div>
-                                    {% else %}
-                                    <div class="text-muted small">No notes added</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="card-footer bg-white border-top">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">
-                                        {% set open_projects = namespace(count=0) %}
-                                        {% for client in membership.clients %}
-                                            {% for project in client.projects %}
-                                                {% if project.status != 'Archived' %}
-                                                    {% set open_projects.count = open_projects.count + 1 %}
-                                                {% endif %}
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="border-0">Membership</th>
+                                        <th class="border-0">Type</th>
+                                        <th class="border-0">Clients</th>
+                                        <th class="border-0">Projects</th>
+                                        <th class="border-0 text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for membership in memberships %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-medium mb-0">
+                                                        <a href="{{ url_for('membership_detail', membership_id=membership.id) }}" class="text-decoration-none">
+                                                            {{ membership.title }}
+                                                        </a>
+                                                    </div>
+                                                    {% if membership.start_date %}
+                                                    <small class="text-muted">Started {{ membership.start_date.strftime('%b %d, %Y') }}</small>
+                                                    {% else %}
+                                                    <small class="text-muted">No start date</small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if membership.is_annual %}
+                                            <span class="badge-clean badge-membership-annual">Annual</span>
+                                            {% else %}
+                                            <span class="badge-clean badge-membership-monthly">Monthly</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge-clean badge-count">{{ membership.clients.count() }}</span>
+                                        </td>
+                                        <td>
+                                            {% set open_projects = namespace(count=0) %}
+                                            {% for client in membership.clients %}
+                                                {% for project in client.projects %}
+                                                    {% if project.status != 'Archived' %}
+                                                        {% set open_projects.count = open_projects.count + 1 %}
+                                                    {% endif %}
+                                                {% endfor %}
                                             {% endfor %}
-                                        {% endfor %}
-                                        {{ membership.clients.count() }} Client{{ 's' if membership.clients.count() != 1 else '' }}, {{ open_projects.count }} Open Project{{ 's' if open_projects.count != 1 else '' }}
-                                    </small>
-                                    <div></div>
-                                </div>
-                            </div>
+                                            <span class="badge-clean badge-count">{{ open_projects.count }}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="action-btn-group">
+                                                <button type="button" class="action-btn-clean btn-edit" 
+                                                        onclick="editMembership({{ membership.id }}, '{{ membership.title|replace("'", "\\'") }}', '{{ membership.start_date.strftime('%Y-%m-%d') if membership.start_date else '' }}', {{ membership.is_annual|lower }}, '{{ membership.cost or '' }}', '{{ membership.time or '' }}', '{{ membership.budget or '' }}', '{{ membership.notes or '' }}')"
+                                                        data-bs-toggle="modal" data-bs-target="#editMembershipModal"
+                                                        title="Edit Membership">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                {% if membership.clients.count() == 0 %}
+                                                <button type="button" class="action-btn-clean btn-delete" 
+                                                        onclick="confirmDelete('{{ membership.title|replace("'", "\\'") }}', '{{ url_for('delete_membership', membership_id=membership.id) }}')"
+                                                        title="Delete Membership">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
             {% else %}
                 <div class="text-center py-5 text-muted">
@@ -158,6 +123,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="addMembershipTitle" class="form-label">Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="addMembershipTitle" name="title" required placeholder="e.g., Pro Plan, Basic Membership">
+                        <div class="form-text">Required - name for this membership</div>
+                    </div>
                     <div class="mb-3">
                         <label for="addMembershipStartDate" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="addMembershipStartDate" name="start_date">
@@ -227,6 +197,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editMembershipTitle" class="form-label">Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editMembershipTitle" name="title" required placeholder="e.g., Pro Plan, Basic Membership">
+                        <div class="form-text">Required - name for this membership</div>
+                    </div>
                     <div class="mb-3">
                         <label for="editMembershipStartDate" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="editMembershipStartDate" name="start_date">
@@ -309,8 +284,9 @@
 </div>
 
 <script>
-function editMembership(id, startDate, isAnnual, cost, time, budget, notes) {
+function editMembership(id, title, startDate, isAnnual, cost, time, budget, notes) {
     document.getElementById('editMembershipForm').action = `/edit_membership/${id}`;
+    document.getElementById('editMembershipTitle').value = title || '';
     document.getElementById('editMembershipStartDate').value = startDate;
     document.getElementById('editMembershipAnnual').checked = isAnnual;
     document.getElementById('editMembershipCost').value = cost || '';

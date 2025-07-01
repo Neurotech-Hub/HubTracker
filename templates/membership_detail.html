@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Membership #{{ membership.id }} - Hub Tracker{% endblock %}
+{% block title %}{{ membership.title }} - Hub Tracker{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -9,7 +9,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ url_for('memberships') }}">Memberships</a></li>
-                    <li class="breadcrumb-item active">Membership #{{ membership.id }}</li>
+                    <li class="breadcrumb-item active">{{ membership.title }}</li>
                 </ol>
             </nav>
             
@@ -20,7 +20,7 @@
                         <div class="card-header d-flex justify-content-between align-items-start">
                             <div>
                                 <h5 class="card-title mb-1">
-                                    Membership #{{ membership.id }}
+                                    {{ membership.title }}
                                     {% if membership.is_annual %}
                                     <span class="badge-clean badge-membership-annual ms-2">Annual</span>
                                     {% else %}
@@ -277,6 +277,12 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
+                        <label for="editTitle" class="form-label">Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editTitle" name="title" required 
+                               value="{{ membership.title }}" placeholder="e.g., Pro Plan, Basic Membership">
+                        <div class="form-text">Required - name for this membership</div>
+                    </div>
+                    <div class="mb-3">
                         <label for="editStartDate" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="editStartDate" name="start_date" 
                                value="{% if membership.start_date %}{{ membership.start_date.strftime('%Y-%m-%d') }}{% endif %}">
@@ -299,6 +305,31 @@
                                    value="{{ membership.cost or '' }}" placeholder="0.00">
                         </div>
                         <div class="form-text">Optional - monthly or annual cost</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editTime" class="form-label">Time Budget</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="editTime" name="time" min="0" 
+                                           value="{{ membership.time or '' }}" placeholder="0">
+                                    <span class="input-group-text">hrs</span>
+                                </div>
+                                <div class="form-text">Optional - hours included</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editBudget" class="form-label">Dollar Budget</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="editBudget" name="budget" step="0.01" min="0" 
+                                           value="{{ membership.budget or '' }}" placeholder="0.00">
+                                </div>
+                                <div class="form-text">Optional - dollar budget</div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="mb-3">

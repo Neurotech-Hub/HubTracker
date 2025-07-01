@@ -28,17 +28,15 @@
                          x-transition:leave="transition ease-in duration-75"
                          x-transition:leave-start="opacity-100 scale-100"
                          x-transition:leave-end="opacity-0 scale-95">
-                        <div class="bg-white border rounded-3 shadow-lg">
-                            <template x-for="(item, index) in filteredItems" :key="item.id">
-                                <div class="autocomplete-item px-3 py-2 cursor-pointer border-bottom"
-                                     :class="{ 'bg-primary text-white': index === selectedIndex }"
-                                     @click="selectItem(item)"
-                                     @mouseenter="selectedIndex = index">
-                                    <div x-text="item.display || item.name"></div>
-                                    <small class="opacity-75" x-show="item.client_name" x-text="'Client: ' + item.client_name"></small>
-                                </div>
-                            </template>
-                        </div>
+                        <template x-for="(item, index) in filteredItems" :key="item.id">
+                            <div class="autocomplete-item px-3 py-2 cursor-pointer border-bottom"
+                                 :class="{ 'bg-primary text-white': index === selectedIndex }"
+                                 @click="selectItem(item)"
+                                 @mouseenter="selectedIndex = index">
+                                <div x-text="item.display || item.name"></div>
+                                <small class="opacity-75" x-show="item.client_name" x-text="'Client: ' + item.client_name"></small>
+                            </div>
+                        </template>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary task-submit-btn">
