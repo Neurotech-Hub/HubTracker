@@ -22,7 +22,6 @@
                                 <table class="table table-hover table-sm mb-0">
                                     <thead class="table-light">
                                         <tr>
-                                            <th class="border-0" width="40"></th>
                                             <th class="border-0">Project</th>
                                             <th class="border-0">Client</th>
                                             <th class="border-0">Lead</th>
@@ -32,62 +31,12 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr>
-                                            <td>
-                                                <!-- Pin toggle -->
-                                                <form method="POST" action="{{ url_for('unpin_project' if is_pinned else 'pin_project', project_id=project.id) }}" class="d-inline">
-                                                    <button type="submit" class="action-btn-clean btn-view" title="{{ 'Unpin Project' if is_pinned else 'Pin Project' }}">
-                                                        <i class="bi bi-pin-fill {{ 'text-warning' if is_pinned else 'text-muted' }}"></i>
-                                                    </button>
-                                                </form>
-                                            </td>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="flex-grow-1">
-                                                        <div class="fw-medium mb-0">
-                                                            {{ project.name }}
-                                                            {% if project.is_default %}
-                                                            <span class="badge-clean badge-default">Default</span>
-                                                            {% endif %}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <a href="{{ url_for('client_detail', client_id=project.client.id) }}" class="text-decoration-none">
-                                                    {{ project.client.name }}
-                                                </a>
-                                            </td>
-                                            <td>
-                                                {% if project.project_leader %}
-                                                    {{ project.project_leader.full_name }}
-                                                {% else %}
-                                                    <span class="text-muted">Not assigned</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <span class="badge-clean badge-count">{{ tasks|selectattr('is_complete', 'equalto', false)|list|length }}</span>
-                                            </td>
-                                            <td>
-                                                {% if project.status == 'Active' %}
-                                                    <span class="badge-clean badge-status-active">{{ project.status }}</span>
-                                                {% elif project.status == 'Prospective' %}
-                                                    <span class="badge-clean badge-status-prospective">{{ project.status }}</span>
-                                                {% else %}
-                                                    <span class="badge-clean badge-status-archived">{{ project.status }}</span>
-                                                {% endif %}
-                                            </td>
-                                            <td class="text-end">
-                                                <div class="action-btn-group">
-                                                    <button type="button" class="action-btn-clean btn-edit" 
-                                                            onclick="editProject({{ project.id }}, '{{ project.name }}', {{ project.client_id }}, {{ project.project_lead_id or 'null' }}, '{{ project.notes or '' }}', '{{ project.status }}', {{ project.is_default|lower }})"
-                                                            data-bs-toggle="modal" data-bs-target="#editProjectModal"
-                                                            title="Edit Project">
-                                                        <i class="bi bi-pencil"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                        {% with show_pin=true, show_edit=true, show_delete=false, 
+                                                project=project, 
+                                                project_open_tasks_count=tasks|selectattr('is_complete', 'equalto', false)|list|length,
+                                                project_is_pinned=is_pinned %}
+                                            {% include 'partials/project_row.html' %}
+                                        {% endwith %}
                                     </tbody>
                                 </table>
                             </div>
@@ -109,60 +58,6 @@
                         <div class="card-body">
                             <div class="rendered-notes">
                                 {{ project.notes|markdown|safe }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-            
-            <!-- Membership Budget -->
-            {% if project.client and project.client.membership and (project.membership_time or project.membership_budget) %}
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="bi bi-wallet me-2"></i>Membership Budget
-                                <a href="{{ url_for('membership_detail', membership_id=project.client.membership.id) }}" class="btn btn-sm btn-outline-primary ms-2">
-                                    <i class="bi bi-eye me-1"></i>View Membership
-                                </a>
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                {% if project.membership_time %}
-                                <div class="col-md-6">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="fw-medium">Time Budget</span>
-                                        <span class="badge-clean badge-count">{{ project.membership_time }}h total</span>
-                                    </div>
-                                    <div class="progress mb-2" style="height: 8px;">
-                                        <div class="progress-bar {% if project.hours_remaining < (project.membership_time * 0.2) %}bg-danger{% elif project.hours_remaining < (project.membership_time * 0.5) %}bg-warning{% else %}bg-success{% endif %}" 
-                                             style="width: {{ (project.hours_remaining / project.membership_time * 100)|round(1) }}%"></div>
-                                    </div>
-                                    <div class="d-flex justify-content-between text-muted small">
-                                        <span>{{ "%.1f"|format(project.used_hours) }}h used</span>
-                                        <span>{{ "%.1f"|format(project.hours_remaining) }}h remaining</span>
-                                    </div>
-                                </div>
-                                {% endif %}
-                                {% if project.membership_budget %}
-                                <div class="col-md-6">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="fw-medium">Dollar Budget</span>
-                                        <span class="badge-clean badge-cost">${{ "%.2f"|format(project.membership_budget) }} total</span>
-                                    </div>
-                                    <div class="progress mb-2" style="height: 8px;">
-                                        <div class="progress-bar {% if project.budget_remaining < (project.membership_budget * 0.2) %}bg-danger{% elif project.budget_remaining < (project.membership_budget * 0.5) %}bg-warning{% else %}bg-success{% endif %}" 
-                                             style="width: {{ (project.budget_remaining / project.membership_budget * 100)|round(1) }}%"></div>
-                                    </div>
-                                    <div class="d-flex justify-content-between text-muted small">
-                                        <span>${{ "%.2f"|format(project.used_budget) }} used</span>
-                                        <span>${{ "%.2f"|format(project.budget_remaining) }} remaining</span>
-                                    </div>
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
                     </div>

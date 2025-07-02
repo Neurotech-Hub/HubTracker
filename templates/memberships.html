@@ -30,6 +30,7 @@
                                     <tr>
                                         <th class="border-0">Membership</th>
                                         <th class="border-0">Type</th>
+                                        <th class="border-0">Status</th>
                                         <th class="border-0">Clients</th>
                                         <th class="border-0">Projects</th>
                                         <th class="border-0 text-end">Actions</th>
@@ -62,6 +63,11 @@
                                             {% endif %}
                                         </td>
                                         <td>
+                                            <span class="badge-clean {% if membership.status == 'Active' %}badge-status-active{% elif membership.status == 'Pending' %}badge-status-pending{% else %}badge-status-archived{% endif %}">
+                                                {{ membership.status }}
+                                            </span>
+                                        </td>
+                                        <td>
                                             <span class="badge-clean badge-count">{{ membership.clients.count() }}</span>
                                         </td>
                                         <td>
@@ -78,7 +84,7 @@
                                         <td class="text-end">
                                             <div class="action-btn-group">
                                                 <button type="button" class="action-btn-clean btn-edit" 
-                                                        onclick="editMembership({{ membership.id }}, '{{ membership.title|replace("'", "\\'") }}', '{{ membership.start_date.strftime('%Y-%m-%d') if membership.start_date else '' }}', {{ membership.is_annual|lower }}, '{{ membership.cost or '' }}', '{{ membership.time or '' }}', '{{ membership.budget or '' }}', '{{ membership.notes or '' }}')"
+                                                        onclick="editMembership({{ membership.id }}, '{{ membership.title|replace("'", "\\'") }}', '{{ membership.start_date.strftime('%Y-%m-%d') if membership.start_date else '' }}', {{ membership.is_annual|lower }}, '{{ membership.cost or '' }}', '{{ membership.time or '' }}', '{{ membership.budget or '' }}', '{{ membership.notes|replace("'", "\\'") or '' }}', '{{ membership.status }}')"
                                                         data-bs-toggle="modal" data-bs-target="#editMembershipModal"
                                                         title="Edit Membership">
                                                     <i class="bi bi-pencil"></i>
@@ -132,6 +138,15 @@
                         <label for="addMembershipStartDate" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="addMembershipStartDate" name="start_date">
                         <div class="form-text">Optional - when did this membership begin?</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addMembershipStatus" class="form-label">Status <span class="text-danger">*</span></label>
+                        <select class="form-select" id="addMembershipStatus" name="status" required>
+                            <option value="Active">Active</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                        <div class="form-text">Current status of this membership</div>
                     </div>
                     <div class="mb-3">
                         <div class="form-check form-switch">
@@ -206,6 +221,15 @@
                         <label for="editMembershipStartDate" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="editMembershipStartDate" name="start_date">
                         <div class="form-text">Optional - when did this membership begin?</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editMembershipStatus" class="form-label">Status <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editMembershipStatus" name="status" required>
+                            <option value="Active">Active</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                        <div class="form-text">Current status of this membership</div>
                     </div>
                     <div class="mb-3">
                         <div class="form-check form-switch">
@@ -284,7 +308,7 @@
 </div>
 
 <script>
-function editMembership(id, title, startDate, isAnnual, cost, time, budget, notes) {
+function editMembership(id, title, startDate, isAnnual, cost, time, budget, notes, status) {
     document.getElementById('editMembershipForm').action = `/edit_membership/${id}`;
     document.getElementById('editMembershipTitle').value = title || '';
     document.getElementById('editMembershipStartDate').value = startDate;
@@ -293,6 +317,7 @@ function editMembership(id, title, startDate, isAnnual, cost, time, budget, note
     document.getElementById('editMembershipTime').value = time || '';
     document.getElementById('editMembershipBudget').value = budget || '';
     document.getElementById('editMembershipNotes').value = notes || '';
+    document.getElementById('editMembershipStatus').value = status || 'Active';
 }
 
 function confirmDelete(itemName, deleteUrl) {

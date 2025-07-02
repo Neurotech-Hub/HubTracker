@@ -36,62 +36,9 @@
                                 </thead>
                                 <tbody>
                                     {% for client in clients %}
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="flex-grow-1">
-                                                    <div class="fw-medium mb-0">
-                                                        <a href="{{ url_for('client_detail', client_id=client.id) }}" class="text-decoration-none">
-                                                            {{ client.name }}
-                                                        </a>
-                                                    </div>
-                                                    {% if client.notes %}
-                                                    <small class="text-muted">{{ client.notes[:60] }}{% if client.notes|length > 60 %}...{% endif %}</small>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </td>
-                                                                <td>
-                            {% if client.membership %}
-                                <a href="{{ url_for('membership_detail', membership_id=client.membership.id) }}" class="text-decoration-none">
-                                    {{ client.membership.title }}
-                                </a>
-                                {% if client.membership.is_annual %}
-                                <span class="badge-clean badge-membership-annual">Annual</span>
-                                {% else %}
-                                <span class="badge-clean badge-membership-monthly">Monthly</span>
-                                {% endif %}
-                            {% else %}
-                                <span class="text-muted">No membership</span>
-                            {% endif %}
-                        </td>
-                                        <td>
-                                            <span class="badge-clean badge-count">{{ client.projects.count() }}</span>
-                                        </td>
-                                        <td class="text-end">
-                                            <div class="action-btn-group">
-                                                <button type="button" class="action-btn-clean btn-edit" 
-                                                        onclick="editClient({{ client.id }}, '{{ client.name }}', {{ client.membership_id or 'null' }}, '{{ client.notes or '' }}')"
-                                                        data-bs-toggle="modal" data-bs-target="#editClientModal"
-                                                        title="Edit Client">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <button type="button" class="action-btn-clean btn-add" 
-                                                        onclick="addProjectForClient({{ client.id }}, '{{ client.name }}')" 
-                                                        data-bs-toggle="modal" data-bs-target="#addProjectModal"
-                                                        title="Add Project">
-                                                    <i class="bi bi-plus"></i>
-                                                </button>
-                                                {% if client.projects.count() == 0 %}
-                                                <button type="button" class="action-btn-clean btn-delete" 
-                                                        onclick="confirmDelete('{{ client.name }}', '{{ url_for('delete_client', client_id=client.id) }}')"
-                                                        title="Delete Client">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-                                    </tr>
+                                    {% with show_edit=true, show_add_project=true, show_delete=true %}
+                                        {% include 'partials/client_row.html' %}
+                                    {% endwith %}
                                     {% endfor %}
                                 </tbody>
                             </table>

@@ -14,7 +14,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Import models and db
-from models import db, User, Client, Membership, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time
+from models import db, User, Client, Membership, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, MembershipSupplement
 
 # Initialize extensions
 db.init_app(app)
@@ -80,6 +80,10 @@ def render_tags(value):
     value = re.sub(r'@\[(.*?)\]', r'<span class="task-tag task-tag-user">@\1</span>', value)
     value = re.sub(r'#\[(.*?)\]', r'<span class="task-tag task-tag-project">#\1</span>', value)
     return Markup(value)
+
+# Add global functions to Jinja2 environment
+app.jinja_env.globals.update(min=min)
+app.jinja_env.filters['render_tags'] = render_tags
 
 app.jinja_env.filters['render_tags'] = render_tags
 
@@ -807,9 +811,10 @@ def membership_detail(membership_id):
     projects.sort(key=lambda p: p.name)
     
     return render_template('membership_detail.html', 
-                         membership=membership, 
+                         membership=membership,
                          clients=clients,
-                         projects=projects)
+                         projects=projects,
+                         MembershipSupplement=MembershipSupplement)
 
 @app.route('/add_membership', methods=['POST'])
 def add_membership():
@@ -1009,8 +1014,9 @@ def update_project_status(project_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/reports')
-def reports():
+@app.route('/analytics')
+def analytics():
+    """Analytics page (formerly reports)"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
@@ -1136,7 +1142,7 @@ def reports():
         Log.created_at >= thirty_days_ago
     ).group_by(User.id).order_by(desc('log_count')).limit(8).all()
     
-    return render_template('reports.html',
+    return render_template('analytics.html',
                          # Top metrics
                          total_members=total_members,
                          total_projects=total_projects,
@@ -1348,6 +1354,83 @@ def edit_profile():
     
     flash('Profile updated successfully', 'success')
     return redirect(url_for('profile'))
+
+@app.route('/supplement/<int:membership_id>/add', methods=['POST'])
+def add_supplement(membership_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    membership = Membership.query.get_or_404(membership_id)
+    
+    time = request.form.get('time', type=int)
+    budget = request.form.get('budget', type=float)
+    notes = request.form.get('notes', '').strip()
+    
+    if not time and not budget:
+        flash('Please specify either time or budget for the supplement.', 'warning')
+        return redirect(url_for('membership_detail', membership_id=membership_id))
+    
+    supplement = MembershipSupplement(
+        membership_id=membership_id,
+        time=time,
+        budget=budget,
+        notes=notes
+    )
+    db.session.add(supplement)
+    db.session.commit()
+    
+    flash('Supplement added successfully.', 'success')
+    return redirect(url_for('membership_detail', membership_id=membership_id))
+
+@app.route('/supplement/<int:supplement_id>/edit', methods=['POST'])
+def edit_supplement(supplement_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    supplement = MembershipSupplement.query.get_or_404(supplement_id)
+    
+    time = request.form.get('time', type=int)
+    budget = request.form.get('budget', type=float)
+    notes = request.form.get('notes', '').strip()
+    
+    if not time and not budget:
+        flash('Please specify either time or budget for the supplement.', 'warning')
+        return redirect(url_for('membership_detail', membership_id=supplement.membership_id))
+    
+    supplement.time = time
+    supplement.budget = budget
+    supplement.notes = notes
+    db.session.commit()
+    
+    flash('Supplement updated successfully.', 'success')
+    return redirect(url_for('membership_detail', membership_id=supplement.membership_id))
+
+@app.route('/supplement/<int:supplement_id>/delete', methods=['POST'])
+def delete_supplement(supplement_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    supplement = MembershipSupplement.query.get_or_404(supplement_id)
+    membership_id = supplement.membership_id
+    
+    db.session.delete(supplement)
+    db.session.commit()
+    
+    flash('Supplement deleted successfully.', 'success')
+    return redirect(url_for('membership_detail', membership_id=membership_id))
+
+@app.route('/api/supplement/<int:supplement_id>')
+def get_supplement(supplement_id):
+    if 'user_id' not in session:
+        return {'error': 'Not authenticated'}, 401
+    
+    supplement = MembershipSupplement.query.get_or_404(supplement_id)
+    return {
+        'id': supplement.id,
+        'time': supplement.time,
+        'budget': supplement.budget,
+        'notes': supplement.notes
+    }
 
 if __name__ == '__main__':
     with app.app_context():

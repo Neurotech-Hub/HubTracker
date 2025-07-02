@@ -143,7 +143,7 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    
    # 1. Stop the Flask application
    # 2. Delete the database file
-   rm hubtracker.db  # or whatever your database file is named
+   rm instance/hubtracker.db
    
    # 3. Delete migration history
    rm -rf migrations/versions/*

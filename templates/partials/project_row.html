@@ -1,0 +1,79 @@
+<!-- Project Table Row Partial
+     Parameters expected in context:
+     - project: the project object
+     - show_pin: whether to show pin button (default true)
+     - show_edit: whether to show edit button (default true)  
+     - show_delete: whether to show delete button (default true)
+     - clients: list of clients for edit modal
+     - users: list of users for edit modal
+-->
+
+<tr{% if project.status == 'Archived' %} class="table-secondary"{% endif %}>
+    <td>
+        <div class="d-flex align-items-center">
+            <div class="flex-grow-1">
+                <div class="fw-medium mb-0">
+                    <a href="{{ url_for('project_detail', project_id=project.id) }}" class="text-decoration-none">
+                        {{ project.name }}
+                    </a>
+                    {% if project.is_default %}
+                    <span class="badge-clean badge-default">Default</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </td>
+    <td>
+        <a href="{{ url_for('client_detail', client_id=project.client.id) }}" class="text-decoration-none">
+            {{ project.client.name }}
+        </a>
+    </td>
+    <td>
+        {% if project.project_leader %}
+            {{ project.project_leader.full_name }}
+        {% else %}
+            <span class="text-muted">Not assigned</span>
+        {% endif %}
+    </td>
+    <td>
+        <span class="badge-clean badge-count">{{ project_open_tasks_count or project.open_tasks_count }}</span>
+    </td>
+    <td>
+        {% if project.status == 'Active' %}
+            <span class="badge-clean badge-status-active">{{ project.status }}</span>
+        {% elif project.status == 'Prospective' %}
+            <span class="badge-clean badge-status-prospective">{{ project.status }}</span>
+        {% else %}
+            <span class="badge-clean badge-status-archived">{{ project.status }}</span>
+        {% endif %}
+    </td>
+    <td class="text-end">
+        <div class="action-btn-group">
+            {% if show_pin %}
+            <!-- Pin toggle -->
+            <form method="POST" action="{{ url_for('unpin_project' if (project_is_pinned or project.is_pinned) else 'pin_project', project_id=project.id) }}" class="d-inline">
+                <button type="submit" class="action-btn-clean btn-view" title="{{ 'Unpin Project' if (project_is_pinned or project.is_pinned) else 'Pin Project' }}">
+                    <i class="bi bi-pin-fill {{ 'text-warning' if (project_is_pinned or project.is_pinned) else 'text-muted' }}"></i>
+                </button>
+            </form>
+            {% endif %}
+            
+            {% if show_edit %}
+            <button type="button" class="action-btn-clean btn-edit" 
+                    onclick="editProject({{ project.id }}, '{{ project.name }}', {{ project.client_id }}, {{ project.project_lead_id or 'null' }}, '{{ project.notes or '' }}', '{{ project.status }}', {{ project.is_default|lower }})"
+                    data-bs-toggle="modal" data-bs-target="#editProjectModal"
+                    title="Edit Project">
+                <i class="bi bi-pencil"></i>
+            </button>
+            {% endif %}
+            
+            {% if show_delete %}
+            <button type="button" class="action-btn-clean btn-delete" 
+                    onclick="confirmProjectDelete('{{ project.name }}', '{{ url_for('delete_project', project_id=project.id) }}', {{ project.open_tasks_count }})"
+                    title="Delete Project">
+                <i class="bi bi-trash"></i>
+            </button>
+            {% endif %}
+        </div>
+    </td>
+</tr> 

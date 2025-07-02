@@ -45,19 +45,89 @@ class Membership(db.Model):
     __tablename__ = 'memberships'
     
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)  # Membership title/name
+    title = db.Column(db.String(100), nullable=False)
     start_date = db.Column(db.DateTime(timezone=True), nullable=True)
     is_annual = db.Column(db.Boolean, default=False, nullable=False)
     cost = db.Column(db.Float, nullable=True)  # Monthly or annual cost
     time = db.Column(db.Integer, nullable=True)  # Time budget in hours
     budget = db.Column(db.Float, nullable=True)  # Dollar budget
     notes = db.Column(db.Text, nullable=True)  # Markdown-enabled notes
+    status = db.Column(db.String(20), default='Active', server_default='Active', nullable=False)  # Active, Pending, Archived
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
     
     # Relationships
     clients = db.relationship('Client', backref='membership', lazy='dynamic')
+    supplements = db.relationship('MembershipSupplement', backref='membership', lazy='dynamic')
     
     def __repr__(self):
         return f'<Membership {self.title}>'
+    
+    @property
+    def total_budget(self):
+        """Get total budget including supplements"""
+        base = self.budget or 0
+        supplements = sum(s.budget or 0 for s in self.supplements)
+        return base + supplements
+    
+    @property
+    def total_time(self):
+        """Get total time budget including supplements"""
+        base = self.time or 0
+        supplements = sum(s.time or 0 for s in self.supplements)
+        return base + supplements
+    
+    @property
+    def used_budget(self):
+        """Calculate used budget from logs"""
+        from sqlalchemy import func
+        total = db.session.query(func.sum(Log.fixed_cost)).join(
+            Project, Project.id == Log.project_id
+        ).join(
+            Client, Client.id == Project.client_id
+        ).filter(
+            Client.membership_id == self.id,
+            Log.fixed_cost.isnot(None)
+        ).scalar()
+        return float(total) if total else 0
+    
+    @property
+    def used_time(self):
+        """Calculate used time from logs"""
+        from sqlalchemy import func
+        total = db.session.query(func.sum(Log.hours)).join(
+            Project, Project.id == Log.project_id
+        ).join(
+            Client, Client.id == Project.client_id
+        ).filter(
+            Client.membership_id == self.id,
+            Log.hours.isnot(None)
+        ).scalar()
+        return float(total) if total else 0
+    
+    @property
+    def remaining_budget(self):
+        """Calculate remaining budget"""
+        return self.total_budget - self.used_budget
+    
+    @property
+    def remaining_time(self):
+        """Calculate remaining time"""
+        return self.total_time - self.used_time
+
+class MembershipSupplement(db.Model):
+    __tablename__ = 'membership_supplements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    membership_id = db.Column(db.Integer, db.ForeignKey('memberships.id'), nullable=False)
+    budget = db.Column(db.Float, nullable=True)  # Additional dollar budget
+    time = db.Column(db.Integer, nullable=True)  # Additional time budget in hours
+    notes = db.Column(db.Text, nullable=True)  # Optional notes about the supplement
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+    
+    def __repr__(self):
+        return f'<MembershipSupplement {self.id} for Membership {self.membership_id}>'
 
 class Client(db.Model):
     __tablename__ = 'clients'

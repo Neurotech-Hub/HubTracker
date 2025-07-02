@@ -28,49 +28,11 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="flex-grow-1">
-                                                <div class="fw-medium mb-0">{{ client.name }}</div>
-                                                {% if client.notes %}
-                                                <small class="text-muted">{{ client.notes[:60] }}{% if client.notes|length > 60 %}...{% endif %}</small>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        {% if client.membership %}
-                                            <a href="{{ url_for('membership_detail', membership_id=client.membership.id) }}" class="text-decoration-none">
-                                                {{ client.membership.title }}
-                                            </a>
-                                            {% if client.membership.is_annual %}
-                                            <span class="badge-clean badge-membership-annual">Annual</span>
-                                            {% else %}
-                                            <span class="badge-clean badge-membership-monthly">Monthly</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="text-muted">No membership</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="badge-clean badge-count">{{ projects|length }}</span>
-                                    </td>
-                                    <td class="text-end">
-                                        <div class="action-btn-group">
-                                            <button type="button" class="action-btn-clean btn-edit" 
-                                                    data-bs-toggle="modal" data-bs-target="#editClientModal"
-                                                    title="Edit Client">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button type="button" class="action-btn-clean btn-add" 
-                                                    data-bs-toggle="modal" data-bs-target="#addProjectModal"
-                                                    title="Add Project">
-                                                <i class="bi bi-plus"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                {% with show_edit=true, show_add_project=true, show_delete=false, 
+                                        client=client, 
+                                        client_projects_count=projects|length %}
+                                    {% include 'partials/client_row.html' %}
+                                {% endwith %}
                             </tbody>
                         </table>
                     </div>
@@ -114,49 +76,21 @@
                             <thead class="table-light">
                                 <tr>
                                     <th class="border-0">Project</th>
-                                    <th class="border-0">Status</th>
+                                    <th class="border-0">Client</th>
                                     <th class="border-0">Lead</th>
                                     <th class="border-0">Tasks</th>
+                                    <th class="border-0">Status</th>
                                     <th class="border-0 text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for project in projects %}
-                                <tr>
-                                    <td>
-                                        <div>
-                                            <a href="{{ url_for('project_detail', project_id=project.id) }}" class="fw-medium text-decoration-none">
-                                                {{ project.name }}
-                                            </a>
-                                            {% if project.is_default %}
-                                            <span class="badge-clean badge-default">Default</span>
-                                            {% endif %}
-                                        </div>
-                                        {% if project.notes %}
-                                        <small class="text-muted">{{ project.notes[:100] }}{% if project.notes|length > 100 %}...{% endif %}</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="badge-clean {% if project.status == 'Active' %}badge-status-active{% elif project.status == 'Prospective' %}badge-status-prospective{% else %}badge-status-archived{% endif %}">
-                                            {{ project.status }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {% if project.project_leader %}
-                                        {{ project.project_leader.full_name }}
-                                        {% else %}
-                                        <span class="text-muted">Unassigned</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="badge-clean badge-count">{{ project.tasks.count() }}</span>
-                                    </td>
-                                    <td class="text-end">
-                                        <a href="{{ url_for('project_detail', project_id=project.id) }}" class="action-btn-clean btn-view" title="View Project">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                    </td>
-                                </tr>
+                                {% with show_pin=false, show_edit=false, show_delete=false,
+                                        project=project,
+                                        project_open_tasks_count=project.tasks.count(),
+                                        project_is_pinned=false %}
+                                    {% include 'partials/project_row.html' %}
+                                {% endwith %}
                                 {% endfor %}
                             </tbody>
                         </table>
