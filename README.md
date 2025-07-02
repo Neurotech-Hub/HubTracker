@@ -136,6 +136,35 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    flask db upgrade --sql
    ```
 
+5. **Starting Fresh (Clear All Migrations)**
+   If you need to completely reset your migration history and database:
+   ```bash
+   # WARNING: This will delete all data and migration history!
+   
+   # 1. Stop the Flask application
+   # 2. Delete the database file
+   rm hubtracker.db  # or whatever your database file is named
+   
+   # 3. Delete migration history
+   rm -rf migrations/versions/*
+   
+   # 4. Reinitialize migrations (if migrations folder doesn't exist)
+   flask db init
+   
+   # 5. Create initial migration from current models
+   flask db migrate -m "Initial migration"
+   
+   # 6. Apply the migration to create fresh database
+   flask db upgrade
+   ```
+
+   **When to use this:**
+   - During development when migration history becomes messy
+   - When you want to consolidate many migrations into one
+   - When starting a new development environment
+   
+   **⚠️ NEVER use this in production** - you will lose all data!
+
 ## Deployment
 
 ### Cloud Deployment (Render, Heroku, etc.)
