@@ -51,20 +51,20 @@
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>
-                                            {% if client.membership %}
-                                                <a href="{{ url_for('membership_detail', membership_id=client.membership.id) }}" class="text-decoration-none">
-                                                    Membership #{{ client.membership.id }}
-                                                </a>
-                                                {% if client.membership.is_annual %}
-                                                <span class="badge-clean badge-membership-annual">Annual</span>
-                                                {% else %}
-                                                <span class="badge-clean badge-membership-monthly">Monthly</span>
-                                                {% endif %}
-                                            {% else %}
-                                                <span class="text-muted">No membership</span>
-                                            {% endif %}
-                                        </td>
+                                                                <td>
+                            {% if client.membership %}
+                                <a href="{{ url_for('membership_detail', membership_id=client.membership.id) }}" class="text-decoration-none">
+                                    {{ client.membership.title }}
+                                </a>
+                                {% if client.membership.is_annual %}
+                                <span class="badge-clean badge-membership-annual">Annual</span>
+                                {% else %}
+                                <span class="badge-clean badge-membership-monthly">Monthly</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">No membership</span>
+                            {% endif %}
+                        </td>
                                         <td>
                                             <span class="badge-clean badge-count">{{ client.projects.count() }}</span>
                                         </td>
@@ -132,7 +132,7 @@
                             <option value="">No membership assigned</option>
                             {% for membership in memberships %}
                                 <option value="{{ membership.id }}">
-                                    Membership #{{ membership.id }}
+                                    {{ membership.title }}
                                     {% if membership.start_date %} - {{ membership.start_date.strftime('%b %d, %Y') }}{% endif %}
                                     {% if membership.is_annual %} (Annual){% endif %}
                                 </option>
@@ -179,7 +179,7 @@
                             <option value="">No membership assigned</option>
                             {% for membership in memberships %}
                                 <option value="{{ membership.id }}">
-                                    Membership #{{ membership.id }}
+                                    {{ membership.title }}
                                     {% if membership.start_date %} - {{ membership.start_date.strftime('%b %d, %Y') }}{% endif %}
                                     {% if membership.is_annual %} (Annual){% endif %}
                                 </option>

@@ -1,37 +1,17 @@
-<!-- Task Reference List - Exact same format as main task list -->
+<!-- Task Reference List - Using unified task item partial -->
 <div class="task-list">
     <template x-for="task in tasksICreated" :key="task.id">
-        <div class="task-item-compact" :class="{ 'task-completed': task.is_complete }">
-            <!-- Checkbox for completion (disabled for reference) -->
-            <div class="task-checkbox-form">
-                <button type="button" class="task-checkbox" :class="{ 'checked': task.is_complete }" disabled style="opacity: 0.6;">
-                    <i class="bi bi-check" x-show="task.is_complete"></i>
-                </button>
-            </div>
-            
-            <!-- Task Content -->
-            <div class="task-content-compact">
-                <!-- Main task description -->
-                <div class="task-description-main" x-html="getDisplayDescription(task)" :class="{ 'completed-text': task.is_complete }"></div>
-                
-                <!-- Metadata - always visible for reference -->
-                <div class="task-metadata" style="max-height: none; opacity: 1; margin-top: 0.375rem;">
-                    <!-- Project -->
-                    <span x-show="task.project_name" class="task-meta-item task-project-meta">
-                        <i class="bi bi-folder"></i>
-                        <span x-text="task.project_name + (task.client_name ? ' (' + task.client_name + ')' : '')"></span>
-                    </span>
-                    
-                    <!-- Assigned To -->
-                    <span x-show="task.assigned_to_name" class="task-meta-item task-assignee-meta">
-                        <i class="bi bi-person"></i>
-                        <span x-text="'Assigned to ' + task.assigned_to_name"></span>
-                    </span>
-                    
-                    <!-- Date -->
-                    <span class="task-meta-item task-date-meta" x-text="formatDate(task.created_at)"></span>
-                </div>
-            </div>
+        <div x-data="{
+            task: task,
+            variant: 'interactive',
+            showProject: true,
+            showAssignee: true,
+            showCreator: false,
+            showActions: true,
+            showFlag: true,
+            alwaysShowMetadata: false
+        }">
+            {% include 'partials/task_item.html' %}
         </div>
     </template>
 

@@ -185,52 +185,9 @@
                             {% if open_tasks %}
                             <div class="task-list">
                                 {% for task in open_tasks %}
-                                <div class="task-item-compact">
-                                    <!-- Task checkbox -->
-                                    <form method="POST" action="{{ url_for('complete_task', task_id=task.id) }}" class="task-checkbox-form">
-                                        <button type="submit" class="task-checkbox">
-                                            <i class="bi bi-check" style="display: none;"></i>
-                                        </button>
-                                    </form>
-                                    
-                                    <!-- Task Content -->
-                                    <div class="task-content-compact">
-                                        <!-- Main task description -->
-                                        <div class="task-description-main">
-                                            <a href="{{ url_for('task_detail', task_id=task.id) }}" class="text-decoration-none text-inherit">
-                                                {{ task.description }}
-                                            </a>
-                                        </div>
-                                        
-                                        <!-- Metadata -->
-                                        <div class="task-metadata">
-                                            <!-- Assigned To -->
-                                            {% if task.assigned_to_name %}
-                                            <span class="task-meta-item task-assignee-meta">
-                                                <i class="bi bi-person"></i>
-                                                <span>{{ task.assigned_to_name }}</span>
-                                            </span>
-                                            {% endif %}
-                                            
-                                            <!-- Date -->
-                                            <span class="task-meta-item task-date-meta">{{ task.created_at[:10] }}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Action buttons -->
-                                    <div class="task-actions-compact">
-                                        <!-- Flag/Unflag -->
-                                        <form action="/task/{{ task.id }}/{{ 'unflag' if task.is_flagged else 'flag' }}" method="POST" style="display: inline;">
-                                            <button type="submit" class="task-action-btn-compact" title="{{ 'Unflag Task' if task.is_flagged else 'Flag Task' }}">
-                                                <i class="bi bi-flag-fill {{ 'text-primary' if task.is_flagged else 'text-muted' }}"></i>
-                                            </button>
-                                        </form>
-                                        <!-- Edit -->
-                                        <button type="button" class="task-action-btn-compact" title="Edit Task" onclick="window.location.href='{{ url_for('task_detail', task_id=task.id) }}'">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                    </div>
-                                </div>
+                                {% with show_project=false, show_assignee=true, show_actions=true, show_flag=true %}
+                                    {% include 'partials/task_item_static.html' %}
+                                {% endwith %}
                                 {% endfor %}
                             </div>
                             {% else %}
@@ -316,7 +273,8 @@
                         <label for="editProjectStatus" class="form-label">Status</label>
                         <select class="form-select" id="editProjectStatus" name="status" required>
                             <option value="Active">Active</option>
-                            <option value="Prospective">Prospective</option>
+                            <option value="Awaiting">Awaiting</option>
+                            <option value="Paused">Paused</option>
                             <option value="Archived">Archived</option>
                         </select>
                     </div>

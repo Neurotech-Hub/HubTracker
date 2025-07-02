@@ -13,6 +13,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
     {% block extra_head %}{% endblock %}
 </head>
@@ -125,75 +127,83 @@
         {% block content %}{% endblock %}
     </div>
 
-    <!-- Floating Action Button - Log Entry -->
+    <!-- Log Entry Button -->
     {% if session.user_id %}
-    <div x-data="logEntryModal()">
+    <div x-data="logEntryModal()" x-init="$nextTick(() => loadProjects())">
         <div class="floating-action-btn">
-            <button class="fab-main" type="button" @click="openModal()" title="Log Effort">
-                <i class="bi bi-clock"></i>
-            </button>
+            <div class="log-button-attention-wrapper">
+                <button class="fab-main {{ 'log-button-attention' if not has_logged_today }}" 
+                        type="button" 
+                        data-bs-toggle="modal"
+                        data-bs-target="#logEntryModal"
+                        title="Log Time or Touch">
+                    <i class="bi bi-clock"></i>
+                </button>
+            </div>
         </div>
         
         <!-- Log Entry Modal -->
         <div class="modal fade" id="logEntryModal" tabindex="-1" aria-labelledby="logEntryModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="logEntryModalLabel">Log Effort</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Project Search -->
-                    <div class="mb-3 position-relative">
-                        <input 
-                            type="text" 
-                            class="form-control" 
-                            id="projectSearch" 
-                            x-model="searchQuery"
-                            @input="filterProjects()"
-                            placeholder="Filter by project..."
-                            x-ref="searchInput"
-                        >
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="logEntryModalLabel">Log Effort</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    
-                    <!-- Projects List -->
-                    <div class="projects-list" style="max-height: 400px; overflow-y: auto;">
-                        <template x-for="project in filteredProjects" :key="project.id">
-                            <div class="project-item border-bottom pb-2 mb-2 position-relative project-touch-area" @click="touchLog(project)" style="cursor: pointer;">
-                                <!-- Touch overlay for entire card -->
-                                <div class="touch-overlay">
-                                    <i class="bi bi-fingerprint"></i>
-                                    <span>Touch Project</span>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <!-- Project content -->
-                                    <div class="flex-grow-1">
-                                        <div class="fw-bold" x-text="project.name"></div>
-                                        <small class="text-muted" x-text="project.client_name"></small>
-                                    </div>
-                                    <!-- Time Log Button - positioned to the right -->
-                                    <button 
-                                        type="button" 
-                                        class="log-time-btn"
-                                        @click.stop="openTimeLogForm(project)"
-                                        title="Detailed Time Log"
-                                    >
-                                        <i class="bi bi-clock"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </template>
+                    <div class="modal-body">
+                        <!-- Project Search -->
+                        <div class="mb-3 position-relative">
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="projectSearch" 
+                                x-model="searchQuery"
+                                @input="filterProjects()"
+                                placeholder="Filter by project..."
+                                x-ref="searchInput"
+                            >
+                        </div>
                         
-                        <div x-show="filteredProjects.length === 0" class="text-center text-muted py-4">
-                            <div x-show="searchQuery === ''">Loading projects...</div>
-                            <div x-show="searchQuery !== ''">No projects found matching your search.</div>
+                        <!-- Projects List -->
+                        <div class="projects-list" style="max-height: 400px; overflow-y: auto;">
+                            <template x-for="project in filteredProjects" :key="project.id">
+                                <div class="project-item border-bottom pb-2 mb-2 position-relative project-touch-area" @click="touchLog(project)" style="cursor: pointer;">
+                                    <!-- Touch overlay for entire card -->
+                                    <div class="touch-overlay">
+                                        <i class="bi bi-fingerprint"></i>
+                                        <span>Touch Project</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <!-- Project content -->
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold" x-text="project.name"></div>
+                                            <small class="text-muted" x-text="project.client_name"></small>
+                                        </div>
+                                        <!-- Time Log Button - positioned to the right -->
+                                        <button 
+                                            type="button" 
+                                            class="log-time-btn"
+                                            @click.stop="openTimeLogForm(project)"
+                                            title="Detailed Time Log"
+                                        >
+                                            <i class="bi bi-clock"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <div x-show="filteredProjects.length === 0" class="text-center text-muted py-4">
+                                <div x-show="searchQuery === ''">Loading projects...</div>
+                                <div x-show="searchQuery !== ''">No projects found matching your search.</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
+    {% endif %}
+
     <!-- Time Log Form Modal -->
     <div class="modal fade" id="timeLogModal" tabindex="-1" aria-labelledby="timeLogModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -242,8 +252,6 @@
             </div>
         </div>
     </div>
-    </div>
-    {% endif %}
 
     <!-- Confetti Library -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>

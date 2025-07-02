@@ -16,22 +16,27 @@
     <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div>
-                {% if day_of_week == 'Monday' %}
-                <h2 class="mb-0">Happy Monday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
-                {% elif day_of_week == 'Tuesday' %}
-                <h2 class="mb-0">Happy Tuesday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
-                {% elif day_of_week == 'Wednesday' %}
-                <h2 class="mb-0">Happy Wednesday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
-                {% elif day_of_week == 'Thursday' %}
-                <h2 class="mb-0">Happy Thursday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
-                {% elif day_of_week == 'Friday' %}
-                <h2 class="mb-0">Happy Friday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
-                {% elif day_of_week == 'Saturday' %}
-                <h2 class="mb-0">Happy Saturday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
-                {% else %}
-                <h2 class="mb-0">Happy Sunday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
-                {% endif %}
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    {% if day_of_week == 'Monday' %}
+                    <h2 class="mb-0">Happy Monday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
+                    {% elif day_of_week == 'Tuesday' %}
+                    <h2 class="mb-0">Happy Tuesday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
+                    {% elif day_of_week == 'Wednesday' %}
+                    <h2 class="mb-0">Happy Wednesday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
+                    {% elif day_of_week == 'Thursday' %}
+                    <h2 class="mb-0">Happy Thursday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
+                    {% elif day_of_week == 'Friday' %}
+                    <h2 class="mb-0">Happy Friday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
+                    {% elif day_of_week == 'Saturday' %}
+                    <h2 class="mb-0">Happy Saturday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
+                    {% else %}
+                    <h2 class="mb-0">Happy Sunday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
+                    {% endif %}
+                </div>
+                <button type="button" class="btn dashboard-task-btn" data-bs-toggle="modal" data-bs-target="#taskModal" title="Quick Add Task">
+                    <i class="bi bi-plus-circle me-2"></i>Add Task
+                </button>
             </div>
         </div>
     </div>
@@ -227,24 +232,14 @@
                 </div>
                 <div class="card-body">
                     <!-- Recent Task Completions -->
-                    {% for task in recent_my_completions %}
+                    {% for task in recent_my_completions_serialized %}
                     <div class="d-flex align-items-center mb-2">
                         <div class="activity-icon-compact bg-success text-white me-2">
                             <i class="bi bi-check-circle"></i>
                         </div>
                         <div class="flex-grow-1">
                             <div class="task-description-main completed-text">
-                                {% if task.original_input %}
-                                    {{ task.original_input|replace('@[' + (task.assigned_to_name or 'Unknown') + ']', '<span class="task-tag task-tag-user">@' + (task.assigned_to_name or 'Unknown') + '</span>')|replace('#[' + (task.project_name or 'Unknown') + ']', '<span class="task-tag task-tag-project">#' + (task.project_name or 'Unknown') + '</span>')|safe }}
-                                {% else %}
-                                    {{ task.description }}
-                                    {% if task.assigned_to_name %}
-                                    <span class="task-tag task-tag-user">@{{ task.assigned_to_name }}</span>
-                                    {% endif %}
-                                    {% if task.project_name %}
-                                    <span class="task-tag task-tag-project">#{{ task.project_name }}</span>
-                                    {% endif %}
-                                {% endif %}
+                                {{ task.original_input|default(task.description)|render_tags|safe }}
                                 {% if task.is_flagged %}
                                 <i class="bi bi-flag-fill text-primary ms-1" title="Flagged task"></i>
                                 {% endif %}
@@ -255,24 +250,14 @@
                     {% endfor %}
                     
                     <!-- Recent Assignments -->
-                    {% for task in recent_assignments %}
+                    {% for task in recent_assignments_serialized %}
                     <div class="d-flex align-items-center mb-2">
                         <div class="activity-icon-compact bg-primary text-white me-2">
                             <i class="bi bi-person-check"></i>
                         </div>
                         <div class="flex-grow-1">
                             <div class="task-description-main">
-                                {% if task.original_input %}
-                                    {{ task.original_input|replace('@[' + (task.assigned_to_name or 'Unknown') + ']', '<span class="task-tag task-tag-user">@' + (task.assigned_to_name or 'Unknown') + '</span>')|replace('#[' + (task.project_name or 'Unknown') + ']', '<span class="task-tag task-tag-project">#' + (task.project_name or 'Unknown') + '</span>')|safe }}
-                                {% else %}
-                                    {{ task.description }}
-                                    {% if task.assigned_to_name %}
-                                    <span class="task-tag task-tag-user">@{{ task.assigned_to_name }}</span>
-                                    {% endif %}
-                                    {% if task.project_name %}
-                                    <span class="task-tag task-tag-project">#{{ task.project_name }}</span>
-                                    {% endif %}
-                                {% endif %}
+                                {{ task.original_input|default(task.description)|render_tags|safe }}
                                 {% if task.is_flagged %}
                                 <i class="bi bi-flag-fill text-primary ms-1" title="Flagged task"></i>
                                 {% endif %}
@@ -305,7 +290,7 @@
                     {% endfor %}
                     
                     <!-- No Recent Activity -->
-                    {% if not recent_my_completions and not recent_assignments and not recent_logs %}
+                    {% if not recent_my_completions_serialized and not recent_assignments_serialized and not recent_logs %}
                     <div class="text-center text-muted py-3">
                         <i class="bi bi-clock-history fs-3 mb-2 d-block"></i>
                         <div class="fw-medium">No recent activity</div>
@@ -407,7 +392,7 @@
                             <option value="">No membership assigned</option>
                             {% for membership in memberships %}
                                 <option value="{{ membership.id }}">
-                                    Membership #{{ membership.id }}
+                                    {{ membership.title }}
                                     {% if membership.start_date %} - {{ membership.start_date.strftime('%b %d, %Y') }}{% endif %}
                                     {% if membership.is_annual %} (Annual){% endif %}
                                 </option>
@@ -547,15 +532,18 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Show poof animation if archived
+                // Remove card from DOM if archived
                 if (newStatus === 'Archived') {
+                    // Find the card in any column and remove it
+                    const card = document.querySelector(`.kanban-card[data-project-id='${projectId}']`);
+                    if (card) {
+                        card.parentElement.removeChild(card);
+                    }
                     triggerPoofAnimation();
                     updateArchivedCount();
                 }
-                
                 // Update badge counts
                 updateBadgeCounts();
-                
                 console.log(`Project moved to ${newStatus}`);
             } else {
                 console.error('Error updating project status:', data.error);

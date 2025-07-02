@@ -5,6 +5,8 @@ import pytz
 import os
 import markdown
 from sqlalchemy import func, desc, text
+import re
+from markupsafe import Markup
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -46,7 +48,24 @@ def inject_pinned_projects():
         
         return pinned_projects
     
-    return dict(get_pinned_projects=get_pinned_projects)
+    def has_logged_today():
+        if 'user_id' not in session:
+            return True  # Don't show animation if not logged in
+        
+        today_start = get_current_time().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = get_current_time().replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        has_logs = Log.query.filter(
+            Log.user_id == session['user_id'],
+            Log.created_at.between(today_start, today_end)
+        ).first() is not None
+        
+        return has_logs
+    
+    return dict(
+        get_pinned_projects=get_pinned_projects,
+        has_logged_today=has_logged_today()
+    )
 
 # Template filters
 @app.template_filter('markdown')
@@ -55,6 +74,14 @@ def markdown_filter(text):
     if not text:
         return ''
     return markdown.markdown(text, extensions=['nl2br', 'fenced_code'])
+
+@app.template_filter('render_tags')
+def render_tags(value):
+    value = re.sub(r'@\[(.*?)\]', r'<span class="task-tag task-tag-user">@\1</span>', value)
+    value = re.sub(r'#\[(.*?)\]', r'<span class="task-tag task-tag-project">#\1</span>', value)
+    return Markup(value)
+
+app.jinja_env.filters['render_tags'] = render_tags
 
 @app.route('/')
 def index():
@@ -1133,41 +1160,21 @@ def get_projects_for_logging():
     if 'user_id' not in session:
         return {'projects': []}, 401
     
-    # Get all active projects with their recent activity
-    from sqlalchemy import func, desc
-    
-    # Get projects with recent task activity
-    recent_task_activity = db.session.query(
-        Project.id.label('project_id'),
-        func.max(Task.completed_on).label('last_task_completed')
-    ).join(Task, Project.id == Task.project_id, isouter=True).filter(
-        Project.status == 'Active',
-        Task.is_complete == True,
-        Task.completed_on.isnot(None)
-    ).group_by(Project.id).subquery()
-    
-    # Get all active projects with their most recent activity date
+    # Get all non-archived projects, ordered by most recent activity
     projects_query = db.session.query(
         Project,
-        Client.name.label('client_name'),
-        func.coalesce(
-            recent_task_activity.c.last_task_completed,
-            Project.updated_at
-        ).label('last_activity')
-    ).join(Client).outerjoin(
-        recent_task_activity, Project.id == recent_task_activity.c.project_id
-    ).filter(
-        Project.status == 'Active'
-    ).order_by(desc('last_activity'))
+        Client.name.label('client_name')
+    ).join(Client).filter(
+        Project.status != 'Archived'
+    ).order_by(Project.updated_at.desc())
     
     projects = []
-    for project, client_name, last_activity in projects_query:
+    for project, client_name in projects_query:
         projects.append({
             'id': project.id,
             'name': project.name,
             'client_name': client_name,
-            'display_name': f"{project.name} ({client_name})",
-            'last_activity': last_activity.isoformat() if last_activity else None
+            'display_name': f"{project.name} ({client_name})"
         })
     
     return {'projects': projects}

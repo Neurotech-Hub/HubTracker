@@ -386,32 +386,27 @@ body {
     position: fixed;
     bottom: 2rem;
     right: 2rem;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    z-index: 1030;
 }
 
 .fab-main {
     width: 3.5rem;
     height: 3.5rem;
-    border-radius: 50%;
     background: var(--primary-color);
     border: none;
+    border-radius: 50%;
     color: white;
-    font-size: 1.25rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    transition: all 0.3s ease;
-    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 1.25rem;
 }
 
 .fab-main:hover {
-    background: #2980b9;
-    transform: scale(1.1);
-    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .fab-actions {
@@ -1852,6 +1847,36 @@ textarea:disabled::placeholder {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* Dashboard Task Button - matches task form styling */
+.dashboard-task-btn {
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #8b5cf6 !important;
+    border: 2px solid rgba(255, 255, 255, 0.5) !important;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 10px rgba(139, 92, 246, 0.1);
+}
+
+.dashboard-task-btn:hover {
+    background: white !important;
+    color: #8b5cf6 !important;
+    border-color: rgba(255, 255, 255, 0.8) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
+}
+
+.dashboard-task-btn:active {
+    transform: translateY(0);
+}
+
+.dashboard-task-btn i {
+    color: #8b5cf6;
+}
+
 /* Enhanced Page Titles */
 h2.mb-0 {
     font-family: 'Space Grotesk', sans-serif;
@@ -2282,5 +2307,43 @@ textarea:focus::placeholder {
 
     .kanban-card-header .fw-medium {
         font-size: 0.8rem;
+    }
+}
+
+/* Log Button Attention Animation */
+@keyframes logButtonBounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+.log-button-attention {
+    animation: logButtonBounce 1s ease-in-out;
+    animation-iteration-count: 1;
+    animation-play-state: running;
+    animation-delay: 0s;
+    animation-direction: normal;
+}
+
+/* Reset animation every 5s using opacity hack */
+.log-button-attention-wrapper {
+    animation: resetBounce 5s infinite;
+}
+
+@keyframes resetBounce {
+
+    0%,
+    99.99% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.99999;
     }
 }

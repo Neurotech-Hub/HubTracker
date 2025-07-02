@@ -22,55 +22,17 @@
             
             <!-- Tasks for this project -->
             <template x-for="task in projectGroup.tasks" :key="task.id">
-                <div class="task-item-compact" :class="{ 'task-completed': task.is_complete }">
-                    <!-- Checkbox for completion -->
-                    <form :action="'/task/' + task.id + '/complete'" method="POST" class="task-checkbox-form">
-                        <!-- Assignment indicator (pulsating LED) - positioned absolutely -->
-                        <div class="task-assignment-indicator" x-show="isAssignedToMe(task)" x-transition>
-                            <div class="assignment-led"></div>
-                        </div>
-                        <button type="submit" class="task-checkbox" :class="{ 'checked': task.is_complete }" :title="task.is_complete ? 'Mark Incomplete' : 'Mark Complete'">
-                            <i class="bi bi-check" x-show="task.is_complete"></i>
-                        </button>
-                    </form>
-                    
-                    <!-- Task Content -->
-                    <div class="task-content-compact">
-                        <!-- Main task description -->
-                        <div class="task-description-main" x-html="getDisplayDescription(task)" :class="{ 'completed-text': task.is_complete }"></div>
-                        
-                        <!-- Metadata - visible on hover -->
-                        <div class="task-metadata">
-                            <!-- Assigned To -->
-                            <span x-show="task.assigned_to_name" class="task-meta-item task-assignee-meta">
-                                <i class="bi bi-person"></i>
-                                <span x-text="'Assigned to ' + task.assigned_to_name"></span>
-                            </span>
-                            
-                            <!-- Creator -->
-                            <span class="task-meta-item task-creator-meta">
-                                <i class="bi bi-plus-circle"></i>
-                                <span x-text="'Created by ' + task.creator_name"></span>
-                            </span>
-                            
-                            <!-- Date -->
-                            <span class="task-meta-item task-date-meta" x-text="formatDate(task.created_at)"></span>
-                        </div>
-                    </div>
-                    
-                    <!-- Action buttons - visible on hover -->
-                    <div class="task-actions-compact">
-                        <!-- Edit -->
-                        <button type="button" class="task-action-btn-compact" title="Edit Task" @click="editTask(task)">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <!-- Delete -->
-                        <form :action="'/task/' + task.id + '/delete'" method="POST" style="display: inline;">
-                            <button type="submit" class="task-action-btn-compact task-delete-btn" title="Delete Task">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
-                    </div>
+                <div x-data="{
+                    task: task,
+                    variant: 'by-project',
+                    showProject: false,
+                    showAssignee: true,
+                    showCreator: true,
+                    showActions: true,
+                    showFlag: false,
+                    alwaysShowMetadata: false
+                }">
+                    {% include 'partials/task_item.html' %}
                 </div>
             </template>
         </div>
