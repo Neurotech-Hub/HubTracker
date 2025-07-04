@@ -132,7 +132,7 @@ class MembershipSupplement(db.Model):
     __tablename__ = 'membership_supplements'
     
     id = db.Column(db.Integer, primary_key=True)
-    membership_id = db.Column(db.Integer, db.ForeignKey('memberships.id'), nullable=False)
+    membership_id = db.Column(db.Integer, db.ForeignKey('memberships.id', ondelete='CASCADE'), nullable=False)
     budget = db.Column(db.Float, nullable=True)  # Additional dollar budget
     time = db.Column(db.Integer, nullable=True)  # Additional time budget in hours
     notes = db.Column(db.Text, nullable=True)  # Optional notes about the supplement
@@ -162,8 +162,8 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     notes = db.Column(db.Text, nullable=True)
-    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
-    project_lead_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
+    project_lead_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     status = db.Column(db.String(20), default='Active', server_default='Active', nullable=True)  # Active, Prospective, Archived
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
@@ -185,9 +185,9 @@ class Task(db.Model):
     is_complete = db.Column(db.Boolean, default=False, nullable=False)
     completed_on = db.Column(db.DateTime(timezone=True), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    assigned_to = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Task assignment
-    completed_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)  # Adding project relationship
+    assigned_to = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)  # Task assignment
+    completed_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=True)  # Adding project relationship
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     
     # Relationships
@@ -220,7 +220,7 @@ class Log(db.Model):
     hours = db.Column(db.Float, nullable=True)
     fixed_cost = db.Column(db.Numeric(10, 2), nullable=True)  # Fixed to 2 decimal places
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)  # Adding project relationship
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='SET NULL'), nullable=True)  # Adding project relationship
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
     
@@ -231,8 +231,8 @@ class UserProjectPin(db.Model):
     __tablename__ = 'user_project_pins'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     
     # Ensure one pin per user-project pair
@@ -245,8 +245,8 @@ class UserTaskFlag(db.Model):
     __tablename__ = 'user_task_flags'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     
     # Ensure one flag per user-task pair

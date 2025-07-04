@@ -42,7 +42,7 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}" href="{{ url_for('projects') }}">
-                        <i class="bi bi-folder me-2"></i>Projects
+                        <i class="bi bi-hash me-2"></i>Projects
                     </a>
                 </li>
                 <li class="nav-item">
@@ -283,6 +283,7 @@
                 selectedIndex: 0,
                 editMode: false,
                 editTaskId: null,
+                _settingEditData: false,
                 
                 async init() {
                     // Load projects and users
@@ -320,11 +321,19 @@
                 },
                 
                 parseInput() {
+                    // Skip parsing if we're in the middle of setting edit data
+                    if (this._settingEditData) {
+                        return;
+                    }
+                    
                     const input = this.rawInput;
                     let cleanDesc = input;
                     
                     // Reset autocomplete
                     this.showAutocomplete = false;
+                    
+                    // In edit mode, be more careful about overriding existing assignments
+                    const inEditMode = this.editMode;
                     
                     // Check for # (project) - handle multi-word projects with brackets
                     const projectMatch = input.match(/#\[([^\]]*)\]|#([^\s@\[]*)/);
@@ -335,8 +344,8 @@
                         }
                         // Remove project tag from description
                         cleanDesc = cleanDesc.replace(/#\[[^\]]*\]|\s*#[^\s@\[]*\s?/, '').trim();
-                    } else {
-                        // Reset to default project if no # tag
+                    } else if (!inEditMode) {
+                        // Only reset to default project if not in edit mode
                         this.setDefaultProject();
                     }
                     
@@ -349,8 +358,8 @@
                         }
                         // Remove user tag from description
                         cleanDesc = cleanDesc.replace(/@\[[^\]]*\]|\s*@[^\s#\[]*\s?/, '').trim();
-                    } else {
-                        // Clear user assignment if no @ tag
+                    } else if (!inEditMode) {
+                        // Only clear user assignment if not in edit mode
                         this.selectedUser = {};
                     }
                     
@@ -581,12 +590,13 @@
                     this.editMode = true;
                     this.editTaskId = taskId;
                     
-                    // Pre-populate the form with existing task data
-                    this.rawInput = description;
+                    console.log('Available projects:', this.projects.length);
+                    console.log('Looking for project:', { projectId, projectName });
                     
                     // Set project if provided
-                    if (projectId && projectName) {
+                    if (projectId && projectId !== 'lookup' && projectName) {
                         const project = this.projects.find(p => p.id == projectId);
+                        console.log('Found project by ID:', project);
                         if (project) {
                             this.selectedProject = project;
                         } else {
@@ -597,13 +607,88 @@
                                 display_name: projectName
                             };
                         }
+                    } else if (projectName) {
+                        // Try to find project by name if no ID provided
+                        const project = this.projects.find(p => p.name === projectName);
+                        console.log('Found project by name:', project);
+                        if (project) {
+                            this.selectedProject = project;
+                        } else {
+                            // Create fallback project object
+                            this.selectedProject = {
+                                id: null,
+                                name: projectName,
+                                display_name: projectName
+                            };
+                        }
                     } else {
                         this.selectedProject = {};
+                    }
+                    
+                    console.log('Final selectedProject:', this.selectedProject);
+                    console.log('selectedProject has id?', !!this.selectedProject.id);
+                    console.log('selectedProject has name?', !!this.selectedProject.name);
+                    
+                    // If no project found in database, try parsing from description
+                    if ((!this.selectedProject || (!this.selectedProject.id && !this.selectedProject.name)) && description) {
+                        console.log('No project found, trying to parse from description:', description);
+                        console.log('Available projects:', this.projects);
+                        console.log('projects length:', this.projects ? this.projects.length : 'undefined');
+                        
+                        const projectMatch = description.match(/#\[([^\]]+)\]/);
+                        if (projectMatch) {
+                            const parsedProjectName = projectMatch[1];
+                            console.log('Found project tag in description:', parsedProjectName);
+                            
+                            // Check if projects are loaded
+                            if (this.projects && this.projects.length > 0) {
+                                // Try to find this project in our available projects
+                                const foundProject = this.projects.find(p => 
+                                    p.name.toLowerCase() === parsedProjectName.toLowerCase()
+                                );
+                                
+                                if (foundProject) {
+                                    console.log('Matched project from description:', foundProject);
+                                    this.selectedProject = foundProject;
+                                } else {
+                                    console.log('Project name from description not found in available projects:', parsedProjectName);
+                                    console.log('Available project names:', this.projects.map(p => p.name));
+                                    // Create a minimal project object for display
+                                    this.selectedProject = {
+                                        id: null,
+                                        name: parsedProjectName,
+                                        display_name: parsedProjectName
+                                    };
+                                    console.log('Created minimal project object:', this.selectedProject);
+                                }
+                            } else {
+                                console.log('Projects not loaded yet, creating minimal project object');
+                                // Create a minimal project object for display
+                                this.selectedProject = {
+                                    id: null,
+                                    name: parsedProjectName,
+                                    display_name: parsedProjectName
+                                };
+                                console.log('Created minimal project object:', this.selectedProject);
+                            }
+                        }
+                    }
+                    
+                    // Final backup: If we have projectName but no valid selectedProject, create a minimal one
+                    if (projectName && (!this.selectedProject || (!this.selectedProject.id && !this.selectedProject.name))) {
+                        console.log('Creating backup project object for:', projectName);
+                        this.selectedProject = {
+                            id: projectId && projectId !== 'lookup' ? projectId : null,
+                            name: projectName,
+                            display_name: projectName
+                        };
+                        console.log('Backup selectedProject created:', this.selectedProject);
                     }
                     
                     // Set user if provided
                     if (userId && userName) {
                         const user = this.users.find(u => u.id == userId);
+                        console.log('Found user:', user);
                         if (user) {
                             this.selectedUser = user;
                         } else {
@@ -616,6 +701,22 @@
                     } else {
                         this.selectedUser = {};
                     }
+                    
+                    console.log('Final selectedUser:', this.selectedUser);
+                    
+                    // Pre-populate the form with existing task data AFTER setting assignments
+                    // This prevents parseInput from overriding our manual assignments
+                    // Temporarily disable parsing during edit setup
+                    this._settingEditData = true;
+                    this.rawInput = description;
+                    
+                    // Force a Vue reactivity update to ensure template sees the changes
+                    this.$nextTick(() => {
+                        this._settingEditData = false;
+                        console.log('After setting rawInput, selectedProject:', this.selectedProject);
+                        console.log('After setting rawInput, selectedUser:', this.selectedUser);
+                        console.log('selectedProject condition check:', this.selectedProject && (this.selectedProject.id || this.selectedProject.name));
+                    });
                     
                     // Focus the input after setting
                     this.$nextTick(() => {
@@ -663,6 +764,8 @@
                                 this.tasks = tasksData.allTasks;
                             } else if (this.sectionId === 'completed-tasks') {
                                 this.tasks = tasksData.completedTasks;
+                            } else if (this.sectionId === 'client-tasks' || this.sectionId === 'project-tasks') {
+                                this.tasks = tasksData.allTasks; // Use allTasks for detail pages
                             }
                             this.currentUserId = tasksData.currentUserId;
                             console.log(`TaskList ${this.sectionId} initialized with ${this.tasks.length} tasks:`, this.tasks);
@@ -758,16 +861,30 @@
                 },
                 
                 editTask(task) {
+                    console.log('editTask called with task:', task);
+                    console.log('task.project_id:', task.project_id);
+                    console.log('task.project_name:', task.project_name);
+                    console.log('task.assigned_to_id:', task.assigned_to_id);
+                    console.log('task.assigned_to_name:', task.assigned_to_name);
+                    
                     // Open the task modal in edit mode using the smart task form
                     const modal = document.getElementById('taskModal');
                     
                     // Store task edit data to be used by the task form when modal is shown
                     modal.dataset.editTaskId = task.id;
                     modal.dataset.editDescription = task.description;
-                    modal.dataset.editProjectId = task.project_name ? 'lookup' : '';
+                    // Use the actual project data if available, fall back to lookup by name
+                    modal.dataset.editProjectId = task.project_id || (task.project_name ? 'lookup' : '');
                     modal.dataset.editProjectName = task.project_name || '';
                     modal.dataset.editUserId = task.assigned_to_id || '';
                     modal.dataset.editUserName = task.assigned_to_name || '';
+                    
+                    console.log('Modal dataset set:', {
+                        editProjectId: modal.dataset.editProjectId,
+                        editProjectName: modal.dataset.editProjectName,
+                        editUserId: modal.dataset.editUserId,
+                        editUserName: modal.dataset.editUserName
+                    });
                     
                     // Show the modal
                     const bootstrapModal = new bootstrap.Modal(modal);

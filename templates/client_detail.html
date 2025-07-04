@@ -3,6 +3,17 @@
 {% block title %}{{ client.name }} - Hub Tracker{% endblock %}
 
 {% block content %}
+<!-- Pass task data to JavaScript -->
+<script type="application/json" id="tasks-data">
+{
+    "tasksForMe": [],
+    "tasksICreated": [],
+    "allTasks": {{ tasks | tojson }},
+    "completedTasks": [],
+    "currentUserId": {{ session.user_id }}
+}
+</script>
+
 <div class="container-fluid py-4">
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb">
@@ -65,7 +76,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="bi bi-folder me-2"></i>Projects
+                        <i class="bi bi-hash me-2"></i>Projects
                         <span class="badge-clean badge-count">{{ projects|length }}</span>
                     </h5>
                 </div>
@@ -97,7 +108,7 @@
                     </div>
                     {% else %}
                     <div class="text-center text-muted py-4">
-                        <i class="bi bi-folder-plus fs-1 mb-3 d-block"></i>
+                        <i class="bi bi-hash-plus fs-1 mb-3 d-block"></i>
                         <div class="fw-medium">No projects yet</div>
                         <div class="small">Create the first project for this client</div>
                         <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addProjectModal">
@@ -114,34 +125,43 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="bi bi-list-task me-2"></i>Recent Tasks
-                        <span class="badge-clean badge-count">{{ tasks|length }}</span>
-                    </h5>
-                </div>
                 <div class="card-body">
-                    {% if tasks %}
-                    <div class="task-list">
-                        {% for task in tasks[:20] %}
-                        {% with show_project=true, show_assignee=true, show_actions=true, show_flag=true %}
-                            {% include 'partials/task_item_static.html' %}
-                        {% endwith %}
-                        {% endfor %}
-                        
-                        {% if tasks|length > 20 %}
-                        <div class="text-center mt-3">
-                            <small class="text-muted">Showing 20 of {{ tasks|length }} tasks</small>
+                    <!-- Task List Component -->
+                    <div class="task-list-section" x-data="taskList('client-tasks')" x-init="init()">
+                        <!-- Compact Section Header -->
+                        <div class="task-section-header-compact">
+                            <div class="d-flex align-items-center mb-3">
+                                <h6 class="mb-0 me-2 text-muted">
+                                    <i class="bi bi-list-task me-1"></i>Recent Tasks
+                                </h6>
+                                <span class="task-count-bubble" x-text="filteredTasks.length"></span>
+                                <!-- Subtle inline filter - always visible -->
+                                <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
+                                    <input 
+                                        type="text" 
+                                        class="form-control form-control-sm border-0 bg-transparent text-muted flex-grow-1"
+                                        style="font-size: 0.75rem; min-width: 100px;"
+                                        placeholder="filter..." 
+                                        x-model="searchQuery"
+                                        @input="filterTasks()"
+                                        @keydown.escape="clearSearch()"
+                                    >
+                                    <button 
+                                        class="btn btn-sm btn-link text-muted p-0 ms-1" 
+                                        type="button" 
+                                        @click="clearSearch()" 
+                                        x-show="searchQuery" 
+                                        title="Clear filter"
+                                        style="font-size: 0.7rem; line-height: 1;"
+                                    >
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        {% endif %}
+
+                        {% include 'partials/task_list_items.html' %}
                     </div>
-                    {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-list-task fs-1 mb-3 d-block"></i>
-                        <div class="fw-medium">No tasks yet</div>
-                        <div class="small">Tasks will appear here as they're created for this client's projects</div>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -247,4 +267,7 @@
         </div>
     </div>
 </div>
+
+<!-- Include Task Modal -->
+{% include 'partials/task_modal.html' %}
 {% endblock %} 

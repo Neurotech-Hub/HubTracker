@@ -34,7 +34,6 @@
                                  @click="selectItem(item)"
                                  @mouseenter="selectedIndex = index">
                                 <div x-text="item.display || item.name"></div>
-                                <small class="opacity-75" x-show="item.client_name" x-text="'Client: ' + item.client_name"></small>
                             </div>
                         </template>
                     </div>
@@ -49,19 +48,13 @@
         <!-- Assignment Display -->
         <div class="task-assignments mt-2">
             <small class="text-muted d-flex align-items-center flex-wrap">
-                <span x-show="editMode" class="assignment-tag me-3 mb-1" style="background: rgba(255, 193, 7, 0.1); color: #ff6b35; border-color: rgba(255, 193, 7, 0.2);">
-                    <i class="bi bi-pencil me-1"></i>
-                    <span>Editing task</span>
+                <span x-show="selectedProject && (selectedProject.id || selectedProject.name)" class="task-tag task-tag-project me-3 mb-1">
+                    #<span x-text="selectedProject.name"></span>
                 </span>
-                <span x-show="selectedProject" class="assignment-tag me-3 mb-1">
-                    <i class="bi bi-folder me-1"></i>
-                    <span x-text="selectedProject.display_name"></span>
+                <span x-show="selectedUser && (selectedUser.id || selectedUser.name)" class="task-tag task-tag-user me-3 mb-1">
+                    @<span x-text="selectedUser.name"></span>
                 </span>
-                <span x-show="selectedUser.id" class="assignment-tag me-3 mb-1">
-                    <i class="bi bi-person me-1"></i>
-                    <span x-text="selectedUser.name"></span>
-                </span>
-                <span x-show="!selectedProject.id && !selectedUser.id && !editMode" class="text-muted fst-italic">
+                <span x-show="(!selectedProject || (!selectedProject.id && !selectedProject.name)) && (!selectedUser || (!selectedUser.id && !selectedUser.name))" class="text-muted fst-italic">
                     Type # for projects, @ for users
                 </span>
             </small>

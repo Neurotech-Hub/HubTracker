@@ -3,6 +3,17 @@
 {% block title %}{{ project.name }} - Hub Tracker{% endblock %}
 
 {% block content %}
+<!-- Pass task data to JavaScript -->
+<script type="application/json" id="tasks-data">
+{
+    "tasksForMe": [],
+    "tasksICreated": [],
+    "allTasks": {{ tasks | tojson }},
+    "completedTasks": [],
+    "currentUserId": {{ session.user_id }}
+}
+</script>
+
 <div class="container-fluid py-4">
     <div class="row">
         <div class="col-12">
@@ -69,29 +80,43 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="bi bi-list-task me-2"></i>Open Tasks
-                                <span class="badge-clean badge-count">{{ tasks|selectattr('is_complete', 'equalto', false)|list|length }}</span>
-                            </h5>
-                        </div>
                         <div class="card-body">
-                            {% set open_tasks = tasks|selectattr('is_complete', 'equalto', false)|list %}
-                            {% if open_tasks %}
-                            <div class="task-list">
-                                {% for task in open_tasks %}
-                                {% with show_project=false, show_assignee=true, show_actions=true, show_flag=true %}
-                                    {% include 'partials/task_item_static.html' %}
-                                {% endwith %}
-                                {% endfor %}
+                            <!-- Task List Component -->
+                            <div class="task-list-section" x-data="taskList('project-tasks')" x-init="init()">
+                                <!-- Compact Section Header -->
+                                <div class="task-section-header-compact">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <h6 class="mb-0 me-2 text-muted">
+                                            <i class="bi bi-list-task me-1"></i>Open Tasks
+                                        </h6>
+                                        <span class="task-count-bubble" x-text="filteredTasks.length"></span>
+                                        <!-- Subtle inline filter - always visible -->
+                                        <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
+                                            <input 
+                                                type="text" 
+                                                class="form-control form-control-sm border-0 bg-transparent text-muted flex-grow-1"
+                                                style="font-size: 0.75rem; min-width: 100px;"
+                                                placeholder="filter..." 
+                                                x-model="searchQuery"
+                                                @input="filterTasks()"
+                                                @keydown.escape="clearSearch()"
+                                            >
+                                            <button 
+                                                class="btn btn-sm btn-link text-muted p-0 ms-1" 
+                                                type="button" 
+                                                @click="clearSearch()" 
+                                                x-show="searchQuery" 
+                                                title="Clear filter"
+                                                style="font-size: 0.7rem; line-height: 1;"
+                                            >
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% include 'partials/task_list_items.html' %}
                             </div>
-                            {% else %}
-                            <div class="text-center py-4 text-muted">
-                                <i class="bi bi-check-circle fs-1 mb-3 d-block"></i>
-                                <div class="fw-medium">No open tasks</div>
-                                <div class="small">All tasks for this project are completed!</div>
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -207,4 +232,7 @@ function editProject(id, name, clientId, projectLeadId, notes, status, isDefault
     document.getElementById('editProjectDefault').checked = isDefault;
 }
 </script>
+
+<!-- Include Task Modal -->
+{% include 'partials/task_modal.html' %}
 {% endblock %}
