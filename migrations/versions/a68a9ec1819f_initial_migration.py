@@ -109,7 +109,6 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('user_id', 'task_id', name='unique_user_task_flag')
     )
-    # ### end Alembic commands ###
 
 
 def downgrade():

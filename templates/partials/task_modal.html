@@ -64,7 +64,16 @@ if (typeof modalTaskFormWrapper === 'undefined') {
                 const presetUserId = modal.dataset.presetUserId;
                 const presetUserName = modal.dataset.presetUserName;
                 
+                // Check for edit task data
+                const editTaskId = modal.dataset.editTaskId;
+                const editDescription = modal.dataset.editDescription;
+                const editProjectId = modal.dataset.editProjectId;
+                const editProjectName = modal.dataset.editProjectName;
+                const editUserId = modal.dataset.editUserId;
+                const editUserName = modal.dataset.editUserName;
+                
                 console.log('Modal shown with preset:', presetProjectName, presetProjectId, presetUserName, presetUserId);
+                console.log('Modal shown with edit task:', editTaskId, editDescription);
                 
                 // Wait a bit longer for Alpine.js to fully initialize
                 setTimeout(() => {
@@ -73,6 +82,39 @@ if (typeof modalTaskFormWrapper === 'undefined') {
                     
                     if (!taskFormElement) {
                         console.log('Task form element not found');
+                        return;
+                    }
+                    
+                    // Handle edit task if edit data is present
+                    if (editTaskId && editDescription) {
+                        console.log('Using event-based approach for edit');
+                        const event = new CustomEvent('set-edit-task', {
+                            detail: { 
+                                taskId: editTaskId,
+                                description: editDescription,
+                                projectId: editProjectId === 'lookup' ? null : editProjectId,
+                                projectName: editProjectName,
+                                userId: editUserId,
+                                userName: editUserName
+                            }
+                        });
+                        taskFormElement.dispatchEvent(event);
+                        
+                        // Clear the edit data
+                        delete modal.dataset.editTaskId;
+                        delete modal.dataset.editDescription;
+                        delete modal.dataset.editProjectId;
+                        delete modal.dataset.editProjectName;
+                        delete modal.dataset.editUserId;
+                        delete modal.dataset.editUserName;
+                        
+                        // Focus the input
+                        setTimeout(() => {
+                            const input = modal.querySelector('[x-ref="taskInput"]');
+                            if (input) {
+                                input.focus();
+                            }
+                        }, 200);
                         return;
                     }
                     
@@ -205,18 +247,32 @@ if (typeof modalTaskFormWrapper === 'undefined') {
                 const taskFormElement = modal.querySelector('[x-data*="taskForm"]');
                 if (taskFormElement && taskFormElement._x_dataStack) {
                     const taskFormData = taskFormElement._x_dataStack[0];
-                    taskFormData.rawInput = '';
-                    taskFormData.selectedProject = {};
-                    taskFormData.selectedUser = {};
-                    taskFormData.showAutocomplete = false;
-                    taskFormData.setDefaultProject();
+                    if (taskFormData.resetForm) {
+                        taskFormData.resetForm();
+                    } else {
+                        taskFormData.rawInput = '';
+                        taskFormData.selectedProject = {};
+                        taskFormData.selectedUser = {};
+                        taskFormData.showAutocomplete = false;
+                        taskFormData.editMode = false;
+                        taskFormData.editTaskId = null;
+                        if (taskFormData.setDefaultProject) {
+                            taskFormData.setDefaultProject();
+                        }
+                    }
                 }
                 
-                // Clear any remaining preset data
+                // Clear any remaining preset/edit data
                 delete modal.dataset.presetProjectId;
                 delete modal.dataset.presetProjectName;
                 delete modal.dataset.presetUserId;
                 delete modal.dataset.presetUserName;
+                delete modal.dataset.editTaskId;
+                delete modal.dataset.editDescription;
+                delete modal.dataset.editProjectId;
+                delete modal.dataset.editProjectName;
+                delete modal.dataset.editUserId;
+                delete modal.dataset.editUserName;
             }
         }
     }

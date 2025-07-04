@@ -18,6 +18,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=True)
+    email = db.Column(db.String(120), nullable=False, unique=True)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     password = db.Column(db.String(255), nullable=True)  # Will implement hashing later
     
@@ -40,6 +41,18 @@ class User(db.Model):
     def set_last_name(self, value):
         """Set last_name, converting empty strings to None"""
         self.last_name = value.strip() if value and value.strip() else None
+
+    def check_password(self, password):
+        """Check if provided password matches user's password"""
+        # For now, simple plaintext comparison
+        # TODO: Implement proper password hashing
+        return self.password == password
+
+    def set_password(self, password):
+        """Set user's password"""
+        # For now, store plaintext
+        # TODO: Implement proper password hashing
+        self.password = password
 
 class Membership(db.Model):
     __tablename__ = 'memberships'

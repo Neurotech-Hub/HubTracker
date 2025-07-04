@@ -60,6 +60,13 @@
                         <i class="bi bi-graph-up me-2"></i>Analytics
                     </a>
                 </li>
+                {% if session.is_admin %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'users' %}active{% endif %}" href="{{ url_for('users') }}">
+                        <i class="bi bi-person-gear me-2"></i>Users
+                    </a>
+                </li>
+                {% endif %}
             </ul>
             
             <!-- Pinned Projects Section -->
@@ -274,6 +281,8 @@
                 autocompleteType: '', // 'project' or 'user'
                 filteredItems: [],
                 selectedIndex: 0,
+                editMode: false,
+                editTaskId: null,
                 
                 async init() {
                     // Load projects and users
@@ -477,11 +486,24 @@
                 },
                 
                 onSubmit() {
-                    // Store the original input before cleaning
+                    // Store the original input with tags for submission
                     this.$refs.originalInput.value = this.rawInput;
-                    // Update the description to the clean version
+                    // Submit the raw input with tags instead of clean description
                     this.parseInput();
-                    this.$refs.taskInput.value = this.cleanDescription;
+                    this.$refs.taskInput.value = this.rawInput;
+                    
+                    // If in edit mode, close modal after submission
+                    if (this.editMode) {
+                        setTimeout(() => {
+                            const modal = document.getElementById('taskModal');
+                            if (modal) {
+                                const bootstrapModal = bootstrap.Modal.getInstance(modal);
+                                if (bootstrapModal) {
+                                    bootstrapModal.hide();
+                                }
+                            }
+                        }, 100);
+                    }
                 },
                 
                 handlePresetProject(event) {
@@ -549,6 +571,69 @@
                             this.$refs.taskInput.setSelectionRange(this.rawInput.length, this.rawInput.length);
                         }
                     });
+                },
+                
+                handleEditTask(event) {
+                    console.log('handleEditTask called:', event.detail);
+                    const { taskId, description, projectId, projectName, userId, userName } = event.detail;
+                    
+                    // Set edit mode
+                    this.editMode = true;
+                    this.editTaskId = taskId;
+                    
+                    // Pre-populate the form with existing task data
+                    this.rawInput = description;
+                    
+                    // Set project if provided
+                    if (projectId && projectName) {
+                        const project = this.projects.find(p => p.id == projectId);
+                        if (project) {
+                            this.selectedProject = project;
+                        } else {
+                            // Create fallback project object
+                            this.selectedProject = {
+                                id: projectId,
+                                name: projectName,
+                                display_name: projectName
+                            };
+                        }
+                    } else {
+                        this.selectedProject = {};
+                    }
+                    
+                    // Set user if provided
+                    if (userId && userName) {
+                        const user = this.users.find(u => u.id == userId);
+                        if (user) {
+                            this.selectedUser = user;
+                        } else {
+                            // Create fallback user object
+                            this.selectedUser = {
+                                id: userId,
+                                name: userName
+                            };
+                        }
+                    } else {
+                        this.selectedUser = {};
+                    }
+                    
+                    // Focus the input after setting
+                    this.$nextTick(() => {
+                        this.$refs.taskInput.focus();
+                        if (this.rawInput) {
+                            this.$refs.taskInput.setSelectionRange(this.rawInput.length, this.rawInput.length);
+                        }
+                    });
+                },
+                
+                resetForm() {
+                    this.editMode = false;
+                    this.editTaskId = null;
+                    this.rawInput = '';
+                    this.selectedProject = {};
+                    this.selectedUser = {};
+                    this.showAutocomplete = false;
+                    this.setDefaultProject();
                 }
             }
         }
@@ -597,33 +682,11 @@
                 },
                 
                 getDisplayDescription(task) {
-                    // Use original_input if available, otherwise fall back to clean description
-                    if (task.original_input) {
-                        return this.formatTaggedDescription(task);
+                    // Use server-side formatted description if available, otherwise fall back to clean description
+                    if (task.formatted_description) {
+                        return task.formatted_description;
                     }
                     return task.description || '';
-                },
-                
-                formatTaggedDescription(task) {
-                    let formatted = task.original_input;
-                    
-                    // Replace @[old_name] with current assigned user name
-                    if (task.assigned_to_name) {
-                        formatted = formatted.replace(
-                            /@\[[^\]]*\]/g, 
-                            `<span class="task-tag task-tag-user">@${task.assigned_to_name}</span>`
-                        );
-                    }
-                    
-                    // Replace #[old_project] with current project name  
-                    if (task.project_name) {
-                        formatted = formatted.replace(
-                            /#\[[^\]]*\]/g, 
-                            `<span class="task-tag task-tag-project">#${task.project_name}</span>`
-                        );
-                    }
-                    
-                    return formatted;
                 },
                 
                 filterTasks() {
@@ -694,54 +757,21 @@
                     }
                 },
                 
-                async editTask(task) {
-                    // Load projects and users for the edit form
-                    try {
-                        const [projectsRes, usersRes] = await Promise.all([
-                            fetch('/api/projects'),
-                            fetch('/api/users')
-                        ]);
-                        
-                        const projectsData = await projectsRes.json();
-                        const usersData = await usersRes.json();
-                        
-                        // Populate the edit form with clean description for editing
-                        document.getElementById('editDescription').value = task.description;
-                        document.getElementById('editTaskForm').action = `/task/${task.id}/edit`;
-                        
-                        // Populate project dropdown
-                        const projectSelect = document.getElementById('editProject');
-                        projectSelect.innerHTML = '<option value="">No Project</option>';
-                        projectsData.projects.forEach(project => {
-                            const option = document.createElement('option');
-                            option.value = project.id;
-                            option.textContent = project.display_name;
-                            if (task.project_name === project.name) {
-                                option.selected = true;
-                            }
-                            projectSelect.appendChild(option);
-                        });
-                        
-                        // Populate user dropdown
-                        const userSelect = document.getElementById('editAssignee');
-                        userSelect.innerHTML = '<option value="">Unassigned</option>';
-                        usersData.users.forEach(user => {
-                            const option = document.createElement('option');
-                            option.value = user.id;
-                            option.textContent = user.name;
-                            if (task.assigned_to_name === user.name) {
-                                option.selected = true;
-                            }
-                            userSelect.appendChild(option);
-                        });
-                        
-                        // Show the modal
-                        const modal = new bootstrap.Modal(document.getElementById('editTaskModal'));
-                        modal.show();
-                        
-                    } catch (error) {
-                        console.error('Failed to load edit form data:', error);
-                    }
+                editTask(task) {
+                    // Open the task modal in edit mode using the smart task form
+                    const modal = document.getElementById('taskModal');
+                    
+                    // Store task edit data to be used by the task form when modal is shown
+                    modal.dataset.editTaskId = task.id;
+                    modal.dataset.editDescription = task.description;
+                    modal.dataset.editProjectId = task.project_name ? 'lookup' : '';
+                    modal.dataset.editProjectName = task.project_name || '';
+                    modal.dataset.editUserId = task.assigned_to_id || '';
+                    modal.dataset.editUserName = task.assigned_to_name || '';
+                    
+                    // Show the modal
+                    const bootstrapModal = new bootstrap.Modal(modal);
+                    bootstrapModal.show();
                 },
                 
                 addTaskToProject(projectGroup) {

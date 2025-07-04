@@ -89,19 +89,146 @@ app.jinja_env.filters['render_tags'] = render_tags
 
 @app.route('/')
 def index():
-    return redirect(url_for('login'))
+    # Public landing page - show general metrics without sensitive data
+    from datetime import timedelta
+    from sqlalchemy import func
+    
+    # Get public-friendly metrics
+    total_projects = Project.query.filter(Project.status.in_(['Active', 'Awaiting', 'Paused'])).count()
+    total_clients = Client.query.count()
+    total_active_projects = Project.query.filter_by(status='Active').count()
+    
+    # Last 30 days activity
+    thirty_days_ago = get_current_time() - timedelta(days=30)
+    recent_activity = Log.query.filter(Log.created_at >= thirty_days_ago).count()
+    
+    # Tasks completed in last 30 days (general count)
+    tasks_completed_recently = Task.query.filter(
+        Task.completed_on >= thirty_days_ago,
+        Task.is_complete == True
+    ).count()
+    
+    # Get daily activity for chart (last 30 days, aggregated)
+    activity_data = []
+    for i in range(30):
+        date = thirty_days_ago + timedelta(days=i)
+        date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end = date_start + timedelta(days=1)
+        
+        daily_tasks = Task.query.filter(
+            Task.completed_on >= date_start,
+            Task.completed_on < date_end,
+            Task.is_complete == True
+        ).count()
+        
+        daily_logs = Log.query.filter(
+            Log.created_at >= date_start,
+            Log.created_at < date_end
+        ).count()
+        
+        activity_data.append({
+            'date': date.strftime('%Y-%m-%d'),
+            'tasks': daily_tasks,
+            'activity': daily_logs
+        })
+    
+    # Get some general project types/status distribution
+    project_status_results = db.session.query(
+        Project.status,
+        func.count(Project.id).label('count')
+    ).group_by(Project.status).all()
+    
+    # Convert Row objects to dictionaries for JSON serialization
+    project_status_counts = [
+        {
+            'status': row.status,
+            'count': row.count
+        }
+        for row in project_status_results
+    ]
+    
+    return render_template('landing.html',
+                         total_projects=total_projects,
+                         total_clients=total_clients,
+                         total_active_projects=total_active_projects,
+                         recent_activity=recent_activity,
+                         tasks_completed_recently=tasks_completed_recently,
+                         activity_data=activity_data,
+                         project_status_counts=project_status_counts)
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    users = User.query.all()
-    return render_template('login.html', users=users)
+    # If user is already logged in, redirect to dashboard
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    
+    # Check if this is first-time setup (no users exist)
+    user_count = User.query.count()
+    
+    if user_count == 0:
+        if request.method == 'POST':
+            # Create first admin user
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            email = request.form.get('email', '').strip()
+            password = request.form.get('password', '').strip()
+            
+            if not first_name or not email or not password:
+                flash('First name, email, and password are required', 'error')
+                return render_template('login.html', first_time_setup=True)
+            
+            # Check if email already exists (shouldn't happen in first-time setup)
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                flash('Email already exists', 'error')
+                return render_template('login.html', first_time_setup=True)
+            
+            # Create admin user
+            user = User(
+                first_name=first_name,
+                email=email,
+                is_admin=True
+            )
+            user.set_last_name(last_name)
+            user.set_password(password)
+            
+            db.session.add(user)
+            db.session.commit()
+            
+            # Log them in
+            session['user_id'] = user.id
+            session['user_name'] = user.full_name
+            flash('Welcome! Your admin account has been created.', 'success')
+            return redirect(url_for('dashboard'))
+        
+        # Show first-time setup form
+        return render_template('login.html', first_time_setup=True)
+    
+    # Normal login flow
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '').strip()
+        
+        if not email or not password:
+            flash('Email and password are required', 'error')
+            return render_template('login.html')
+        
+        user = User.query.filter_by(email=email).first()
+        if user and user.check_password(password):
+            session['user_id'] = user.id
+            session['user_name'] = user.full_name
+            session['is_admin'] = user.is_admin
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid email or password', 'error')
+    
+    return render_template('login.html')
 
 @app.route('/login/<int:user_id>')
 def login_user(user_id):
-    user = User.query.get_or_404(user_id)
-    session['user_id'] = user.id
-    session['user_name'] = user.full_name
-    return redirect(url_for('dashboard'))
+    # This route is deprecated but kept for backward compatibility
+    # Redirect to main login page
+    return redirect(url_for('login'))
 
 @app.route('/dashboard')
 def dashboard():
@@ -385,10 +512,14 @@ def serialize_task(task):
                 task_id=task.id
             ).first() is not None
         
+        # Apply tag formatting to description for frontend display
+        formatted_description = render_tags(task.description)
+        
         return {
             'id': task.id,
             'description': task.description,
-            'original_input': getattr(task, 'original_input', None),
+            'formatted_description': formatted_description,
+            'original_input': task.description,  # Use description as original_input since it contains the full tagged text
             'is_complete': task.is_complete,
             'completed_on': task.completed_on.isoformat() if task.completed_on else None,
             'created_at': task.created_at.isoformat(),
@@ -405,7 +536,8 @@ def serialize_task(task):
         return {
             'id': task.id,
             'description': task.description,
-            'original_input': None,
+            'formatted_description': task.description,
+            'original_input': task.description,
             'is_complete': task.is_complete,
             'completed_on': None,
             'created_at': task.created_at.isoformat() if task.created_at else '',
@@ -1431,6 +1563,142 @@ def get_supplement(supplement_id):
         'budget': supplement.budget,
         'notes': supplement.notes
     }
+
+# USERS ROUTES (Admin only)
+@app.route('/users')
+def users():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Check if user is admin
+    if not session.get('is_admin', False):
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    users = User.query.order_by(User.first_name.asc()).all()
+    
+    return render_template('users.html', users=users)
+
+@app.route('/add_user', methods=['POST'])
+def add_user():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Check if user is admin
+    if not session.get('is_admin', False):
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    first_name = request.form.get('first_name', '').strip()
+    last_name = request.form.get('last_name', '').strip()
+    email = request.form.get('email', '').strip()
+    password = request.form.get('password', '').strip()
+    is_admin = request.form.get('is_admin') == 'on'
+    
+    if not first_name or not email or not password:
+        flash('First name, email, and password are required', 'error')
+        return redirect(url_for('users'))
+    
+    # Check if email already exists
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        flash('Email already exists', 'error')
+        return redirect(url_for('users'))
+    
+    user = User(
+        first_name=first_name,
+        email=email,
+        is_admin=is_admin
+    )
+    user.set_last_name(last_name)
+    user.set_password(password)
+    
+    db.session.add(user)
+    db.session.commit()
+    flash('User created successfully', 'success')
+    return redirect(url_for('users'))
+
+@app.route('/edit_user/<int:user_id>', methods=['POST'])
+def edit_user(user_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Check if user is admin
+    if not session.get('is_admin', False):
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    first_name = request.form.get('first_name', '').strip()
+    last_name = request.form.get('last_name', '').strip()
+    email = request.form.get('email', '').strip()
+    password = request.form.get('password', '').strip()
+    is_admin = request.form.get('is_admin') == 'on'
+    
+    if not first_name or not email:
+        flash('First name and email are required', 'error')
+        return redirect(url_for('users'))
+    
+    # Check if email already exists (excluding current user)
+    existing_user = User.query.filter(User.email == email, User.id != user_id).first()
+    if existing_user:
+        flash('Email already exists', 'error')
+        return redirect(url_for('users'))
+    
+    user.first_name = first_name
+    user.set_last_name(last_name)
+    user.email = email
+    user.is_admin = is_admin
+    
+    # Only update password if provided
+    if password:
+        user.set_password(password)
+    
+    db.session.commit()
+    
+    # Update session if editing own account
+    if user_id == session['user_id']:
+        session['user_name'] = user.full_name
+        session['is_admin'] = user.is_admin
+    
+    flash('User updated successfully', 'success')
+    return redirect(url_for('users'))
+
+@app.route('/delete_user/<int:user_id>', methods=['POST'])
+def delete_user(user_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Check if user is admin
+    if not session.get('is_admin', False):
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Prevent deleting yourself
+    if user_id == session['user_id']:
+        flash('Cannot delete your own account', 'error')
+        return redirect(url_for('users'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Check if user has created tasks, logs, or leads projects
+    has_data = (
+        user.created_tasks.count() > 0 or
+        user.assigned_tasks.count() > 0 or
+        user.completed_tasks.count() > 0 or
+        user.logs.count() > 0 or
+        user.led_projects.count() > 0
+    )
+    
+    if has_data:
+        flash('Cannot delete user with existing data (tasks, logs, or led projects)', 'error')
+        return redirect(url_for('users'))
+    
+    db.session.delete(user)
+    db.session.commit()
+    flash('User deleted successfully', 'success')
+    return redirect(url_for('users'))
 
 if __name__ == '__main__':
     with app.app_context():
