@@ -23,97 +23,55 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <h4 class="sidebar-logo text-white mb-0">
-                <span class="logo-hub">Hub</span><span class="logo-tracker">Tracker</span>
-            </h4>
+            <a href="{{ url_for('dashboard') }}" class="text-decoration-none">
+                <div class="sidebar-logo">
+                    <span class="logo-hub">Hub</span><span class="logo-tracker">Tracker</span>
+                </div>
+            </a>
         </div>
-        
-        <div class="sidebar-nav">
-            <ul class="nav nav-pills flex-column">
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-                        <i class="bi bi-speedometer2 me-2"></i>Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'tasks' %}active{% endif %}" href="{{ url_for('tasks') }}">
-                        <i class="bi bi-list-task me-2"></i>Tasks
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}" href="{{ url_for('projects') }}">
-                        <i class="bi bi-hash me-2"></i>Projects
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'clients' %}active{% endif %}" href="{{ url_for('clients') }}">
-                        <i class="bi bi-people me-2"></i>Clients
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'memberships' %}active{% endif %}" href="{{ url_for('memberships') }}">
-                        <i class="bi bi-card-list me-2"></i>Memberships
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}" href="{{ url_for('analytics') }}">
-                        <i class="bi bi-graph-up me-2"></i>Analytics
-                    </a>
-                </li>
+        <nav class="sidebar-nav">
+            <div class="nav flex-column">
+                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <i class="bi bi-house me-2"></i>Dashboard
+                </a>
+                <a href="{{ url_for('tasks') }}" class="nav-link {% if request.endpoint == 'tasks' %}active{% endif %}">
+                    <i class="bi bi-list-check me-2"></i>Tasks
+                </a>
+                <a href="{{ url_for('projects') }}" class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}">
+                    <i class="bi bi-hash me-2"></i>Projects
+                </a>
+                <a href="{{ url_for('clients') }}" class="nav-link {% if request.endpoint == 'clients' %}active{% endif %}">
+                    <i class="bi bi-building me-2"></i>Clients
+                </a>
+                <a href="{{ url_for('memberships') }}" class="nav-link {% if request.endpoint == 'memberships' %}active{% endif %}">
+                    <i class="bi bi-card-list me-2"></i>Memberships
+                </a>
+                <a href="{{ url_for('analytics') }}" class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
+                    <i class="bi bi-graph-up me-2"></i>Analytics
+                </a>
                 {% if session.is_admin %}
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'users' %}active{% endif %}" href="{{ url_for('users') }}">
-                        <i class="bi bi-person-gear me-2"></i>Users
-                    </a>
-                </li>
+                <a href="{{ url_for('users') }}" class="nav-link {% if request.endpoint == 'users' %}active{% endif %}">
+                    <i class="bi bi-people me-2"></i>Users
+                </a>
                 {% endif %}
-            </ul>
-            
-            <!-- Pinned Projects Section -->
-            {% if session.user_id %}
-            {% set pinned_projects = get_pinned_projects() %}
-            {% if pinned_projects %}
-            <div class="sidebar-section mt-4">
-                <div class="sidebar-section-header px-3">
-                    <h6 class="text-white-50 text-uppercase small fw-bold mb-2">
-                        <i class="bi bi-pin me-1"></i>Pinned Projects
-                    </h6>
-                </div>
-                <div class="pinned-projects-list">
-                    {% for project in pinned_projects %}
-                    <a class="pinned-project-item {% if request.endpoint == 'project_detail' and request.view_args.get('project_id') == project.id %}active{% endif %}" 
-                       href="{{ url_for('project_detail', project_id=project.id) }}">
-                        <div class="project-content">
-                            <div class="project-name">{{ project.name }}</div>
-                            <small class="text-white-50">{{ project.client.name }}</small>
-                        </div>
-                        {% if project.open_tasks_count > 0 %}
-                        <span class="task-count-bubble">{{ project.open_tasks_count }}</span>
-                        {% endif %}
-                    </a>
-                    {% endfor %}
-                </div>
             </div>
-            {% endif %}
-            {% endif %}
-        </div>
-        
+        </nav>
         <div class="sidebar-footer">
             <div class="user-info">
-                <a href="{{ url_for('profile') }}" class="text-white text-decoration-none">
-                    <div class="text-white fw-bold">{{ session.user_name }}</div>
-                    <small class="text-white-50">Edit Profile</small>
-                </a>
+                <small class="text-muted d-block">Logged in as</small>
+                <a href="{{ url_for('profile') }}" class="text-white text-decoration-none">{{ session.user_name }}</a>
             </div>
-            <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm mt-2">
-                <i class="bi bi-box-arrow-right me-1"></i>Logout
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm w-100 mt-2">
+                <i class="bi bi-box-arrow-right me-2"></i>Logout
             </a>
         </div>
     </div>
     {% endif %}
 
     <!-- Main Content -->
-    <div class="main-content {% if session.user_id %}with-sidebar{% endif %}">
+    <div class="main-content {% if session.user_id %}with-sidebar{% endif %}" 
+         x-data="{ pageLoaded: false }" 
+         x-init="setTimeout(() => pageLoaded = true, 50)">
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -131,7 +89,44 @@
         {% endwith %}
 
         <!-- Page Content -->
-        {% block content %}{% endblock %}
+        <div class="page-content fade-in" :class="{ 'loaded': pageLoaded }">
+            <!-- Loading State -->
+            <div x-show="!pageLoaded" class="skeleton-loading p-4">
+                <!-- Header Skeleton -->
+                <div class="mb-4">
+                    <div class="skeleton-text medium skeleton" style="height: 2.5rem;"></div>
+                </div>
+                
+                <!-- Content Skeleton -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="skeleton-task">
+                                    <div class="skeleton-circle skeleton"></div>
+                                    <div class="skeleton-content">
+                                        <div class="skeleton-text long skeleton"></div>
+                                        <div class="skeleton-text medium skeleton"></div>
+                                    </div>
+                                </div>
+                                <div class="skeleton-task">
+                                    <div class="skeleton-circle skeleton"></div>
+                                    <div class="skeleton-content">
+                                        <div class="skeleton-text medium skeleton"></div>
+                                        <div class="skeleton-text short skeleton"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actual Content -->
+            <div x-cloak x-show="pageLoaded">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
     </div>
 
     <!-- Log Entry Button -->
@@ -159,43 +154,36 @@
                     </div>
                     <div class="modal-body">
                         <!-- Project Search -->
-                        <div class="mb-3 position-relative">
-                            <input 
-                                type="text" 
-                                class="form-control" 
-                                id="projectSearch" 
-                                x-model="searchQuery"
-                                @input="filterProjects()"
-                                placeholder="Filter by project..."
-                                x-ref="searchInput"
+                        <div class="mb-3">
+                            <input type="text" 
+                                   class="form-control" 
+                                   placeholder="Search projects..." 
+                                   x-model="searchQuery"
+                                   @input="filterProjects()"
                             >
                         </div>
                         
-                        <!-- Projects List -->
-                        <div class="projects-list" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Project List -->
+                        <div class="projects-list">
                             <template x-for="project in filteredProjects" :key="project.id">
-                                <div class="project-item border-bottom pb-2 mb-2 position-relative project-touch-area" @click="touchLog(project)" style="cursor: pointer;">
-                                    <!-- Touch overlay for entire card -->
-                                    <div class="touch-overlay">
-                                        <i class="bi bi-fingerprint"></i>
-                                        <span>Touch Project</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <!-- Project content -->
-                                        <div class="flex-grow-1">
-                                            <div class="fw-bold" x-text="project.name"></div>
-                                            <small class="text-muted" x-text="project.client_name"></small>
+                                <div class="project-item d-flex align-items-center justify-content-between mb-2">
+                                    <div class="project-touch-area flex-grow-1" @click="logTouch(project.id)">
+                                        <div class="fw-bold" x-text="project.name"></div>
+                                        <div class="text-muted small" x-text="project.client_name"></div>
+                                        <div class="touch-overlay">
+                                            <i class="bi bi-fingerprint"></i>
+                                            <span>Quick Touch</span>
                                         </div>
-                                        <!-- Time Log Button - positioned to the right -->
-                                        <button 
-                                            type="button" 
-                                            class="log-time-btn"
-                                            @click.stop="openTimeLogForm(project)"
-                                            title="Detailed Time Log"
-                                        >
-                                            <i class="bi bi-clock"></i>
-                                        </button>
                                     </div>
+                                    <button type="button" 
+                                            class="btn btn-sm log-time-btn ms-2" 
+                                            @click="openTimeLog(project)"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#timeLogModal"
+                                    >
+                                        <i class="bi bi-clock"></i>
+                                        <span>Log Time</span>
+                                    </button>
                                 </div>
                             </template>
                             
@@ -221,34 +209,34 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <input type="hidden" name="project_id" id="timeLogProjectId">
+                        
                         <div class="mb-3">
-                            <div id="selectedProjectInfo">
-                                <div id="selectedProjectName" class="fw-bold"></div>
-                                <small id="selectedClientName" class="text-muted"></small>
-                            </div>
-                            <input type="hidden" name="project_id" id="selectedProjectId">
+                            <label for="timeLogProject" class="form-label">Project</label>
+                            <input type="text" class="form-control" id="timeLogProject" disabled>
                         </div>
                         
-                        <div class="row mb-3">
+                        <div class="row">
                             <div class="col-md-6">
-                                <label for="hours" class="form-label">Hours</label>
-                                <input type="number" class="form-control" id="hours" name="hours" step="0.01" min="0" max="24">
-                                <div class="form-text">Optional - Hours worked</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="fixed_cost" class="form-label">Fixed Cost</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="fixed_cost" name="fixed_cost" step="0.01" min="0">
+                                <div class="mb-3">
+                                    <label for="timeLogHours" class="form-label">Hours</label>
+                                    <input type="number" class="form-control" id="timeLogHours" name="hours" step="0.25" min="0">
                                 </div>
-                                <div class="form-text">Optional - Fixed amount</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="timeLogCost" class="form-label">Fixed Cost</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="timeLogCost" name="fixed_cost" step="0.01" min="0">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="notes" class="form-label">Notes <span class="text-danger">*</span></label>
-                            <textarea class="form-control" id="notes" name="notes" rows="3" required></textarea>
-                            <div class="form-text">Required - Describe the work performed</div>
+                            <label for="timeLogNotes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="timeLogNotes" name="notes" rows="3" required></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -743,8 +731,8 @@
         function taskList(sectionId) {
             return {
                 sectionId: sectionId,
-                tasks: [],
-                filteredTasks: [],
+                tasks: null,
+                filteredTasks: null,
                 searchQuery: '',
                 currentUserId: null,
                 tasksICreated: [],
@@ -752,31 +740,38 @@
                 showCompletedTasks: false,
                 
                 init() {
+                    // Initialize with null to show loading state
+                    this.tasks = null;
+                    this.filteredTasks = null;
+                    
                     // Read task data from script tag
                     const dataScript = document.getElementById('tasks-data');
                     if (dataScript) {
                         try {
                             const tasksData = JSON.parse(dataScript.textContent);
-                            if (this.sectionId === 'tasks-for-me') {
-                                this.tasks = tasksData.tasksForMe;
-                                this.tasksICreated = tasksData.tasksICreated; // Load tasks by me for reference
-                            } else if (this.sectionId === 'all-tasks') {
-                                this.tasks = tasksData.allTasks;
-                            } else if (this.sectionId === 'completed-tasks') {
-                                this.tasks = tasksData.completedTasks;
-                            } else if (this.sectionId === 'client-tasks' || this.sectionId === 'project-tasks') {
-                                this.tasks = tasksData.allTasks; // Use allTasks for detail pages
-                            }
-                            this.currentUserId = tasksData.currentUserId;
-                            console.log(`TaskList ${this.sectionId} initialized with ${this.tasks.length} tasks:`, this.tasks);
+                            
+                            // Simulate a small delay to prevent flash of loading state
+                            setTimeout(() => {
+                                if (this.sectionId === 'tasks-for-me') {
+                                    this.tasks = tasksData.tasksForMe;
+                                    this.tasksICreated = tasksData.tasksICreated;
+                                } else if (this.sectionId === 'all-tasks') {
+                                    this.tasks = tasksData.allTasks;
+                                } else if (this.sectionId === 'completed-tasks') {
+                                    this.tasks = tasksData.completedTasks;
+                                } else if (this.sectionId === 'client-tasks' || this.sectionId === 'project-tasks') {
+                                    this.tasks = tasksData.allTasks;
+                                }
+                                this.currentUserId = tasksData.currentUserId;
+                                this.filteredTasks = [...this.tasks];
+                                console.log(`TaskList ${this.sectionId} initialized with ${this.tasks.length} tasks:`, this.tasks);
+                            }, 50); // Small delay to ensure smooth transition
                         } catch (error) {
                             console.error('Failed to parse task data:', error);
                             this.tasks = [];
+                            this.filteredTasks = [];
                         }
                     }
-                    
-                    this.filteredTasks = [...this.tasks];
-                    console.log(`Filtered tasks now:`, this.filteredTasks);
                 },
                 
                 isAssignedToMe(task) {
@@ -913,39 +908,6 @@
                 allProjects: [],
                 filteredProjects: [],
                 
-                async openModal() {
-                    console.log('openModal called');
-                    
-                    // Load projects when modal opens
-                    await this.loadProjects();
-                    console.log('Projects loaded:', this.allProjects.length);
-                    
-                    // Clear any previous search
-                    this.searchQuery = '';
-                    this.filteredProjects = [...this.allProjects];
-                    
-                    // Show the modal
-                    const modalElement = document.getElementById('logEntryModal');
-                    console.log('Modal element:', modalElement);
-                    
-                    const modal = new bootstrap.Modal(modalElement);
-                    
-                    // Listen for when modal is hidden to clear search (with cleanup)
-                    const clearSearchOnHide = () => {
-                        this.searchQuery = '';
-                        this.filteredProjects = [...this.allProjects];
-                        modalElement.removeEventListener('hidden.bs.modal', clearSearchOnHide);
-                    };
-                    modalElement.addEventListener('hidden.bs.modal', clearSearchOnHide);
-                    
-                    modal.show();
-                    
-                    // Focus on search input
-                    this.$nextTick(() => {
-                        this.$refs.searchInput.focus();
-                    });
-                },
-                
                 async loadProjects() {
                     try {
                         const response = await fetch('/api/projects_for_logging');
@@ -973,109 +935,42 @@
                     );
                 },
                 
-                async touchLog(project) {
+                async logTouch(projectId) {
                     try {
                         const response = await fetch('/add_touch_log', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                             },
-                            body: JSON.stringify({
-                                project_id: project.id
-                            })
+                            body: JSON.stringify({ project_id: projectId })
                         });
                         
-                        const result = await response.json();
-                        
-                        if (result.success) {
-                            // Close the modal
-                            const modal = bootstrap.Modal.getInstance(document.getElementById('logEntryModal'));
-                            modal.hide();
+                        const data = await response.json();
+                        if (data.success) {
+                            // Close modal
+                            const modal = document.getElementById('logEntryModal');
+                            const bsModal = bootstrap.Modal.getInstance(modal);
+                            bsModal.hide();
                             
-                            // Trigger confetti!
-                            confetti({
-                                particleCount: 100,
-                                spread: 70,
-                                origin: { y: 0.6 }
-                            });
+                            // Reload page to update UI
+                            location.reload();
                         } else {
-                            this.showErrorMessage(result.error || 'Failed to log touch');
+                            console.error('Failed to log touch:', data.error);
                         }
                     } catch (error) {
-                        console.error('Touch log error:', error);
-                        this.showErrorMessage('Failed to log touch');
+                        console.error('Error:', error);
                     }
                 },
                 
-                openTimeLogForm(project) {
-                    // Clear form fields first
-                    document.getElementById('hours').value = '';
-                    document.getElementById('fixed_cost').value = '';
-                    document.getElementById('notes').value = '';
+                openTimeLog(project) {
+                    // Close the log entry modal
+                    const logEntryModal = document.getElementById('logEntryModal');
+                    const bsLogEntryModal = bootstrap.Modal.getInstance(logEntryModal);
+                    bsLogEntryModal.hide();
                     
-                    // Populate project info in the time log form - match search list styling
-                    document.getElementById('selectedProjectName').textContent = project.name;
-                    document.getElementById('selectedClientName').textContent = project.client_name;
-                    document.getElementById('selectedProjectId').value = project.id;
-                    
-                    // Close log entry modal
-                    const logModal = bootstrap.Modal.getInstance(document.getElementById('logEntryModal'));
-                    logModal.hide();
-                    
-                    // Open time log modal with proper focus handling
-                    const timeModal = new bootstrap.Modal(document.getElementById('timeLogModal'));
-                    
-                    // Listen for when the modal is fully shown
-                    document.getElementById('timeLogModal').addEventListener('shown.bs.modal', function focusHours() {
-                        document.getElementById('hours').focus();
-                        // Remove the event listener after use to prevent memory leaks
-                        this.removeEventListener('shown.bs.modal', focusHours);
-                    });
-                    
-                    timeModal.show();
-                },
-                
-                showSuccessMessage(message) {
-                    // Create a temporary flash message
-                    const flashContainer = document.getElementById('flash-container') || this.createFlashContainer();
-                    const alert = document.createElement('div');
-                    alert.className = 'alert alert-success alert-dismissible fade show';
-                    alert.innerHTML = `
-                        ${message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    `;
-                    flashContainer.querySelector('.container-fluid').appendChild(alert);
-                    flashContainer.style.display = 'block';
-                    
-                    // Auto-dismiss after 3 seconds
-                    setTimeout(() => {
-                        alert.remove();
-                        if (flashContainer.querySelectorAll('.alert').length === 0) {
-                            flashContainer.style.display = 'none';
-                        }
-                    }, 3000);
-                },
-                
-                showErrorMessage(message) {
-                    // Create a temporary flash message
-                    const flashContainer = document.getElementById('flash-container') || this.createFlashContainer();
-                    const alert = document.createElement('div');
-                    alert.className = 'alert alert-danger alert-dismissible fade show';
-                    alert.innerHTML = `
-                        ${message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    `;
-                    flashContainer.querySelector('.container-fluid').appendChild(alert);
-                    flashContainer.style.display = 'block';
-                },
-                
-                createFlashContainer() {
-                    const container = document.createElement('div');
-                    container.id = 'flash-container';
-                    container.className = 'flash-messages-container';
-                    container.innerHTML = '<div class="container-fluid"></div>';
-                    document.querySelector('.main-content').prepend(container);
-                    return container;
+                    // Set project info in the time log form
+                    document.getElementById('timeLogProjectId').value = project.id;
+                    document.getElementById('timeLogProject').value = project.display_name;
                 }
             }
         }

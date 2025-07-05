@@ -5,6 +5,9 @@
     --sidebar-bg: #1a1a1a;
     --sidebar-hover: #2d2d2d;
     --primary-color: #3498db;
+    --fade-in-duration: 0.3s;
+    --task-section-min-height: 200px;
+    /* Minimum height for task sections */
 }
 
 body {
@@ -620,44 +623,28 @@ body {
     background: linear-gradient(45deg, rgba(52, 152, 219, 0.6) 0%, rgba(52, 152, 219, 0.3) 50%, transparent 50%, transparent 100%);
 }
 
-/* Task Assignment LED Indicator */
-.task-assignment-indicator {
-    position: absolute;
-    left: -0.6rem;
-    /* Simple positioning */
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 0.5rem;
-    height: 0.5rem;
-    z-index: 1;
+/* Task Assignment Checkbox Glow - replaces LED indicator */
+.task-checkbox.assigned-to-me {
+    border-color: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3), 0 0 8px rgba(16, 185, 129, 0.2);
+    animation: pulse-glow 2s infinite;
 }
 
-.assignment-led {
-    width: 0.375rem;
-    height: 0.375rem;
-    background: #10b981;
-    /* Emerald green */
-    border-radius: 50%;
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-    animation: pulse-led 2s infinite;
+.task-checkbox.assigned-to-me:hover {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4), 0 0 12px rgba(16, 185, 129, 0.3);
 }
 
-@keyframes pulse-led {
+@keyframes pulse-glow {
 
     0%,
     100% {
-        opacity: 1;
-        transform: scale(1);
-        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3), 0 0 8px rgba(16, 185, 129, 0.2);
     }
 
     50% {
-        opacity: 0.7;
-        transform: scale(0.9);
-        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4), 0 0 12px rgba(16, 185, 129, 0.3);
     }
 }
 
@@ -670,13 +657,6 @@ body {
 }
 
 /* Task Checkbox */
-.task-checkbox-form {
-    margin: 0;
-    flex-shrink: 0;
-    position: relative;
-    /* For absolute positioning of LED */
-}
-
 .task-checkbox {
     width: 1.25rem;
     height: 1.25rem;
@@ -692,13 +672,13 @@ body {
 }
 
 .task-checkbox:hover {
-    border-color: var(--primary-color);
-    background: rgba(52, 152, 219, 0.1);
+    border-color: #059669;
+    background: rgba(5, 150, 105, 0.1);
 }
 
 .task-checkbox.checked {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
+    background: #059669;
+    border-color: #059669;
     color: white;
 }
 
@@ -1202,17 +1182,7 @@ textarea:disabled::placeholder {
         padding: 0.1rem 0.375rem;
     }
 
-    /* Slightly smaller LED on mobile */
-    .assignment-led {
-        width: 0.3rem;
-        height: 0.3rem;
-    }
 
-    /* Adjust LED position on mobile */
-    .task-assignment-indicator {
-        left: -0.5rem;
-        /* Closer on mobile */
-    }
 }
 
 /* Login Page Styles */
@@ -2368,4 +2338,269 @@ textarea:focus::placeholder {
     100% {
         opacity: 0.99999;
     }
+}
+
+/* Skeleton Loading Styles */
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.skeleton {
+    background: #f6f7f8;
+    background-image: linear-gradient(to right,
+            #f6f7f8 0%,
+            #edeef1 20%,
+            #f6f7f8 40%,
+            #f6f7f8 100%);
+    background-repeat: no-repeat;
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+}
+
+.skeleton-text {
+    height: 1em;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+}
+
+.skeleton-text.short {
+    width: 30%;
+}
+
+.skeleton-text.medium {
+    width: 60%;
+}
+
+.skeleton-text.long {
+    width: 90%;
+}
+
+.skeleton-circle {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+}
+
+.skeleton-task {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.skeleton-task .skeleton-circle {
+    margin-right: 1rem;
+}
+
+.skeleton-task .skeleton-content {
+    flex: 1;
+}
+
+.skeleton-task .skeleton-text:last-child {
+    margin-bottom: 0;
+}
+
+/* Hide content while loading */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Content Fade In */
+.fade-in {
+    opacity: 0;
+    transition: opacity var(--fade-in-duration) ease-in-out;
+}
+
+.fade-in.loaded {
+    opacity: 1;
+}
+
+/* Task List Transitions */
+.task-list-wrapper {
+    opacity: 0;
+    transition: opacity var(--fade-in-duration) ease-in-out;
+}
+
+.task-list-wrapper.loaded {
+    opacity: 1;
+}
+
+/* Ensure skeleton stays visible until fade completes */
+.skeleton-loading {
+    opacity: 1;
+    transition: opacity var(--fade-in-duration) ease-in-out;
+}
+
+.skeleton-loading.fade-out {
+    opacity: 0;
+}
+
+/* Ensure x-cloak works with transitions */
+[x-cloak] {
+    display: none !important;
+}
+
+[x-cloak].fade-in {
+    display: block !important;
+    opacity: 0;
+}
+
+/* Task Section Loading States */
+.task-section {
+    min-height: var(--task-section-min-height);
+    opacity: 0;
+    transition: opacity var(--fade-in-duration) ease-in-out;
+}
+
+.task-section.loaded {
+    opacity: 1;
+}
+
+/* Prevent layout shifts in task sections */
+.task-section .card {
+    min-height: var(--task-section-min-height);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.task-section .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.task-list-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure consistent spacing during load */
+.task-section-header-compact {
+    min-height: 48px;
+    /* Height of header with content */
+    display: flex;
+    align-items: center;
+}
+
+/* Ensure task groups maintain height during load */
+.project-group {
+    min-height: 50px;
+}
+
+/* Prevent count bubble from causing layout shifts */
+.task-count-bubble {
+    min-width: 24px;
+    text-align: center;
+    display: inline-block;
+}
+
+/* Dashboard Loading States */
+.kanban-column {
+    min-height: 300px;
+    opacity: 0;
+    transition: opacity var(--fade-in-duration) ease-in-out;
+}
+
+.task-section.loaded .kanban-column {
+    opacity: 1;
+}
+
+.kanban-column-body {
+    min-height: 200px;
+}
+
+.kanban-column .skeleton-task {
+    margin: 0.5rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.activity-icon-compact.skeleton {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+/* Ensure consistent heights during load */
+.dashboard-name-colorful {
+    min-height: 1.2em;
+    display: inline-block;
+}
+
+/* Prevent button flicker */
+.dashboard-task-btn {
+    opacity: 0;
+    transition: opacity var(--fade-in-duration) ease-in-out;
+}
+
+.fade-in.loaded .dashboard-task-btn {
+    opacity: 1;
+}
+
+/* Archive zone loading state */
+.archive-zone-compact {
+    min-height: 48px;
+}
+
+/* Global Page Loading States */
+.page-content {
+    min-height: calc(100vh - 60px);
+    /* Account for header */
+    opacity: 0;
+    transition: opacity var(--fade-in-duration) ease-in-out;
+}
+
+.page-content.loaded {
+    opacity: 1;
+}
+
+/* Global Skeleton Loading */
+.skeleton-loading {
+    min-height: 300px;
+}
+
+.skeleton-loading .card {
+    min-height: 200px;
+}
+
+.skeleton-loading .skeleton-text {
+    margin-bottom: 1rem;
+}
+
+.skeleton-loading .skeleton-text.medium {
+    width: 60%;
+    height: 1.5rem;
+}
+
+/* Ensure consistent spacing during load */
+.container-fluid {
+    transition: opacity var(--fade-in-duration) ease-in-out;
+}
+
+/* Prevent flash of unstyled content */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Ensure modals don't cause layout shifts */
+.modal-dialog {
+    opacity: 0;
+    transition: opacity var(--fade-in-duration) ease-in-out;
+}
+
+.modal.show .modal-dialog {
+    opacity: 1;
 }

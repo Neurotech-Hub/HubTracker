@@ -1,23 +1,44 @@
 <!-- Task Reference List - Using unified task item partial -->
-<div class="task-list">
-    <template x-for="task in tasksICreated" :key="task.id">
-        <div x-data="{
-            task: task,
-            variant: 'interactive',
-            showProject: true,
-            showAssignee: true,
-            showCreator: false,
-            showActions: true,
-            showFlag: true,
-            alwaysShowMetadata: false
-        }">
-            {% include 'partials/task_item.html' %}
+<div class="task-list-wrapper" :class="{ 'loaded': tasksICreated }">
+    <!-- Loading State -->
+    <div x-show="!tasksICreated" class="skeleton-loading" :class="{ 'fade-out': tasksICreated }">
+        <div class="skeleton-task">
+            <div class="skeleton-circle skeleton"></div>
+            <div class="skeleton-content">
+                <div class="skeleton-text long skeleton"></div>
+                <div class="skeleton-text short skeleton"></div>
+            </div>
         </div>
-    </template>
+        <div class="skeleton-task">
+            <div class="skeleton-circle skeleton"></div>
+            <div class="skeleton-content">
+                <div class="skeleton-text medium skeleton"></div>
+                <div class="skeleton-text short skeleton"></div>
+            </div>
+        </div>
+    </div>
 
-    <!-- Empty State -->
-    <div x-show="tasksICreated.length === 0" class="task-empty-state text-center py-4">
-        <i class="bi bi-inbox display-4 text-muted mb-3"></i>
-        <p class="text-muted mb-0">No tasks by me yet</p>
+    <!-- Task Items -->
+    <div class="fade-in" :class="{ 'loaded': tasksICreated }">
+        <template x-cloak x-if="tasksICreated" x-for="task in tasksICreated" :key="task.id">
+            <div x-data="{
+                task: task,
+                variant: 'interactive',
+                showProject: true,
+                showAssignee: true,
+                showCreator: false,
+                showActions: true,
+                showFlag: true,
+                alwaysShowMetadata: false
+            }">
+                {% include 'partials/task_item.html' %}
+            </div>
+        </template>
+
+        <!-- Empty State -->
+        <div x-cloak x-show="tasksICreated && tasksICreated.length === 0" class="task-empty-state text-center py-4">
+            <i class="bi bi-inbox display-4 text-muted mb-3"></i>
+            <p class="text-muted mb-0">No tasks by me yet</p>
+        </div>
     </div>
 </div> 

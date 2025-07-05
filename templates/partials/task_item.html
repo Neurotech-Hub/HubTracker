@@ -12,13 +12,9 @@
 
 <div class="task-item-compact d-flex align-items-start" :class="{ 'task-completed': task.is_complete, 'task-flagged': task.is_flagged }">
     <!-- Checkbox for completion -->
-    <template x-if="variant !== 'reference'">
+    <template x-if="variant !== 'reference' && task && task.id">
         <form :action="'/task/' + task.id + '/complete'" method="POST" class="task-checkbox-form">
-            <!-- Assignment indicator (pulsating LED) - positioned absolutely -->
-            <div class="task-assignment-indicator" x-show="isAssignedToMe(task)" x-transition>
-                <div class="assignment-led"></div>
-            </div>
-            <button type="submit" class="task-checkbox" :class="{ 'checked': task.is_complete }" :title="task.is_complete ? 'Mark Incomplete' : 'Mark Complete'">
+            <button type="submit" class="task-checkbox" :class="{ 'checked': task.is_complete, 'assigned-to-me': isAssignedToMe(task) }" :title="task.is_complete ? 'Mark Incomplete' : 'Mark Complete'">
                 <i class="bi bi-check" x-show="task.is_complete"></i>
             </button>
         </form>
@@ -57,7 +53,7 @@
     <!-- Action buttons - visible on hover -->
     <div x-show="showActions" class="task-actions-compact">
         <!-- Flag/Unflag -->
-        <template x-if="showFlag">
+        <template x-if="showFlag && task && task.id">
             <form :action="'/task/' + task.id + '/' + (task.is_flagged ? 'unflag' : 'flag')" method="POST" style="display: inline;">
                 <button type="submit" class="task-action-btn-compact" :title="task.is_flagged ? 'Unflag Task' : 'Flag Task'">
                     <i class="bi bi-flag-fill" :class="task.is_flagged ? 'text-primary' : 'text-muted'"></i>
@@ -65,14 +61,18 @@
             </form>
         </template>
         <!-- Edit -->
-        <button type="button" class="task-action-btn-compact" title="Edit Task" @click="editTask(task)">
-            <i class="bi bi-pencil"></i>
-        </button>
-        <!-- Delete -->
-        <form :action="'/task/' + task.id + '/delete'" method="POST" style="display: inline;">
-            <button type="submit" class="task-action-btn-compact task-delete-btn" title="Delete Task">
-                <i class="bi bi-trash"></i>
+        <template x-if="task && task.id">
+            <button type="button" class="task-action-btn-compact" title="Edit Task" @click="editTask(task)">
+                <i class="bi bi-pencil"></i>
             </button>
-        </form>
+        </template>
+        <!-- Delete -->
+        <template x-if="task && task.id">
+            <form :action="'/task/' + task.id + '/delete'" method="POST" style="display: inline;">
+                <button type="submit" class="task-action-btn-compact task-delete-btn" title="Delete Task">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </form>
+        </template>
     </div>
 </div> 

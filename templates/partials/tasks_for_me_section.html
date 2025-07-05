@@ -1,68 +1,73 @@
 <!-- Tasks for Me Section -->
-<div class="col-12">
-    <div class="card">
-        <div class="card-body">
-            <!-- Task List Component -->
-            <div class="task-list-section" x-data="taskList('tasks-for-me')" x-init="init()">
-                <!-- Compact Section Header -->
-                <div class="task-section-header-compact">
-                    <div class="d-flex align-items-center mb-3">
-                        <h6 class="mb-0 me-2 text-muted">
-                            <i class="bi bi-person-check me-1"></i>Tasks for me
-                        </h6>
-                        <span class="task-count-bubble" x-text="filteredTasks.length"></span>
-                        <!-- Subtle inline filter - always visible -->
-                        <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
-                            <input 
-                                type="text" 
-                                class="form-control form-control-sm border-0 bg-transparent text-muted flex-grow-1"
-                                style="font-size: 0.75rem; min-width: 100px;"
-                                placeholder="filter..." 
-                                x-model="searchQuery"
-                                @input="filterTasks()"
-                                @keydown.escape="clearSearch()"
-                            >
-                            <button 
-                                class="btn btn-sm btn-link text-muted p-0 ms-1" 
-                                type="button" 
-                                @click="clearSearch()" 
-                                x-show="searchQuery" 
-                                title="Clear filter"
-                                style="font-size: 0.7rem; line-height: 1;"
-                            >
-                                <i class="bi bi-x"></i>
-                            </button>
-                            <button 
-                                class="task-add-btn ms-2" 
-                                type="button"
-                                title="Add task for me"
-                                onclick="openTaskModalWithUser({{ session.user_id }}, '{{ session.user_name }}')"
-                            >
-                                <i class="bi bi-plus"></i>
-                            </button>
-                        </div>
+<div class="card">
+    <div class="card-body">
+        <!-- Task List Component -->
+        <div class="task-list-section" x-data="taskList('tasks-for-me')" x-init="init()">
+            <!-- Compact Section Header -->
+            <div class="task-section-header-compact">
+                <div class="d-flex align-items-center mb-3">
+                    <h6 class="mb-0 me-2 text-muted">
+                        <i class="bi bi-person-check me-1"></i>Tasks for me
+                    </h6>
+                    <!-- Loading State for Count -->
+                    <span x-show="!filteredTasks" class="task-count-bubble skeleton skeleton-text">&nbsp;</span>
+                    <!-- Actual Count -->
+                    <span x-cloak x-show="filteredTasks" class="task-count-bubble" x-text="filteredTasks.length"></span>
+                    
+                    <!-- Subtle inline filter - always visible -->
+                    <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
+                        <input 
+                            type="text" 
+                            class="form-control form-control-sm border-0 bg-transparent text-muted flex-grow-1"
+                            style="font-size: 0.75rem; min-width: 100px;"
+                            placeholder="filter..." 
+                            x-model="searchQuery"
+                            @input="filterTasks()"
+                            @keydown.escape="clearSearch()"
+                        >
+                        <button 
+                            class="btn btn-sm btn-link text-muted p-0 ms-1" 
+                            type="button" 
+                            @click="clearSearch()" 
+                            x-show="searchQuery" 
+                            title="Clear filter"
+                            style="font-size: 0.7rem; line-height: 1;"
+                        >
+                            <i class="bi bi-x"></i>
+                        </button>
+                        <button 
+                            class="task-add-btn ms-2" 
+                            type="button"
+                            title="Add task for me"
+                            onclick="openTaskModalWithUser({{ session.user_id }}, '{{ session.user_name }}')"
+                        >
+                            <i class="bi bi-plus"></i>
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                {% include 'partials/task_list_items.html' %}
-                
-                <!-- Expandable Footer for Tasks by Me -->
-                <div class="tasks-created-footer" x-show="tasksICreated.length > 0">
-                    <div class="footer-toggle" @click="showTasksICreated = !showTasksICreated">
-                        <div class="d-flex align-items-center justify-content-between py-2 px-2 border-top" style="border-color: #eee !important;">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-person-plus me-2 text-muted" style="font-size: 0.8rem;"></i>
-                                <span class="text-muted" style="font-size: 0.85rem;">Tasks by me</span>
-                                <span class="task-count-bubble ms-2" x-text="tasksICreated.length" style="font-size: 0.7rem; padding: 2px 6px;"></span>
-                            </div>
-                            <i class="bi text-muted" :class="showTasksICreated ? 'bi-chevron-up' : 'bi-chevron-down'" style="font-size: 0.7rem;"></i>
+            {% include 'partials/task_list_items.html' %}
+            
+            <!-- Expandable Footer for Tasks by Me -->
+            <div class="tasks-created-footer" x-show="tasksICreated && tasksICreated.length > 0">
+                <div class="footer-toggle" @click="showTasksICreated = !showTasksICreated">
+                    <div class="d-flex align-items-center justify-content-between py-2 px-2 border-top" style="border-color: #eee !important;">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-person-plus me-2 text-muted" style="font-size: 0.8rem;"></i>
+                            <span class="text-muted" style="font-size: 0.85rem;">Tasks by me</span>
+                            <!-- Loading State for Count -->
+                            <span x-show="!tasksICreated" class="task-count-bubble skeleton skeleton-text ms-2" style="font-size: 0.7rem; padding: 2px 6px;">&nbsp;</span>
+                            <!-- Actual Count -->
+                            <span x-cloak x-show="tasksICreated" class="task-count-bubble ms-2" x-text="tasksICreated.length" style="font-size: 0.7rem; padding: 2px 6px;"></span>
                         </div>
+                        <i class="bi text-muted" :class="showTasksICreated ? 'bi-chevron-up' : 'bi-chevron-down'" style="font-size: 0.7rem;"></i>
                     </div>
-                    
-                    <div class="tasks-created-list" x-show="showTasksICreated" x-collapse>
-                        <div class="reference-tasks-container" style="max-height: 200px; overflow-y: auto; padding-top: 8px;">
-                            {% include 'partials/task_reference_list.html' %}
-                        </div>
+                </div>
+                
+                <div class="tasks-created-list" x-show="showTasksICreated" x-collapse>
+                    <div class="reference-tasks-container" style="max-height: 200px; overflow-y: auto; padding-top: 8px;">
+                        {% include 'partials/task_reference_list.html' %}
                     </div>
                 </div>
             </div>

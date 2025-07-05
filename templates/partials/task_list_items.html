@@ -1,23 +1,51 @@
 <!-- Task List Items -->
-<div class="task-list">
-    <template x-for="task in filteredTasks" :key="task.id">
-        <div x-data="{
-            task: task,
-            variant: 'interactive',
-            showProject: true,
-            showAssignee: true,
-            showCreator: true,
-            showActions: true,
-            showFlag: true,
-            alwaysShowMetadata: false
-        }">
-            {% include 'partials/task_item.html' %}
+<div class="task-list-wrapper" :class="{ 'loaded': filteredTasks }">
+    <!-- Loading State -->
+    <div x-show="!filteredTasks" class="skeleton-loading" :class="{ 'fade-out': filteredTasks }">
+        <div class="skeleton-task">
+            <div class="skeleton-circle skeleton"></div>
+            <div class="skeleton-content">
+                <div class="skeleton-text long skeleton"></div>
+                <div class="skeleton-text short skeleton"></div>
+            </div>
         </div>
-    </template>
+        <div class="skeleton-task">
+            <div class="skeleton-circle skeleton"></div>
+            <div class="skeleton-content">
+                <div class="skeleton-text medium skeleton"></div>
+                <div class="skeleton-text short skeleton"></div>
+            </div>
+        </div>
+        <div class="skeleton-task">
+            <div class="skeleton-circle skeleton"></div>
+            <div class="skeleton-content">
+                <div class="skeleton-text long skeleton"></div>
+                <div class="skeleton-text short skeleton"></div>
+            </div>
+        </div>
+    </div>
 
-    <!-- Empty State -->
-    <div x-show="filteredTasks.length === 0" class="task-empty-state text-center py-4">
-        <i class="bi bi-inbox display-4 text-muted mb-3"></i>
-        <p class="text-muted mb-0" x-text="searchQuery ? 'No tasks match your filter' : 'No tasks found'"></p>
+    <!-- Task Items -->
+    <div class="fade-in" :class="{ 'loaded': filteredTasks }">
+        <template x-cloak x-if="filteredTasks" x-for="task in filteredTasks" :key="task.id">
+            <div x-data="{
+                task: task,
+                variant: 'interactive',
+                showProject: true,
+                showAssignee: true,
+                showCreator: true,
+                showActions: true,
+                showFlag: true,
+                alwaysShowMetadata: false
+            }">
+                {% include 'partials/task_item.html' %}
+            </div>
+        </template>
+
+        <!-- Empty State -->
+        <div x-cloak x-show="filteredTasks && filteredTasks.length === 0" class="task-empty-state text-center py-4">
+            <i class="bi bi-inbox display-4 text-muted mb-3"></i>
+            <p class="text-muted mb-0" x-text="searchQuery ? 'No tasks match your filter' : 'No tasks found'"></p>
+        </div>
     </div>
 </div> 

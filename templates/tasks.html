@@ -36,12 +36,12 @@
     <!-- Task Lists -->
     <div class="row g-4">
         <!-- Tasks for Me -->
-        {% include 'partials/tasks_for_me_section.html' %}
-
-
+        <div class="col-12 task-section" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 50)" :class="{ 'loaded': loaded }">
+            {% include 'partials/tasks_for_me_section.html' %}
+        </div>
 
         <!-- All Tasks -->
-        <div class="col-12">
+        <div class="col-12 task-section" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 50)" :class="{ 'loaded': loaded }">
             <div class="card">
                 <div class="card-body">
                     <!-- Task List Component -->
@@ -52,7 +52,11 @@
                                 <h6 class="mb-0 me-2 text-muted">
                                     <i class="bi bi-list-check me-1"></i>Tasks by Project
                                 </h6>
-                                <span class="task-count-bubble" x-text="filteredTasks.length"></span>
+                                <!-- Loading State for Count -->
+                                <span x-show="!filteredTasks" class="task-count-bubble skeleton skeleton-text">&nbsp;</span>
+                                <!-- Actual Count -->
+                                <span x-cloak x-show="filteredTasks" class="task-count-bubble" x-text="filteredTasks.length"></span>
+                                
                                 <!-- Subtle inline filter - always visible -->
                                 <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
                                     <input 
@@ -85,7 +89,7 @@
         </div>
 
         <!-- Completed Tasks -->
-        <div class="col-12">
+        <div class="col-12 task-section" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 50)" :class="{ 'loaded': loaded }">
             <div class="card">
                 <div class="card-body">
                     <!-- Task List Component -->
@@ -96,7 +100,10 @@
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-check-circle me-2 text-muted" style="font-size: 0.8rem;"></i>
                                     <h6 class="mb-0 me-2 text-muted" style="font-size: 0.85rem;">Completed Tasks</h6>
-                                    <span class="task-count-bubble ms-2" x-text="filteredTasks.length" style="font-size: 0.7rem; padding: 2px 6px;"></span>
+                                    <!-- Loading State for Count -->
+                                    <span x-show="!filteredTasks" class="task-count-bubble skeleton skeleton-text ms-2" style="width: 24px; font-size: 0.7rem; padding: 2px 6px;">&nbsp;</span>
+                                    <!-- Actual Count -->
+                                    <span x-cloak x-show="filteredTasks" class="task-count-bubble ms-2" x-text="filteredTasks.length" style="font-size: 0.7rem; padding: 2px 6px;"></span>
                                 </div>
                                 <i class="bi text-muted" :class="showCompletedTasks ? 'bi-chevron-up' : 'bi-chevron-down'" style="font-size: 0.7rem;"></i>
                             </div>

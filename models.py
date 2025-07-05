@@ -191,7 +191,7 @@ class Task(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     
     # Relationships
-    flags = db.relationship('UserTaskFlag', backref='task', lazy='dynamic')
+    flags = db.relationship('UserTaskFlag', backref='task', lazy='dynamic', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Task {self.description[:30]}...>'

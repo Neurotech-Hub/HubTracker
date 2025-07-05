@@ -12,11 +12,11 @@
 }
 </script>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 50)">
     <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between align-items-center fade-in" :class="{ 'loaded': loaded }">
                 <div>
                     {% if day_of_week == 'Monday' %}
                     <h2 class="mb-0">Happy Monday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
@@ -42,7 +42,7 @@
     </div>
 
     <!-- Kanban Board -->
-    <div class="row mb-4">
+    <div class="row mb-4 task-section" :class="{ 'loaded': loaded }">
         <div class="col-12">
             <div class="row g-3 mb-3">
                 <!-- Active Column -->
@@ -55,28 +55,46 @@
                             </h6>
                         </div>
                         <div class="kanban-column-body" id="active-column" data-status="Active">
-                            {% for project in active_projects %}
-                            <div class="kanban-card" data-project-id="{{ project.id }}">
-                                <div class="kanban-card-header">
-                                    <div class="fw-medium mb-1">{{ project.name }}</div>
-                                    <small class="text-muted">{{ project.client.name }}</small>
+                            <!-- Loading State -->
+                            <div x-show="!loaded" class="skeleton-loading">
+                                <div class="skeleton-task">
+                                    <div class="skeleton-content">
+                                        <div class="skeleton-text medium skeleton"></div>
+                                        <div class="skeleton-text short skeleton"></div>
+                                    </div>
                                 </div>
-                                <div class="kanban-card-footer">
-                                    <small class="text-muted">
-                                        {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
-                                        <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
-                                    </small>
-                                    <div class="d-flex align-items-center">
-                                        {% if project.project_leader %}
-                                        <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
-                                        {% endif %}
-                                        <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
-                                            <i class="bi bi-plus"></i>
-                                        </button>
+                                <div class="skeleton-task">
+                                    <div class="skeleton-content">
+                                        <div class="skeleton-text long skeleton"></div>
+                                        <div class="skeleton-text short skeleton"></div>
                                     </div>
                                 </div>
                             </div>
-                            {% endfor %}
+                            <!-- Actual Content -->
+                            <div x-cloak x-show="loaded">
+                                {% for project in active_projects %}
+                                <div class="kanban-card" data-project-id="{{ project.id }}">
+                                    <div class="kanban-card-header">
+                                        <div class="fw-medium mb-1">{{ project.name }}</div>
+                                        <small class="text-muted">{{ project.client.name }}</small>
+                                    </div>
+                                    <div class="kanban-card-footer">
+                                        <small class="text-muted">
+                                            {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
+                                            <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
+                                        </small>
+                                        <div class="d-flex align-items-center">
+                                            {% if project.project_leader %}
+                                            <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
+                                            {% endif %}
+                                            <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -91,28 +109,40 @@
                             </h6>
                         </div>
                         <div class="kanban-column-body" id="awaiting-column" data-status="Awaiting">
-                            {% for project in awaiting_projects %}
-                            <div class="kanban-card" data-project-id="{{ project.id }}">
-                                <div class="kanban-card-header">
-                                    <div class="fw-medium mb-1">{{ project.name }}</div>
-                                    <small class="text-muted">{{ project.client.name }}</small>
-                                </div>
-                                <div class="kanban-card-footer">
-                                    <small class="text-muted">
-                                        {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
-                                        <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
-                                    </small>
-                                    <div class="d-flex align-items-center">
-                                        {% if project.project_leader %}
-                                        <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
-                                        {% endif %}
-                                        <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
-                                            <i class="bi bi-plus"></i>
-                                        </button>
+                            <!-- Loading State -->
+                            <div x-show="!loaded" class="skeleton-loading">
+                                <div class="skeleton-task">
+                                    <div class="skeleton-content">
+                                        <div class="skeleton-text medium skeleton"></div>
+                                        <div class="skeleton-text short skeleton"></div>
                                     </div>
                                 </div>
                             </div>
-                            {% endfor %}
+                            <!-- Actual Content -->
+                            <div x-cloak x-show="loaded">
+                                {% for project in awaiting_projects %}
+                                <div class="kanban-card" data-project-id="{{ project.id }}">
+                                    <div class="kanban-card-header">
+                                        <div class="fw-medium mb-1">{{ project.name }}</div>
+                                        <small class="text-muted">{{ project.client.name }}</small>
+                                    </div>
+                                    <div class="kanban-card-footer">
+                                        <small class="text-muted">
+                                            {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
+                                            <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
+                                        </small>
+                                        <div class="d-flex align-items-center">
+                                            {% if project.project_leader %}
+                                            <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
+                                            {% endif %}
+                                            <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -127,35 +157,47 @@
                             </h6>
                         </div>
                         <div class="kanban-column-body" id="paused-column" data-status="Paused">
-                            {% for project in paused_projects %}
-                            <div class="kanban-card" data-project-id="{{ project.id }}">
-                                <div class="kanban-card-header">
-                                    <div class="fw-medium mb-1">{{ project.name }}</div>
-                                    <small class="text-muted">{{ project.client.name }}</small>
-                                </div>
-                                <div class="kanban-card-footer">
-                                    <small class="text-muted">
-                                        {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
-                                        <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
-                                    </small>
-                                    <div class="d-flex align-items-center">
-                                        {% if project.project_leader %}
-                                        <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
-                                        {% endif %}
-                                        <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
-                                            <i class="bi bi-plus"></i>
-                                        </button>
+                            <!-- Loading State -->
+                            <div x-show="!loaded" class="skeleton-loading">
+                                <div class="skeleton-task">
+                                    <div class="skeleton-content">
+                                        <div class="skeleton-text medium skeleton"></div>
+                                        <div class="skeleton-text short skeleton"></div>
                                     </div>
                                 </div>
                             </div>
-                            {% endfor %}
+                            <!-- Actual Content -->
+                            <div x-cloak x-show="loaded">
+                                {% for project in paused_projects %}
+                                <div class="kanban-card" data-project-id="{{ project.id }}">
+                                    <div class="kanban-card-header">
+                                        <div class="fw-medium mb-1">{{ project.name }}</div>
+                                        <small class="text-muted">{{ project.client.name }}</small>
+                                    </div>
+                                    <div class="kanban-card-footer">
+                                        <small class="text-muted">
+                                            {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
+                                            <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
+                                        </small>
+                                        <div class="d-flex align-items-center">
+                                            {% if project.project_leader %}
+                                            <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
+                                            {% endif %}
+                                            <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Compact Archive Zone -->
-            <div class="archive-zone-compact" id="archive-zone">
+            <div class="archive-zone-compact fade-in" :class="{ 'loaded': loaded }" id="archive-zone">
                 <div class="archive-zone-compact-body" id="archived-column" data-status="Archived">
                     <div class="d-flex align-items-center justify-content-center py-2">
                         <i class="bi bi-archive me-2 text-muted"></i>
@@ -178,15 +220,13 @@
         </div>
     </div>
 
-
-
     <!-- Tasks for Me -->
-    <div class="row mb-4">
+    <div class="row mb-4 task-section" :class="{ 'loaded': loaded }">
         {% include 'partials/tasks_for_me_section.html' %}
     </div>
 
     <!-- Action Buttons Grid -->
-    <div class="row mb-4">
+    <div class="row mb-4 task-section" :class="{ 'loaded': loaded }">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
@@ -221,7 +261,7 @@
     </div>
 
     <!-- Recent Activity -->
-    <div class="row">
+    <div class="row task-section" :class="{ 'loaded': loaded }">
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -231,72 +271,97 @@
                     <small class="text-muted">Last 7 days</small>
                 </div>
                 <div class="card-body">
-                    <!-- Recent Task Completions -->
-                    {% for task in recent_my_completions_serialized %}
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="activity-icon-compact bg-success text-white me-2">
-                            <i class="bi bi-check-circle"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="task-description-main completed-text">
-                                {{ task.original_input|default(task.description)|render_tags|safe }}
-                                {% if task.is_flagged %}
-                                <i class="bi bi-flag-fill text-primary ms-1" title="Flagged task"></i>
-                                {% endif %}
+                    <!-- Loading State -->
+                    <div x-show="!loaded" class="skeleton-loading">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="skeleton-circle skeleton me-2"></div>
+                            <div class="skeleton-content flex-grow-1">
+                                <div class="skeleton-text long skeleton"></div>
                             </div>
                         </div>
-                        <small class="text-muted">completed</small>
-                    </div>
-                    {% endfor %}
-                    
-                    <!-- Recent Assignments -->
-                    {% for task in recent_assignments_serialized %}
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="activity-icon-compact bg-primary text-white me-2">
-                            <i class="bi bi-person-check"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="task-description-main">
-                                {{ task.original_input|default(task.description)|render_tags|safe }}
-                                {% if task.is_flagged %}
-                                <i class="bi bi-flag-fill text-primary ms-1" title="Flagged task"></i>
-                                {% endif %}
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="skeleton-circle skeleton me-2"></div>
+                            <div class="skeleton-content flex-grow-1">
+                                <div class="skeleton-text medium skeleton"></div>
                             </div>
                         </div>
-                        <small class="text-muted">assigned</small>
-                    </div>
-                    {% endfor %}
-                    
-                    <!-- Recent Time Logs -->
-                    {% for log in recent_logs %}
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="activity-icon-compact bg-info text-white me-2">
-                            <i class="bi bi-{{ 'fingerprint' if log.is_touch else 'clock' }}"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="task-description-main">
-                                {% if log.is_touch %}
-                                    Quick touch logged
-                                {% else %}
-                                    Time logged{% if log.hours %}: {{ log.hours }} hours{% endif %}
-                                {% endif %}
-                                {% if log.project %}
-                                for <span class="task-tag task-tag-project">#{{ log.project.name }}</span>
-                                {% endif %}
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="skeleton-circle skeleton me-2"></div>
+                            <div class="skeleton-content flex-grow-1">
+                                <div class="skeleton-text long skeleton"></div>
                             </div>
                         </div>
-                        <small class="text-muted">{{ log.created_at.strftime('%m/%d') }}</small>
                     </div>
-                    {% endfor %}
-                    
-                    <!-- No Recent Activity -->
-                    {% if not recent_my_completions_serialized and not recent_assignments_serialized and not recent_logs %}
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-clock-history fs-3 mb-2 d-block"></i>
-                        <div class="fw-medium">No recent activity</div>
-                        <div class="small">Complete tasks or log time to see activity here</div>
+
+                    <!-- Actual Content -->
+                    <div x-cloak x-show="loaded">
+                        <!-- Recent Task Completions -->
+                        {% for task in recent_my_completions_serialized %}
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="activity-icon-compact bg-success text-white me-2">
+                                <i class="bi bi-check-circle"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="task-description-main completed-text">
+                                    {{ task.original_input|default(task.description)|render_tags|safe }}
+                                    {% if task.is_flagged %}
+                                    <i class="bi bi-flag-fill text-primary ms-1" title="Flagged task"></i>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <small class="text-muted">completed</small>
+                        </div>
+                        {% endfor %}
+                        
+                        <!-- Recent Assignments -->
+                        {% for task in recent_assignments_serialized %}
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="activity-icon-compact bg-primary text-white me-2">
+                                <i class="bi bi-person-check"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="task-description-main">
+                                    {{ task.original_input|default(task.description)|render_tags|safe }}
+                                    {% if task.is_flagged %}
+                                    <i class="bi bi-flag-fill text-primary ms-1" title="Flagged task"></i>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <small class="text-muted">assigned</small>
+                        </div>
+                        {% endfor %}
+                        
+                        <!-- Recent Time Logs -->
+                        {% for log in recent_logs %}
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="activity-icon-compact bg-info text-white me-2">
+                                <i class="bi bi-{{ 'fingerprint' if log.is_touch else 'clock' }}"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="task-description-main">
+                                    {% if log.is_touch %}
+                                        Quick touch logged
+                                    {% else %}
+                                        Time logged{% if log.hours %}: {{ log.hours }} hours{% endif %}
+                                    {% endif %}
+                                    {% if log.project %}
+                                    for <span class="task-tag task-tag-project">#{{ log.project.name }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ log.created_at.strftime('%m/%d') }}</small>
+                        </div>
+                        {% endfor %}
+                        
+                        <!-- No Recent Activity -->
+                        {% if not recent_my_completions_serialized and not recent_assignments_serialized and not recent_logs %}
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-clock-history fs-3 mb-2 d-block"></i>
+                            <div class="fw-medium">No recent activity</div>
+                            <div class="small">Complete tasks or log time to see activity here</div>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -304,189 +369,13 @@
 </div>
 
 <!-- Add Project Modal -->
-<div class="modal fade" id="addProjectModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('add_project') }}">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Project</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="addProjectName" class="form-label">Project Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="addProjectName" name="name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="addProjectClient" class="form-label">Client <span class="text-danger">*</span></label>
-                        <select class="form-select" id="addProjectClient" name="client_id" required>
-                            <option value="">Select a client...</option>
-                            {% for client in clients %}
-                                <option value="{{ client.id }}">{{ client.name }}</option>
-                            {% endfor %}
-                        </select>
-                        {% if not clients %}
-                            <div class="form-text text-warning">
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                No clients available. <a href="{{ url_for('clients') }}">Create a client first</a>.
-                            </div>
-                        {% endif %}
-                    </div>
-                    <div class="mb-3">
-                        <label for="addProjectLead" class="form-label">Project Lead</label>
-                        <select class="form-select" id="addProjectLead" name="project_lead_id">
-                            <option value="">Select a project lead...</option>
-                            {% for user in users %}
-                                <option value="{{ user.id }}">{{ user.full_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="addProjectStatus" class="form-label">Status</label>
-                        <select class="form-select" id="addProjectStatus" name="status" required>
-                            <option value="Active">Active</option>
-                            <option value="Prospective">Prospective</option>
-                            <option value="Archived">Archived</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="addProjectNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="addProjectNotes" name="notes" rows="3" placeholder="Optional project notes..."></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="addProjectDefault" name="is_default">
-                            <label class="form-check-label" for="addProjectDefault">
-                                Set as default project
-                            </label>
-                            <div class="form-text">Tasks without a specified project will be assigned here</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create Project</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{% include 'partials/project_form.html' %}
 
 <!-- Add Client Modal -->
-<div class="modal fade" id="addClientModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('add_client') }}">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Client</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="addClientName" class="form-label">Client Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="addClientName" name="name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="addClientMembership" class="form-label">Membership</label>
-                        <select class="form-select" id="addClientMembership" name="membership_id">
-                            <option value="">No membership assigned</option>
-                            {% for membership in memberships %}
-                                <option value="{{ membership.id }}">
-                                    {{ membership.title }}
-                                    {% if membership.start_date %} - {{ membership.start_date.strftime('%b %d, %Y') }}{% endif %}
-                                    {% if membership.is_annual %} (Annual){% endif %}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        {% if not memberships %}
-                            <div class="form-text text-warning">
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                No memberships available. <a href="{{ url_for('memberships') }}">Create a membership first</a>.
-                            </div>
-                        {% endif %}
-                    </div>
-                    <div class="mb-3">
-                        <label for="addClientNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="addClientNotes" name="notes" rows="3" placeholder="Optional client notes..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Create Client</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{% include 'partials/client_form.html' %}
 
 <!-- Add Membership Modal -->
-<div class="modal fade" id="addMembershipModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('add_membership') }}">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Membership</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="addMembershipStartDate" class="form-label">Start Date</label>
-                        <input type="date" class="form-control" id="addMembershipStartDate" name="start_date">
-                        <div class="form-text">Optional - when did this membership begin?</div>
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="addMembershipAnnual" name="is_annual">
-                            <label class="form-check-label" for="addMembershipAnnual">
-                                Annual Membership
-                            </label>
-                            <div class="form-text">Enable for yearly memberships, disable for monthly</div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="addMembershipCost" class="form-label">Cost</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" id="addMembershipCost" name="cost" step="0.01" min="0" placeholder="0.00">
-                        </div>
-                        <div class="form-text">Optional - monthly or annual cost</div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="addMembershipTime" class="form-label">Time Budget</label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" id="addMembershipTime" name="time" min="0" placeholder="0">
-                                    <span class="input-group-text">hrs</span>
-                                </div>
-                                <div class="form-text">Optional - hours included</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="addMembershipBudget" class="form-label">Dollar Budget</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="addMembershipBudget" name="budget" step="0.01" min="0" placeholder="0.00">
-                                </div>
-                                <div class="form-text">Optional - dollar budget</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="addMembershipNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="addMembershipNotes" name="notes" rows="4" placeholder="Optional notes - supports Markdown formatting"></textarea>
-                        <div class="form-text">You can use **bold**, *italic*, and other Markdown formatting</div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-info">Create Membership</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{% include 'partials/membership_form.html' %}
 
 <!-- Include Task Modal -->
 {% include 'partials/task_modal.html' %}

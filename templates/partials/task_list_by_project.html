@@ -1,46 +1,87 @@
 <!-- Task List Grouped by Project -->
-<div class="task-list">
-    <template x-for="projectGroup in getTasksByProject()" :key="projectGroup.name">
-        <div class="project-group">
-            <!-- Project Section Header -->
-            <div class="project-section-header d-flex align-items-center justify-content-between">
-                <h6 class="project-name text-muted mb-2">
-                    <i class="bi bi-hash me-1"></i>
-                    <span x-text="projectGroup.name"></span>
-                    <small class="task-count-small ms-2" x-text="'(' + projectGroup.tasks.length + ')'"></small>
-                </h6>
-                <button 
-                    class="project-add-task-btn" 
-                    type="button"
-                    :title="'Add task to ' + projectGroup.name"
-                    @click="addTaskToProject(projectGroup)"
-                    x-show="projectGroup.name !== 'No Project'"
-                >
-                    <i class="bi bi-plus"></i>
-                </button>
+<div class="task-list-wrapper" :class="{ 'loaded': filteredTasks }">
+    <!-- Loading State -->
+    <div x-show="!filteredTasks" class="skeleton-loading" :class="{ 'fade-out': filteredTasks }">
+        <!-- Project Group 1 -->
+        <div class="project-group mb-4">
+            <div class="project-section-header d-flex align-items-center justify-content-between mb-2">
+                <div class="skeleton-text medium skeleton"></div>
             </div>
-            
-            <!-- Tasks for this project -->
-            <template x-for="task in projectGroup.tasks" :key="task.id">
-                <div x-data="{
-                    task: task,
-                    variant: 'by-project',
-                    showProject: false,
-                    showAssignee: true,
-                    showCreator: true,
-                    showActions: true,
-                    showFlag: false,
-                    alwaysShowMetadata: false
-                }">
-                    {% include 'partials/task_item.html' %}
+            <div class="skeleton-task">
+                <div class="skeleton-circle skeleton"></div>
+                <div class="skeleton-content">
+                    <div class="skeleton-text long skeleton"></div>
+                    <div class="skeleton-text short skeleton"></div>
                 </div>
-            </template>
+            </div>
+            <div class="skeleton-task">
+                <div class="skeleton-circle skeleton"></div>
+                <div class="skeleton-content">
+                    <div class="skeleton-text medium skeleton"></div>
+                    <div class="skeleton-text short skeleton"></div>
+                </div>
+            </div>
         </div>
-    </template>
 
-    <!-- Empty State -->
-    <div x-show="filteredTasks.length === 0" class="task-empty-state text-center py-4">
-        <i class="bi bi-inbox display-4 text-muted mb-3"></i>
-        <p class="text-muted mb-0" x-text="searchQuery ? 'No tasks match your filter' : 'No tasks found'"></p>
+        <!-- Project Group 2 -->
+        <div class="project-group">
+            <div class="project-section-header d-flex align-items-center justify-content-between mb-2">
+                <div class="skeleton-text medium skeleton"></div>
+            </div>
+            <div class="skeleton-task">
+                <div class="skeleton-circle skeleton"></div>
+                <div class="skeleton-content">
+                    <div class="skeleton-text long skeleton"></div>
+                    <div class="skeleton-text short skeleton"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Groups -->
+    <div class="fade-in" :class="{ 'loaded': filteredTasks }">
+        <template x-cloak x-if="filteredTasks" x-for="projectGroup in getTasksByProject()" :key="projectGroup.name">
+            <div class="project-group">
+                <!-- Project Section Header -->
+                <div class="project-section-header d-flex align-items-center justify-content-between">
+                    <h6 class="project-name text-muted mb-2">
+                        <i class="bi bi-hash me-1"></i>
+                        <span x-text="projectGroup.name"></span>
+                        <small class="task-count-small ms-2" x-text="'(' + projectGroup.tasks.length + ')'"></small>
+                    </h6>
+                    <button 
+                        class="project-add-task-btn" 
+                        type="button"
+                        :title="'Add task to ' + projectGroup.name"
+                        @click="addTaskToProject(projectGroup)"
+                        x-show="projectGroup.name !== 'No Project'"
+                    >
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </div>
+                
+                <!-- Tasks for this project -->
+                <template x-for="task in projectGroup.tasks" :key="task.id">
+                    <div x-data="{
+                        task: task,
+                        variant: 'by-project',
+                        showProject: false,
+                        showAssignee: true,
+                        showCreator: true,
+                        showActions: true,
+                        showFlag: true,
+                        alwaysShowMetadata: false
+                    }">
+                        {% include 'partials/task_item.html' %}
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <!-- Empty State -->
+        <div x-cloak x-show="filteredTasks && filteredTasks.length === 0" class="task-empty-state text-center py-4">
+            <i class="bi bi-inbox display-4 text-muted mb-3"></i>
+            <p class="text-muted mb-0" x-text="searchQuery ? 'No tasks match your filter' : 'No tasks found'"></p>
+        </div>
     </div>
 </div> 
