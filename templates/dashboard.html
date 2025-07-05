@@ -70,31 +70,29 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Actual Content -->
-                            <div x-cloak x-show="loaded">
-                                {% for project in active_projects %}
-                                <div class="kanban-card" data-project-id="{{ project.id }}">
-                                    <div class="kanban-card-header">
-                                        <div class="fw-medium mb-1">{{ project.name }}</div>
-                                        <small class="text-muted">{{ project.client.name }}</small>
-                                    </div>
-                                    <div class="kanban-card-footer">
-                                        <small class="text-muted">
-                                            {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
-                                            <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
-                                        </small>
-                                        <div class="d-flex align-items-center">
-                                            {% if project.project_leader %}
-                                            <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
-                                            {% endif %}
-                                            <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
-                                                <i class="bi bi-plus"></i>
-                                            </button>
-                                        </div>
+                            <!-- Actual Content - Individual cards with Alpine directives -->
+                            {% for project in active_projects %}
+                            <div class="kanban-card" data-project-id="{{ project.id }}" x-cloak x-show="loaded">
+                                <div class="kanban-card-header">
+                                    <div class="fw-medium mb-1">{{ project.name }}</div>
+                                    <small class="text-muted">{{ project.client.name }}</small>
+                                </div>
+                                <div class="kanban-card-footer">
+                                    <small class="text-muted">
+                                        {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
+                                        <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
+                                    </small>
+                                    <div class="d-flex align-items-center">
+                                        {% if project.project_leader %}
+                                        <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
+                                        {% endif %}
+                                        <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
                                     </div>
                                 </div>
-                                {% endfor %}
                             </div>
+                            {% endfor %}
                         </div>
                     </div>
                 </div>
@@ -118,31 +116,29 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Actual Content -->
-                            <div x-cloak x-show="loaded">
-                                {% for project in awaiting_projects %}
-                                <div class="kanban-card" data-project-id="{{ project.id }}">
-                                    <div class="kanban-card-header">
-                                        <div class="fw-medium mb-1">{{ project.name }}</div>
-                                        <small class="text-muted">{{ project.client.name }}</small>
-                                    </div>
-                                    <div class="kanban-card-footer">
-                                        <small class="text-muted">
-                                            {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
-                                            <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
-                                        </small>
-                                        <div class="d-flex align-items-center">
-                                            {% if project.project_leader %}
-                                            <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
-                                            {% endif %}
-                                            <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
-                                                <i class="bi bi-plus"></i>
-                                            </button>
-                                        </div>
+                            <!-- Actual Content - Individual cards with Alpine directives -->
+                            {% for project in awaiting_projects %}
+                            <div class="kanban-card" data-project-id="{{ project.id }}" x-cloak x-show="loaded">
+                                <div class="kanban-card-header">
+                                    <div class="fw-medium mb-1">{{ project.name }}</div>
+                                    <small class="text-muted">{{ project.client.name }}</small>
+                                </div>
+                                <div class="kanban-card-footer">
+                                    <small class="text-muted">
+                                        {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
+                                        <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
+                                    </small>
+                                    <div class="d-flex align-items-center">
+                                        {% if project.project_leader %}
+                                        <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
+                                        {% endif %}
+                                        <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
                                     </div>
                                 </div>
-                                {% endfor %}
                             </div>
+                            {% endfor %}
                         </div>
                     </div>
                 </div>
@@ -166,31 +162,29 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Actual Content -->
-                            <div x-cloak x-show="loaded">
-                                {% for project in paused_projects %}
-                                <div class="kanban-card" data-project-id="{{ project.id }}">
-                                    <div class="kanban-card-header">
-                                        <div class="fw-medium mb-1">{{ project.name }}</div>
-                                        <small class="text-muted">{{ project.client.name }}</small>
-                                    </div>
-                                    <div class="kanban-card-footer">
-                                        <small class="text-muted">
-                                            {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
-                                            <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
-                                        </small>
-                                        <div class="d-flex align-items-center">
-                                            {% if project.project_leader %}
-                                            <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
-                                            {% endif %}
-                                            <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
-                                                <i class="bi bi-plus"></i>
-                                            </button>
-                                        </div>
+                            <!-- Actual Content - Individual cards with Alpine directives -->
+                            {% for project in paused_projects %}
+                            <div class="kanban-card" data-project-id="{{ project.id }}" x-cloak x-show="loaded">
+                                <div class="kanban-card-header">
+                                    <div class="fw-medium mb-1">{{ project.name }}</div>
+                                    <small class="text-muted">{{ project.client.name }}</small>
+                                </div>
+                                <div class="kanban-card-footer">
+                                    <small class="text-muted">
+                                        {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
+                                        <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
+                                    </small>
+                                    <div class="d-flex align-items-center">
+                                        {% if project.project_leader %}
+                                        <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
+                                        {% endif %}
+                                        <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
                                     </div>
                                 </div>
-                                {% endfor %}
                             </div>
+                            {% endfor %}
                         </div>
                     </div>
                 </div>
@@ -381,32 +375,44 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize sortable for each column
-    const columns = ['active-column', 'awaiting-column', 'paused-column', 'archived-column'];
-    
-    columns.forEach(columnId => {
-        const element = document.getElementById(columnId);
-        if (element) {
-            new Sortable(element, {
-                group: 'kanban',
-                animation: 150,
-                ghostClass: 'kanban-card-ghost',
-                chosenClass: 'kanban-card-chosen',
-                dragClass: 'kanban-card-drag',
-                onEnd: function(evt) {
-                    // Get the project ID and new status
-                    const projectId = evt.item.dataset.projectId;
-                    const newStatus = evt.to.dataset.status;
-                    
-                    // Update project status via API
-                    updateProjectStatus(projectId, newStatus);
-                }
-            });
-        }
-    });
+    // Simple delay to let Alpine.js render the content, then initialize Kanban
+    setTimeout(function() {
+        // Initialize sortable for each column
+        const columns = ['active-column', 'awaiting-column', 'paused-column', 'archived-column'];
+        
+        columns.forEach(columnId => {
+            const element = document.getElementById(columnId);
+            if (element) {
+                new Sortable(element, {
+                    group: 'kanban',
+                    animation: 150,
+                    ghostClass: 'kanban-card-ghost',
+                    chosenClass: 'kanban-card-chosen',
+                    dragClass: 'kanban-card-drag',
+                    // Only allow dragging of kanban cards, exclude skeleton loading
+                    draggable: '.kanban-card',
+                    filter: '.skeleton-loading', // Exclude skeleton loading elements
+                    onEnd: function(evt) {
+                        // Get the project ID and new status
+                        const projectId = evt.item.dataset.projectId;
+                        const newStatus = evt.to.dataset.status;
+                        
+                        if (projectId && newStatus) {
+                            // Update project status via API
+                            updateProjectStatus(projectId, newStatus);
+                        } else {
+                            console.error('Could not find project ID or status', { projectId, newStatus, item: evt.item });
+                        }
+                    }
+                });
+            }
+        });
+    }, 200); // Wait 200ms for Alpine to render content
     
     // Function to update project status
     function updateProjectStatus(projectId, newStatus) {
+        console.log('Updating project status:', { projectId, newStatus });
+        
         fetch(`/api/project/${projectId}/status`, {
             method: 'POST',
             headers: {
@@ -414,8 +420,19 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({ status: newStatus })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return response.json();
+        })
         .then(data => {
+            console.log('Response data:', data);
+            
             if (data.success) {
                 // Remove card from DOM if archived
                 if (newStatus === 'Archived') {
@@ -429,17 +446,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 // Update badge counts
                 updateBadgeCounts();
-                console.log(`Project moved to ${newStatus}`);
+                console.log(`Project moved to ${newStatus} successfully`);
             } else {
-                console.error('Error updating project status:', data.error);
-                // Optionally reload page on error
-                location.reload();
+                console.error('API returned error:', data.error || 'Unknown error');
+                // Don't reload immediately, let user see the error
+                alert(`Failed to update project: ${data.error || 'Unknown error'}`);
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            // Optionally reload page on error
-            location.reload();
+            console.error('Network or parsing error:', error);
+            // Don't reload immediately, let user see the error
+            alert(`Failed to update project: ${error.message}`);
         });
     }
     
@@ -453,7 +470,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         Object.entries(columns).forEach(([columnId, status]) => {
             const column = document.getElementById(columnId);
-            const count = column.children.length;
+            // Only count actual kanban cards, not loading skeletons
+            const count = column.querySelectorAll('.kanban-card').length;
             const badge = column.parentElement.querySelector('.badge');
             if (badge) {
                 badge.textContent = count;

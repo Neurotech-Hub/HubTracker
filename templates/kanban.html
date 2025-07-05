@@ -211,14 +211,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         Object.entries(columns).forEach(([columnId, status]) => {
             const column = document.getElementById(columnId);
-            const count = column.children.length;
+            // Only count actual kanban cards
+            const count = column.querySelectorAll('.kanban-card').length;
             const badge = column.parentElement.querySelector('.badge');
             if (badge) {
                 badge.textContent = count;
             }
         });
-        
-    
     }
     
     // Function to update archived count

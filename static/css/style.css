@@ -421,7 +421,7 @@ body {
     position: fixed;
     bottom: 2rem;
     right: 2rem;
-    z-index: 1030;
+    z-index: 1050;
 }
 
 .fab-main {
@@ -1422,10 +1422,11 @@ textarea:disabled::placeholder {
 
 .touch-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: -12px;
+    left: -12px;
+    right: -60px;
+    /* Extend beyond the parent to cover the entire project item */
+    bottom: -12px;
     background: rgba(52, 152, 219, 0.9);
     border-radius: 8px;
     display: flex;

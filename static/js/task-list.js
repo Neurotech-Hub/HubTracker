@@ -189,6 +189,8 @@ function logEntryModal() {
 
         async logTouch(projectId) {
             try {
+                console.log('Logging touch for project ID:', projectId);
+
                 const response = await fetch('/add_touch_log', {
                     method: 'POST',
                     headers: {
@@ -197,20 +199,32 @@ function logEntryModal() {
                     body: JSON.stringify({ project_id: projectId })
                 });
 
+                console.log('Response status:', response.status);
                 const data = await response.json();
+                console.log('Response data:', data);
+
                 if (data.success) {
+                    // Trigger confetti animation
+                    if (typeof confetti === 'function') {
+                        confetti({
+                            particleCount: 100,
+                            spread: 70,
+                            origin: { y: 0.6 },
+                            colors: ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6']
+                        });
+                    }
+
                     // Close modal
                     const modal = document.getElementById('logEntryModal');
                     const bsModal = bootstrap.Modal.getInstance(modal);
                     bsModal.hide();
-
-                    // Reload page to update UI
-                    location.reload();
                 } else {
                     console.error('Failed to log touch:', data.error);
+                    alert('Failed to log touch. Please try again.');
                 }
             } catch (error) {
                 console.error('Error:', error);
+                alert('Error logging touch. Please try again.');
             }
         },
 
