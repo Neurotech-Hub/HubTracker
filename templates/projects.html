@@ -38,12 +38,16 @@
                                 </thead>
                                 <tbody>
                                     {% for project in active_projects %}
-                                    {% with show_pin=true, show_edit=true, show_delete=true %}
+                                    {% with show_pin=true, show_edit=true, show_delete=true,
+                                            project_is_pinned=project.is_pinned,
+                                            project_open_tasks_count=project.open_tasks_count %}
                                         {% include 'partials/project_row.html' %}
                                     {% endwith %}
                                     {% endfor %}
                                     {% for project in archived_projects %}
-                                    {% with show_pin=true, show_edit=true, show_delete=true %}
+                                    {% with show_pin=true, show_edit=true, show_delete=true,
+                                            project_is_pinned=project.is_pinned,
+                                            project_open_tasks_count=project.open_tasks_count %}
                                         {% include 'partials/project_row.html' %}
                                     {% endwith %}
                                     {% endfor %}

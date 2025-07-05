@@ -381,6 +381,10 @@ def add_task():
     project_id = request.form.get('project_id')
     assigned_to = request.form.get('assigned_to')
     
+    # Debug: Print form data
+    print(f"DEBUG add_task: description='{description}', project_id='{project_id}', assigned_to='{assigned_to}'")
+    print(f"DEBUG add_task: All form data: {dict(request.form)}")
+    
     if description:
         # If no project specified, use default project
         if not project_id:

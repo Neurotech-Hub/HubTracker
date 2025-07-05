@@ -39,7 +39,7 @@
                     <i class="bi bi-hash me-2"></i>Projects
                 </a>
                 <a href="{{ url_for('clients') }}" class="nav-link {% if request.endpoint == 'clients' %}active{% endif %}">
-                    <i class="bi bi-building me-2"></i>Clients
+                    <i class="bi bi-person-lines-fill me-2"></i>Clients
                 </a>
                 <a href="{{ url_for('memberships') }}" class="nav-link {% if request.endpoint == 'memberships' %}active{% endif %}">
                     <i class="bi bi-card-list me-2"></i>Memberships
@@ -53,6 +53,28 @@
                 </a>
                 {% endif %}
             </div>
+            
+            <!-- Pinned Projects Section -->
+            {% set pinned_projects = get_pinned_projects() %}
+            {% if pinned_projects %}
+            <div class="sidebar-section">
+                <div class="sidebar-section-header">
+                    <h6 class="text-uppercase text-muted mb-2">Pinned Projects</h6>
+                </div>
+                <div class="pinned-projects-list">
+                    {% for project in pinned_projects %}
+                    <a href="{{ url_for('project_detail', project_id=project.id) }}" 
+                       class="pinned-project-item {% if request.endpoint == 'project_detail' and request.view_args.project_id == project.id %}active{% endif %}">
+                        <div class="project-content">
+                            <div class="project-name">{{ project.name }}</div>
+                            <small class="text-muted">{{ project.client.name }}</small>
+                        </div>
+                        <span class="task-count-bubble">{{ project.open_tasks_count }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </nav>
         <div class="sidebar-footer">
             <div class="user-info">

@@ -50,7 +50,7 @@
                             <span x-text="project.name"></span>
                             <span x-show="project.client_name" class="text-muted" x-text="'(' + project.client_name + ')'"></span>
                         </h6>
-                        <span class="task-count-bubble ms-2" x-text="project.tasks.length"></span>
+                        <span class="task-count-bubble ms-2" x-text="project.tasks.length || 0"></span>
                     </div>
                     
                     <div class="task-list">

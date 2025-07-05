@@ -42,7 +42,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% with show_pin=true, show_edit=true, show_delete=false, 
+                                        {% with show_pin=true, show_edit=true, show_delete=true, 
                                                 project=project, 
                                                 project_open_tasks_count=tasks|selectattr('is_complete', 'equalto', false)|list|length,
                                                 project_is_pinned=is_pinned %}
@@ -82,14 +82,18 @@
                     <div class="card">
                         <div class="card-body">
                             <!-- Task List Component -->
-                            <div class="task-list-section" x-data="taskList('project-tasks')" x-init="init()">
+                            <div class="task-list-section" x-data="taskList('all-tasks')" x-init="init()">
                                 <!-- Compact Section Header -->
                                 <div class="task-section-header-compact">
                                     <div class="d-flex align-items-center mb-3">
                                         <h6 class="mb-0 me-2 text-muted">
                                             <i class="bi bi-list-task me-1"></i>Open Tasks
                                         </h6>
-                                        <span class="task-count-bubble" x-text="filteredTasks.length"></span>
+                                        <!-- Loading State for Count -->
+                                        <span x-show="!filteredTasks" class="task-count-bubble skeleton skeleton-text">&nbsp;</span>
+                                        <!-- Actual Count -->
+                                        <span x-cloak x-show="filteredTasks" class="task-count-bubble" x-text="filteredTasks.length || 0"></span>
+                                        
                                         <!-- Subtle inline filter - always visible -->
                                         <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
                                             <input 
@@ -157,81 +161,8 @@
     </div>
 </div>
 
-<!-- Edit Project Modal -->
-<div class="modal fade" id="editProjectModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" id="editProjectForm">
-                <div class="modal-header">
-                    <h5 class="modal-title">Edit Project</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="editProjectName" class="form-label">Project Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="editProjectName" name="name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editProjectClient" class="form-label">Client <span class="text-danger">*</span></label>
-                        <select class="form-select" id="editProjectClient" name="client_id" required>
-                            <option value="">Select a client...</option>
-                            {% for client in clients %}
-                                <option value="{{ client.id }}">{{ client.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editProjectLead" class="form-label">Project Lead</label>
-                        <select class="form-select" id="editProjectLead" name="project_lead_id">
-                            <option value="">Select a project lead...</option>
-                            {% for user in users %}
-                                <option value="{{ user.id }}">{{ user.full_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editProjectStatus" class="form-label">Status</label>
-                        <select class="form-select" id="editProjectStatus" name="status" required>
-                            <option value="Active">Active</option>
-                            <option value="Awaiting">Awaiting</option>
-                            <option value="Paused">Paused</option>
-                            <option value="Archived">Archived</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editProjectNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="editProjectNotes" name="notes" rows="3" placeholder="Optional project notes..."></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="editProjectDefault" name="is_default">
-                            <label class="form-check-label" for="editProjectDefault">
-                                Set as default project
-                            </label>
-                            <div class="form-text">Tasks without a specified project will be assigned here</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Project</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<script>
-function editProject(id, name, clientId, projectLeadId, notes, status, isDefault) {
-    document.getElementById('editProjectForm').action = `/edit_project/${id}`;
-    document.getElementById('editProjectName').value = name;
-    document.getElementById('editProjectClient').value = clientId;
-    document.getElementById('editProjectLead').value = projectLeadId || '';
-    document.getElementById('editProjectNotes').value = notes;
-    document.getElementById('editProjectStatus').value = status;
-    document.getElementById('editProjectDefault').checked = isDefault;
-}
-</script>
+<!-- Include Project Form (contains both add and edit modals) -->
+{% include 'partials/project_form.html' %}
 
 <!-- Include Task Modal -->
 {% include 'partials/task_modal.html' %}

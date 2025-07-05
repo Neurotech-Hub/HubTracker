@@ -273,7 +273,7 @@ function taskForm() {
             const defaultProject = this.projects.find(p => p.is_default);
             if (defaultProject) {
                 this.selectedProject = defaultProject;
-                this.rawInput = `#[${defaultProject.name}] `;
+                // Don't set rawInput - keep the text box empty
             }
         },
 
@@ -291,7 +291,7 @@ function taskForm() {
 
                 if (project) {
                     this.selectedProject = project;
-                    this.rawInput = `#[${project.name}] `;
+                    // Don't set rawInput - keep the text box empty
                 } else {
                     // Fallback - create a minimal project object
                     this.selectedProject = {
@@ -299,7 +299,7 @@ function taskForm() {
                         name: projectName,
                         display_name: projectName
                     };
-                    this.rawInput = `#[${projectName}] `;
+                    // Don't set rawInput - keep the text box empty
                 }
             });
 
@@ -310,14 +310,14 @@ function taskForm() {
                 const user = this.users.find(u => u.id == userId);
                 if (user) {
                     this.selectedUser = user;
-                    this.rawInput = `@[${user.name}] `;
+                    // Don't set rawInput - keep the text box empty
                 } else {
                     // Fallback - create a minimal user object
                     this.selectedUser = {
                         id: userId,
                         name: userName
                     };
-                    this.rawInput = `@[${userName}] `;
+                    // Don't set rawInput - keep the text box empty
                 }
             });
 
@@ -380,13 +380,33 @@ function taskForm() {
             let tagStart = Math.max(lastHashIndex, lastAtIndex);
 
             if (tagStart !== -1) {
-                let tagEnd = input.indexOf(' ', tagStart);
-                if (tagEnd === -1) tagEnd = input.length;
+                // Check if this is a bracket tag format like #[ProjectName] or @[UserName]
+                let isBracketTag = input[tagStart + 1] === '[';
+                let tagEnd;
+
+                if (isBracketTag) {
+                    // For bracket tags, find the closing bracket
+                    tagEnd = input.indexOf(']', tagStart);
+                    if (tagEnd === -1) tagEnd = input.length;
+                    else tagEnd += 1; // Include the closing bracket
+                } else {
+                    // For non-bracket tags, find the next space
+                    tagEnd = input.indexOf(' ', tagStart);
+                    if (tagEnd === -1) tagEnd = input.length;
+                }
 
                 // If cursor is within the tag
                 if (cursorPosition >= tagStart && cursorPosition <= tagEnd) {
                     let tagType = input[tagStart] === '#' ? 'project' : 'user';
-                    let query = input.substring(tagStart + 1, cursorPosition);
+                    let query;
+
+                    if (isBracketTag) {
+                        // Extract query from within brackets: #[query] or @[query]
+                        query = input.substring(tagStart + 2, cursorPosition);
+                    } else {
+                        // Extract query from simple format: #query or @query
+                        query = input.substring(tagStart + 1, cursorPosition);
+                    }
 
                     this.showAutocomplete = true;
                     this.autocompleteType = tagType;
@@ -451,14 +471,26 @@ function taskForm() {
             );
 
             if (tagStart !== -1) {
-                let tagEnd = input.indexOf(' ', tagStart);
-                if (tagEnd === -1) tagEnd = input.length;
+                // Check if this is a bracket tag format
+                let isBracketTag = input[tagStart + 1] === '[';
+                let tagEnd;
 
-                // Replace the partial tag with the selected item
+                if (isBracketTag) {
+                    // For bracket tags, find the closing bracket
+                    tagEnd = input.indexOf(']', tagStart);
+                    if (tagEnd === -1) tagEnd = input.length;
+                    else tagEnd += 1; // Include the closing bracket
+                } else {
+                    // For non-bracket tags, find the next space
+                    tagEnd = input.indexOf(' ', tagStart);
+                    if (tagEnd === -1) tagEnd = input.length;
+                }
+
+                // Replace the partial tag with the selected item (always use bracket format)
                 let prefix = input.substring(0, tagStart + 1);
                 let suffix = input.substring(tagEnd);
 
-                this.rawInput = prefix + item.name + suffix;
+                this.rawInput = prefix + '[' + item.name + ']' + suffix;
 
                 // Update selected items
                 if (this.autocompleteType === 'project') {
@@ -493,18 +525,27 @@ function taskForm() {
             this.setDefaultProject();
         },
 
-        onSubmit() {
+        onSubmit(event) {
+            // Debug: Log form data before submission
+            console.log('DEBUG onSubmit: rawInput =', this.rawInput);
+            console.log('DEBUG onSubmit: selectedProject =', this.selectedProject);
+            console.log('DEBUG onSubmit: selectedUser =', this.selectedUser);
+
             // Store the original input for potential processing
             if (this.$refs.originalInput) {
                 this.$refs.originalInput.value = this.rawInput;
             }
 
-            // Clear form after submission if not in edit mode
-            if (!this.editMode) {
-                this.rawInput = '';
-                this.selectedProject = {};
-                this.selectedUser = {};
+            // Ensure we have required data
+            if (!this.rawInput.trim()) {
+                console.log('DEBUG onSubmit: No description provided, preventing submission');
+                event.preventDefault();
+                return false;
             }
+
+            console.log('DEBUG onSubmit: Form submission allowed');
+            // Allow the form to submit naturally
+            return true;
         },
 
         submitForm() {

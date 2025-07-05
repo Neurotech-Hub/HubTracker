@@ -36,12 +36,15 @@
     <!-- Task Lists -->
     <div class="row g-4">
         <!-- Tasks for Me -->
-        <div class="col-12 task-section" x-data="{ 
-            loaded: false,
-            tasks: JSON.parse(document.getElementById('tasks-data').textContent).tasksForMe,
-            currentUserId: JSON.parse(document.getElementById('tasks-data').textContent).currentUserId
-        }" x-init="setTimeout(() => loaded = true, 50)" :class="{ 'loaded': loaded }">
-            {% include 'partials/tasks_for_me_section.html' %}
+        <div class="col-12 task-section" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 50)" :class="{ 'loaded': loaded }">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Task List Component -->
+                    <div class="task-list-section" x-data="taskList('tasks-for-me')" x-init="init()">
+                        {% include 'partials/tasks_for_me_section.html' %}
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- All Tasks -->
@@ -56,10 +59,6 @@
                                 <h6 class="mb-0 me-2 text-muted">
                                     <i class="bi bi-list-check me-1"></i>Tasks by Project
                                 </h6>
-                                <!-- Loading State for Count -->
-                                <span x-show="!filteredTasks" class="task-count-bubble skeleton skeleton-text">&nbsp;</span>
-                                <!-- Actual Count -->
-                                <span x-cloak x-show="filteredTasks" class="task-count-bubble" x-text="filteredTasks.length"></span>
                                 
                                 <!-- Subtle inline filter - always visible -->
                                 <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
@@ -98,53 +97,43 @@
                 <div class="card-body">
                     <!-- Task List Component -->
                     <div class="task-list-section" x-data="taskList('completed-tasks')" x-init="init()">
-                        <!-- Collapsible Header -->
-                        <div class="footer-toggle" @click="showCompletedTasks = !showCompletedTasks">
-                            <div class="d-flex align-items-center justify-content-between py-2 px-2 border-bottom" style="border-color: #eee !important;">
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-check-circle me-2 text-muted" style="font-size: 0.8rem;"></i>
-                                    <h6 class="mb-0 me-2 text-muted" style="font-size: 0.85rem;">Completed Tasks</h6>
-                                    <!-- Loading State for Count -->
-                                    <span x-show="!filteredTasks" class="task-count-bubble skeleton skeleton-text ms-2" style="width: 24px; font-size: 0.7rem; padding: 2px 6px;">&nbsp;</span>
-                                    <!-- Actual Count -->
-                                    <span x-cloak x-show="filteredTasks" class="task-count-bubble ms-2" x-text="filteredTasks.length" style="font-size: 0.7rem; padding: 2px 6px;"></span>
+                        <!-- Compact Section Header -->
+                        <div class="task-section-header-compact">
+                            <div class="d-flex align-items-center mb-3">
+                                <h6 class="mb-0 me-2 text-muted">
+                                    <i class="bi bi-check-circle me-1"></i>Completed Tasks
+                                </h6>
+                                <!-- Loading State for Count -->
+                                <span x-show="!filteredTasks" class="task-count-bubble skeleton skeleton-text">&nbsp;</span>
+                                <!-- Actual Count -->
+                                <span x-cloak x-show="filteredTasks" class="task-count-bubble" x-text="filteredTasks.length || 0"></span>
+                                
+                                <!-- Subtle inline filter - always visible -->
+                                <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
+                                    <input 
+                                        type="text" 
+                                        class="form-control form-control-sm border-0 bg-transparent text-muted flex-grow-1"
+                                        style="font-size: 0.75rem; min-width: 100px;"
+                                        placeholder="filter..." 
+                                        x-model="searchQuery"
+                                        @input="filterTasks()"
+                                        @keydown.escape="clearSearch()"
+                                    >
+                                    <button 
+                                        class="btn btn-sm btn-link text-muted p-0 ms-1" 
+                                        type="button" 
+                                        @click="clearSearch()" 
+                                        x-show="searchQuery" 
+                                        title="Clear filter"
+                                        style="font-size: 0.7rem; line-height: 1;"
+                                    >
+                                        <i class="bi bi-x"></i>
+                                    </button>
                                 </div>
-                                <i class="bi text-muted" :class="showCompletedTasks ? 'bi-chevron-up' : 'bi-chevron-down'" style="font-size: 0.7rem;"></i>
                             </div>
                         </div>
-                        
-                        <!-- Collapsible Content -->
-                        <div x-show="showCompletedTasks" x-collapse>
-                            <!-- Compact Section Header with Filter -->
-                            <div class="task-section-header-compact" style="padding-top: 0.75rem;">
-                                <div class="d-flex align-items-center mb-3">
-                                    <!-- Subtle inline filter - always visible -->
-                                    <div class="task-filter-inline d-flex align-items-center flex-grow-1">
-                                        <input 
-                                            type="text" 
-                                            class="form-control form-control-sm border-0 bg-transparent text-muted flex-grow-1"
-                                            style="font-size: 0.75rem; min-width: 100px;"
-                                            placeholder="filter..." 
-                                            x-model="searchQuery"
-                                            @input="filterTasks()"
-                                            @keydown.escape="clearSearch()"
-                                        >
-                                        <button 
-                                            class="btn btn-sm btn-link text-muted p-0 ms-1" 
-                                            type="button" 
-                                            @click="clearSearch()" 
-                                            x-show="searchQuery" 
-                                            title="Clear filter"
-                                            style="font-size: 0.7rem; line-height: 1;"
-                                        >
-                                            <i class="bi bi-x"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
 
-                            {% include 'partials/task_list_items.html' %}
-                        </div>
+                        {% include 'partials/task_list_items.html' %}
                     </div>
                 </div>
             </div>

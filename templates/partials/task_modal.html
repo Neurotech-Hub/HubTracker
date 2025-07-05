@@ -183,7 +183,7 @@ if (typeof modalTaskFormWrapper === 'undefined') {
                         
                         if (project) {
                             taskFormData.selectedProject = project;
-                            taskFormData.rawInput = `#[${project.name}] `;
+                            taskFormData.rawInput = '';
                             console.log('Project set:', project);
                         } else {
                             console.log('Project not found, creating fallback');
@@ -193,7 +193,7 @@ if (typeof modalTaskFormWrapper === 'undefined') {
                                 name: presetProjectName,
                                 display_name: presetProjectName
                             };
-                            taskFormData.rawInput = `#[${presetProjectName}] `;
+                            taskFormData.rawInput = '';
                         }
                         
                         // Clear the preset data
@@ -206,7 +206,7 @@ if (typeof modalTaskFormWrapper === 'undefined') {
                         const user = taskFormData.users ? taskFormData.users.find(u => u.id == presetUserId) : null;
                         if (user) {
                             taskFormData.selectedUser = user;
-                            taskFormData.rawInput = `@[${user.name}] `;
+                            taskFormData.rawInput = '';
                             console.log('User set:', user);
                         } else {
                             console.log('User not found, creating fallback');
@@ -215,7 +215,7 @@ if (typeof modalTaskFormWrapper === 'undefined') {
                                 id: presetUserId,
                                 name: presetUserName
                             };
-                            taskFormData.rawInput = `@[${presetUserName}] `;
+                            taskFormData.rawInput = '';
                         }
                         
                         // Clear the preset data

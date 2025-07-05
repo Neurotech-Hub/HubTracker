@@ -9,19 +9,34 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
+                        <label for="addMembershipTitle" class="form-label">Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="addMembershipTitle" name="title" required placeholder="e.g., Pro Plan, Basic Membership">
+                        <div class="form-text">Required - name for this membership</div>
+                    </div>
+                    <div class="mb-3">
                         <label for="addMembershipStartDate" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="addMembershipStartDate" name="start_date">
                         <div class="form-text">Optional - when did this membership begin?</div>
                     </div>
+                    
                     <div class="mb-3">
-                        <div class="form-check form-switch">
+                        <label for="addMembershipStatus" class="form-label">Status <span class="text-danger">*</span></label>
+                        <select class="form-select" id="addMembershipStatus" name="status" required>
+                            <option value="Active">Active</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="addMembershipAnnual" name="is_annual">
                             <label class="form-check-label" for="addMembershipAnnual">
-                                Annual Membership
+                                Annual membership
                             </label>
-                            <div class="form-text">Enable for yearly memberships, disable for monthly</div>
                         </div>
                     </div>
+                    
                     <div class="mb-3">
                         <label for="addMembershipCost" class="form-label">Cost</label>
                         <div class="input-group">
@@ -30,6 +45,7 @@
                         </div>
                         <div class="form-text">Optional - monthly or annual cost</div>
                     </div>
+                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -52,6 +68,7 @@
                             </div>
                         </div>
                     </div>
+                    
                     <div class="mb-3">
                         <label for="addMembershipNotes" class="form-label">Notes</label>
                         <textarea class="form-control" id="addMembershipNotes" name="notes" rows="4" placeholder="Optional notes - supports Markdown formatting"></textarea>
@@ -65,4 +82,109 @@
             </form>
         </div>
     </div>
-</div> 
+</div>
+
+<!-- Edit Membership Modal -->
+<div class="modal fade" id="editMembershipModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="editMembershipForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Membership</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editMembershipTitle" class="form-label">Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editMembershipTitle" name="title" required placeholder="e.g., Pro Plan, Basic Membership">
+                        <div class="form-text">Required - name for this membership</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editMembershipStartDate" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="editMembershipStartDate" name="start_date">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editMembershipStatus" class="form-label">Status <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editMembershipStatus" name="status" required>
+                            <option value="Active">Active</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="editMembershipAnnual" name="is_annual">
+                            <label class="form-check-label" for="editMembershipAnnual">
+                                Annual membership
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editMembershipCost" class="form-label">Cost</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="editMembershipCost" name="cost" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="form-text">Optional - monthly or annual cost</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editMembershipTime" class="form-label">Time Budget</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="editMembershipTime" name="time" min="0" placeholder="0">
+                                    <span class="input-group-text">hrs</span>
+                                </div>
+                                <div class="form-text">Optional - hours included</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editMembershipBudget" class="form-label">Dollar Budget</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="editMembershipBudget" name="budget" step="0.01" min="0" placeholder="0.00">
+                                </div>
+                                <div class="form-text">Optional - dollar budget</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editMembershipNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="editMembershipNotes" name="notes" rows="4" placeholder="Optional notes - supports Markdown formatting"></textarea>
+                        <div class="form-text">You can use **bold**, *italic*, and other Markdown formatting</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Membership</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editMembership(membershipId, title, startDate, isAnnual, cost, time, budget, notes, status) {
+    // Populate form fields
+    document.getElementById('editMembershipTitle').value = title || '';
+    document.getElementById('editMembershipStartDate').value = startDate || '';
+    document.getElementById('editMembershipStatus').value = status || 'Active';
+    document.getElementById('editMembershipAnnual').checked = isAnnual || false;
+    document.getElementById('editMembershipCost').value = cost || '';
+    document.getElementById('editMembershipTime').value = time || '';
+    document.getElementById('editMembershipBudget').value = budget || '';
+    document.getElementById('editMembershipNotes').value = notes || '';
+    
+    // Set form action
+    document.getElementById('editMembershipForm').action = `/membership/${membershipId}/edit`;
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('editMembershipModal')).show();
+}
+</script> 

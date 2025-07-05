@@ -1,0 +1,69 @@
+<tr>
+    <td class="align-middle">
+        <div class="d-flex align-items-center">
+            <div class="flex-grow-1">
+                <div class="fw-medium mb-0">
+                    <a href="{{ url_for('membership_detail', membership_id=membership.id) }}" class="text-decoration-none">
+                        {{ membership.title }}
+                    </a>
+                </div>
+                {% if membership.start_date %}
+                <small class="text-muted">Started {{ membership.start_date.strftime('%b %d, %Y') }}</small>
+                {% endif %}
+            </div>
+        </div>
+    </td>
+    <td class="align-middle">
+        {% if membership.is_annual %}
+        <span class="badge-clean badge-membership-annual">Annual</span>
+        {% else %}
+        <span class="badge-clean badge-membership-monthly">Monthly</span>
+        {% endif %}
+    </td>
+    <td class="align-middle">
+        {% if membership.cost %}
+        ${{ "%.2f"|format(membership.cost) }}
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td class="align-middle">
+        {% if membership.time %}
+        {{ membership.time }}h
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td class="align-middle">
+        {% if membership.budget %}
+        ${{ "%.2f"|format(membership.budget) }}
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td class="align-middle">
+        <span class="badge-clean badge-count">{{ membership.clients.count() }}</span>
+    </td>
+    <td class="align-middle">
+        {% if membership.status == 'Active' %}
+            <span class="badge-clean badge-status-active">{{ membership.status }}</span>
+        {% elif membership.status == 'Pending' %}
+            <span class="badge-clean badge-status-pending">{{ membership.status }}</span>
+        {% else %}
+            <span class="badge-clean badge-status-archived">{{ membership.status }}</span>
+        {% endif %}
+    </td>
+    <td class="align-middle text-end">
+        <div class="action-btn-group">
+            <a href="{{ url_for('membership_detail', membership_id=membership.id) }}" class="action-btn-clean btn-view" title="View Details">
+                <i class="bi bi-eye"></i>
+            </a>
+            <button type="button" class="action-btn-clean btn-edit" title="Edit Membership" onclick="editMembership({{ membership.id }}, '{{ membership.title }}', '{{ membership.start_date.strftime('%Y-%m-%d') if membership.start_date else '' }}', {{ membership.is_annual|tojson }}, {{ membership.cost if membership.cost else 'null' }}, {{ membership.time if membership.time else 'null' }}, {{ membership.budget if membership.budget else 'null' }}, '{{ membership.notes|default('', true) }}', '{{ membership.status }}')">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <button type="button" class="action-btn-clean btn-delete" title="Delete Membership" onclick="confirmMembershipDelete('{{ membership.title }}', '{{ url_for('delete_membership', membership_id=membership.id) }}', {{ membership.clients.count() }})">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </td>
+</tr> 

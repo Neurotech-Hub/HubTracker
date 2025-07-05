@@ -24,6 +24,9 @@
         </div>
     </td>
     <td>
+        <span class="badge-clean badge-count">{{ client_projects_count or client.projects.count() }}</span>
+    </td>
+    <td>
         {% if client.membership %}
             <a href="{{ url_for('membership_detail', membership_id=client.membership.id) }}" class="text-decoration-none">
                 {{ client.membership.title }}
@@ -36,9 +39,6 @@
         {% else %}
             <span class="text-muted">No membership</span>
         {% endif %}
-    </td>
-    <td>
-        <span class="badge-clean badge-count">{{ client_projects_count or client.projects.count() }}</span>
     </td>
     <td class="text-end">
         <div class="action-btn-group">
@@ -60,9 +60,9 @@
             </button>
             {% endif %}
             
-            {% if show_delete and client.projects.count() == 0 %}
+            {% if show_delete %}
             <button type="button" class="action-btn-clean btn-delete" 
-                    onclick="confirmDelete('{{ client.name }}', '{{ url_for('delete_client', client_id=client.id) }}')"
+                    onclick="confirmClientDelete('{{ client.name }}', '{{ url_for('delete_client', client_id=client.id) }}', {{ client.projects.count() }})"
                     title="Delete Client">
                 <i class="bi bi-trash"></i>
             </button>

@@ -87,6 +87,38 @@ body {
     margin-bottom: 0.5rem;
 }
 
+/* Sidebar Footer Text Styling for Dark Background */
+.sidebar-footer .user-info small {
+    color: rgba(255, 255, 255, 0.6) !important;
+    font-size: 0.75rem;
+}
+
+.sidebar-footer .user-info a {
+    color: rgba(255, 255, 255, 0.9) !important;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.sidebar-footer .user-info a:hover {
+    color: white !important;
+    text-decoration: none;
+}
+
+/* Override Bootstrap secondary colors in sidebar context */
+.sidebar .text-secondary {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.sidebar .text-muted {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Ensure all sidebar text elements use proper light colors */
+.sidebar small,
+.sidebar .small {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
 /* Main Content */
 .main-content {
     min-height: 100vh;
@@ -523,7 +555,7 @@ body {
     align-items: center;
     justify-content: center;
     min-width: 1.5rem;
-    height: 1.5rem;
+    height: 1.25rem;
     background: #f1f5f9;
     color: #64748b;
     border-radius: 50%;
@@ -1474,12 +1506,16 @@ textarea:disabled::placeholder {
 /* Pinned Projects Sidebar Section */
 .sidebar-section {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 1rem;
+    padding: 1rem 0.75rem 0 0.75rem;
+    margin-top: 1rem;
 }
 
 .sidebar-section-header h6 {
     font-size: 0.7rem;
     letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 0.75rem;
+    padding-left: 0.5rem;
 }
 
 .pinned-projects-list {
@@ -1490,12 +1526,12 @@ textarea:disabled::placeholder {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.4rem 0.4rem;
-    margin: 0 0.75rem 0.2rem 0.75rem;
-    border-radius: 4px;
+    padding: 0.5rem 0.5rem;
+    margin-bottom: 0.25rem;
+    border-radius: 6px;
     font-size: 0.85rem;
     text-decoration: none;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.85);
     transition: all 0.2s;
     gap: 0.5rem;
 }
@@ -1523,11 +1559,21 @@ textarea:disabled::placeholder {
     text-overflow: ellipsis;
     line-height: 1.2;
     margin-bottom: 0.125rem;
+    color: inherit;
 }
 
 .pinned-project-item small {
     font-size: 0.7rem;
     line-height: 1;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.pinned-project-item:hover small {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.pinned-project-item.active small {
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .pinned-project-item .task-count-bubble {

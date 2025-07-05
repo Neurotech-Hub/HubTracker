@@ -39,7 +39,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% with show_edit=true, show_add_project=true, show_delete=false, 
+                                {% with show_edit=true, show_add_project=true, show_delete=true, 
                                         client=client, 
                                         client_projects_count=projects|length %}
                                     {% include 'partials/client_row.html' %}
@@ -74,12 +74,7 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="bi bi-hash me-2"></i>Projects
-                        <span class="badge-clean badge-count">{{ projects|length }}</span>
-                    </h5>
-                </div>
+                
                 <div class="card-body">
                     {% if projects %}
                     <div class="table-responsive">
@@ -96,10 +91,10 @@
                             </thead>
                             <tbody>
                                 {% for project in projects %}
-                                {% with show_pin=false, show_edit=false, show_delete=false,
+                                {% with show_pin=true, show_edit=true, show_delete=true,
                                         project=project,
-                                        project_open_tasks_count=project.tasks.count(),
-                                        project_is_pinned=false %}
+                                        project_open_tasks_count=project.tasks.filter_by(is_complete=False).count(),
+                                        project_is_pinned=project.is_pinned %}
                                     {% include 'partials/project_row.html' %}
                                 {% endwith %}
                                 {% endfor %}
@@ -127,14 +122,18 @@
             <div class="card">
                 <div class="card-body">
                     <!-- Task List Component -->
-                    <div class="task-list-section" x-data="taskList('client-tasks')" x-init="init()">
+                    <div class="task-list-section" x-data="taskList('all-tasks')" x-init="init()">
                         <!-- Compact Section Header -->
                         <div class="task-section-header-compact">
                             <div class="d-flex align-items-center mb-3">
                                 <h6 class="mb-0 me-2 text-muted">
                                     <i class="bi bi-list-task me-1"></i>Recent Tasks
                                 </h6>
-                                <span class="task-count-bubble" x-text="filteredTasks.length"></span>
+                                <!-- Loading State for Count -->
+                                <span x-show="!filteredTasks" class="task-count-bubble skeleton skeleton-text">&nbsp;</span>
+                                <!-- Actual Count -->
+                                <span x-cloak x-show="filteredTasks" class="task-count-bubble" x-text="filteredTasks.length || 0"></span>
+                                
                                 <!-- Subtle inline filter - always visible -->
                                 <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
                                     <input 
@@ -168,105 +167,11 @@
     </div>
 </div>
 
-<!-- Edit Client Modal -->
-<div class="modal fade" id="editClientModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('edit_client', client_id=client.id) }}">
-                <div class="modal-header">
-                    <h5 class="modal-title">Edit Client</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="editName" class="form-label">Client Name *</label>
-                        <input type="text" class="form-control" id="editName" name="name" value="{{ client.name }}" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="editMembership" class="form-label">Membership</label>
-                        <select class="form-select" id="editMembership" name="membership_id">
-                            <option value="">No Membership</option>
-                            {% for membership in memberships %}
-                            <option value="{{ membership.id }}" {% if client.membership_id == membership.id %}selected{% endif %}>
-                                {{ membership.title }}
-                                {% if membership.start_date %} - {{ membership.start_date.strftime('%Y-%m-%d') }}{% endif %}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="editNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="editNotes" name="notes" rows="3">{{ client.notes or '' }}</textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Client</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Include Client Form (contains add/edit client and add project modals) -->
+{% include 'partials/client_form.html' %}
 
-<!-- Add Project Modal -->
-<div class="modal fade" id="addProjectModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('add_project') }}">
-                <input type="hidden" name="client_id" value="{{ client.id }}">
-                <div class="modal-header">
-                    <h5 class="modal-title">New Project for {{ client.name }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="projectName" class="form-label">Project Name *</label>
-                        <input type="text" class="form-control" id="projectName" name="name" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="projectLead" class="form-label">Project Lead</label>
-                        <select class="form-select" id="projectLead" name="project_lead_id">
-                            <option value="">Select Project Lead</option>
-                            {% for user in users %}
-                            <option value="{{ user.id }}">{{ user.full_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="projectStatus" class="form-label">Status</label>
-                        <select class="form-select" id="projectStatus" name="status">
-                            <option value="Active">Active</option>
-                            <option value="Prospective">Prospective</option>
-                            <option value="Archived">Archived</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="projectDefault" name="is_default">
-                            <label class="form-check-label" for="projectDefault">
-                                Set as default project
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="projectNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="projectNotes" name="notes" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create Project</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Include Project Form (contains project edit/delete modals) -->
+{% include 'partials/project_form.html' %}
 
 <!-- Include Task Modal -->
 {% include 'partials/task_modal.html' %}

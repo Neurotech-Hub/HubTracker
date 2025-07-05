@@ -9,7 +9,7 @@
                         type="text" 
                         name="description" 
                         class="form-control task-input" 
-                        placeholder="What needs to be done? Use #project and @user" 
+                        placeholder="What needs to be done? Use #[project] and @[user]" 
                         required
                         autocomplete="off"
                         autofocus
@@ -55,7 +55,7 @@
                     @<span x-text="selectedUser.name"></span>
                 </span>
                 <span x-show="(!selectedProject || (!selectedProject.id && !selectedProject.name)) && (!selectedUser || (!selectedUser.id && !selectedUser.name))" class="text-muted fst-italic">
-                    Type # for projects, @ for users
+                    Type #[project] and @[user] to tag
                 </span>
             </small>
         </div>
