@@ -356,6 +356,22 @@ def get_users():
         ]
     }
 
+@app.route('/api/tasks-i-created')
+def get_tasks_i_created():
+    if 'user_id' not in session:
+        return {'tasks': []}, 401
+    
+    # Get tasks created by current user - filter out completed
+    tasks_i_created_query = Task.query.filter(
+        (Task.created_by == session['user_id']) &
+        (Task.is_complete == False)
+    ).order_by(Task.created_at.desc()).all()
+    
+    # Serialize tasks with related data
+    tasks_i_created = [serialize_task(task) for task in tasks_i_created_query]
+    
+    return {'tasks': tasks_i_created}
+
 @app.route('/add_task', methods=['POST'])
 def add_task():
     if 'user_id' not in session:
@@ -1701,6 +1717,30 @@ def delete_user(user_id):
     db.session.commit()
     flash('User deleted successfully', 'success')
     return redirect(url_for('users'))
+
+@app.route('/test-tasks')
+def test_tasks():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Get just a few tasks for testing
+    test_tasks = Task.query.limit(3).all()
+    
+    # Serialize with minimal data
+    tasks_data = []
+    for task in test_tasks:
+        tasks_data.append({
+            'id': task.id,
+            'description': task.description,
+            'is_complete': task.is_complete,
+            'project_name': task.project.name if task.project else None,
+            'client_name': task.project.client.name if task.project and task.project.client else None,
+            'creator_name': task.creator.full_name if task.creator else None,
+            'assigned_to_id': task.assigned_to,
+            'created_at': task.created_at.isoformat() if task.created_at else None
+        })
+    
+    return render_template('test_tasks.html', tasks=tasks_data, current_user_id=session['user_id'])
 
 if __name__ == '__main__':
     with app.app_context():

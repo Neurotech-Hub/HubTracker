@@ -1,51 +1,49 @@
-<!-- Task List Items -->
-<div class="task-list-wrapper" :class="{ 'loaded': filteredTasks }">
-    <!-- Loading State -->
-    <div x-show="!filteredTasks" class="skeleton-loading" :class="{ 'fade-out': filteredTasks }">
-        <div class="skeleton-task">
-            <div class="skeleton-circle skeleton"></div>
-            <div class="skeleton-content">
-                <div class="skeleton-text long skeleton"></div>
-                <div class="skeleton-text short skeleton"></div>
-            </div>
+<!-- Simple Task List Items -->
+<div class="task-list">
+    <template x-for="taskItem in filteredTasks" :key="taskItem.id">
+        <div x-data="{
+            get task() { return taskItem; },
+            variant: 'interactive',
+            showProject: true,
+            showAssignee: true,
+            showCreator: true,
+            showActions: true,
+            showFlag: true,
+            alwaysShowMetadata: false,
+            
+            formatDate(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            },
+            
+            editTask(task) {
+                const modal = document.getElementById('taskModal');
+                if (modal) {
+                    modal.dataset.editTaskId = task.id;
+                    modal.dataset.editDescription = task.description;
+                    modal.dataset.editProjectId = task.project_id || (task.project_name ? 'lookup' : '');
+                    modal.dataset.editProjectName = task.project_name || '';
+                    modal.dataset.editUserId = task.assigned_to_id || '';
+                    modal.dataset.editUserName = task.assigned_to_name || '';
+                    
+                    const bootstrapModal = new bootstrap.Modal(modal);
+                    bootstrapModal.show();
+                }
+            }
+        }">
+            {% include 'partials/task_item.html' %}
         </div>
-        <div class="skeleton-task">
-            <div class="skeleton-circle skeleton"></div>
-            <div class="skeleton-content">
-                <div class="skeleton-text medium skeleton"></div>
-                <div class="skeleton-text short skeleton"></div>
-            </div>
-        </div>
-        <div class="skeleton-task">
-            <div class="skeleton-circle skeleton"></div>
-            <div class="skeleton-content">
-                <div class="skeleton-text long skeleton"></div>
-                <div class="skeleton-text short skeleton"></div>
-            </div>
-        </div>
-    </div>
+    </template>
 
-    <!-- Task Items -->
-    <div class="fade-in" :class="{ 'loaded': filteredTasks }">
-        <template x-cloak x-if="filteredTasks" x-for="task in filteredTasks" :key="task.id">
-            <div x-data="{
-                task: task,
-                variant: 'interactive',
-                showProject: true,
-                showAssignee: true,
-                showCreator: true,
-                showActions: true,
-                showFlag: true,
-                alwaysShowMetadata: false
-            }">
-                {% include 'partials/task_item.html' %}
-            </div>
-        </template>
-
-        <!-- Empty State -->
-        <div x-cloak x-show="filteredTasks && filteredTasks.length === 0" class="task-empty-state text-center py-4">
-            <i class="bi bi-inbox display-4 text-muted mb-3"></i>
-            <p class="text-muted mb-0" x-text="searchQuery ? 'No tasks match your filter' : 'No tasks found'"></p>
-        </div>
+    <!-- Empty State -->
+    <div x-cloak x-show="filteredTasks && filteredTasks.length === 0" class="text-center text-muted py-5">
+        <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.5;"></i>
+        <p class="mt-2 mb-0">No tasks found</p>
+        <small x-show="searchQuery">Try adjusting your search</small>
     </div>
 </div> 

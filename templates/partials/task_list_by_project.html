@@ -40,48 +40,69 @@
 
     <!-- Task Groups -->
     <div class="fade-in" :class="{ 'loaded': filteredTasks }">
-        <template x-cloak x-if="filteredTasks" x-for="projectGroup in getTasksByProject()" :key="projectGroup.name">
-            <div class="project-group">
-                <!-- Project Section Header -->
-                <div class="project-section-header d-flex align-items-center justify-content-between">
-                    <h6 class="project-name text-muted mb-2">
-                        <i class="bi bi-hash me-1"></i>
-                        <span x-text="projectGroup.name"></span>
-                        <small class="task-count-small ms-2" x-text="'(' + projectGroup.tasks.length + ')'"></small>
-                    </h6>
-                    <button 
-                        class="project-add-task-btn" 
-                        type="button"
-                        :title="'Add task to ' + projectGroup.name"
-                        @click="addTaskToProject(projectGroup)"
-                        x-show="projectGroup.name !== 'No Project'"
-                    >
-                        <i class="bi bi-plus"></i>
-                    </button>
-                </div>
-                
-                <!-- Tasks for this project -->
-                <template x-for="task in projectGroup.tasks" :key="task.id">
-                    <div x-data="{
-                        task: task,
-                        variant: 'by-project',
-                        showProject: false,
-                        showAssignee: true,
-                        showCreator: true,
-                        showActions: true,
-                        showFlag: true,
-                        alwaysShowMetadata: false
-                    }">
-                        {% include 'partials/task_item.html' %}
+        <!-- Separate x-if from x-for -->
+        <div x-cloak x-show="filteredTasks && projects && projects.length > 0">
+            <template x-for="project in projects" :key="project.id">
+                <div class="project-group mb-4">
+                    <div class="project-header d-flex align-items-center mb-2">
+                        <h6 class="mb-0 text-muted">
+                            <i class="bi bi-hash me-1"></i>
+                            <span x-text="project.name"></span>
+                            <span x-show="project.client_name" class="text-muted" x-text="'(' + project.client_name + ')'"></span>
+                        </h6>
+                        <span class="task-count-bubble ms-2" x-text="project.tasks.length"></span>
                     </div>
-                </template>
-            </div>
-        </template>
+                    
+                    <div class="task-list">
+                        <template x-for="taskItem in project.tasks" :key="taskItem.id">
+                            <div x-data="{
+                                get task() { return taskItem; },
+                                variant: 'interactive',
+                                showProject: false,
+                                showAssignee: true,
+                                showCreator: true,
+                                showActions: true,
+                                showFlag: true,
+                                alwaysShowMetadata: false,
+                                
+                                formatDate(dateString) {
+                                    if (!dateString) return '';
+                                    const date = new Date(dateString);
+                                    return date.toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                    });
+                                },
+                                
+                                editTask(task) {
+                                    const modal = document.getElementById('taskModal');
+                                    if (modal) {
+                                        modal.dataset.editTaskId = task.id;
+                                        modal.dataset.editDescription = task.description;
+                                        modal.dataset.editProjectId = task.project_id || (task.project_name ? 'lookup' : '');
+                                        modal.dataset.editProjectName = task.project_name || '';
+                                        modal.dataset.editUserId = task.assigned_to_id || '';
+                                        modal.dataset.editUserName = task.assigned_to_name || '';
+                                        
+                                        const bootstrapModal = new bootstrap.Modal(modal);
+                                        bootstrapModal.show();
+                                    }
+                                }
+                            }">
+                                {% include 'partials/task_item.html' %}
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
 
         <!-- Empty State -->
-        <div x-cloak x-show="filteredTasks && filteredTasks.length === 0" class="task-empty-state text-center py-4">
-            <i class="bi bi-inbox display-4 text-muted mb-3"></i>
-            <p class="text-muted mb-0" x-text="searchQuery ? 'No tasks match your filter' : 'No tasks found'"></p>
+        <div x-cloak x-show="filteredTasks && filteredTasks.length === 0" class="text-center text-muted py-5">
+            <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.5;"></i>
+            <p class="mt-2 mb-0">No tasks found</p>
+            <small x-show="searchQuery">Try adjusting your search</small>
         </div>
     </div>
 </div> 

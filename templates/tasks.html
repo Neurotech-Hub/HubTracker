@@ -3,7 +3,7 @@
 {% block title %}Tasks - Hub Tracker{% endblock %}
 
 {% block content %}
-<!-- Pass data to JavaScript -->
+<!-- Pass data to JavaScript using safe JSON approach -->
 <script type="application/json" id="tasks-data">
 {
     "tasksForMe": {{ tasks_for_me | tojson }},
@@ -36,7 +36,11 @@
     <!-- Task Lists -->
     <div class="row g-4">
         <!-- Tasks for Me -->
-        <div class="col-12 task-section" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 50)" :class="{ 'loaded': loaded }">
+        <div class="col-12 task-section" x-data="{ 
+            loaded: false,
+            tasks: JSON.parse(document.getElementById('tasks-data').textContent).tasksForMe,
+            currentUserId: JSON.parse(document.getElementById('tasks-data').textContent).currentUserId
+        }" x-init="setTimeout(() => loaded = true, 50)" :class="{ 'loaded': loaded }">
             {% include 'partials/tasks_for_me_section.html' %}
         </div>
 
