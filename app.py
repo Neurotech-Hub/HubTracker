@@ -98,9 +98,13 @@ def index():
     total_projects = Project.query.filter(Project.status.in_(['Active', 'Awaiting', 'Paused'])).count()
     total_clients = Client.query.count()
     total_active_projects = Project.query.filter_by(status='Active').count()
+    total_users = User.query.count()
+    total_memberships = Membership.query.filter_by(status='Active').count()
+    open_tasks = Task.query.filter_by(is_complete=False).count()
+    total_equipment = Equipment.query.count()
     
-    # Last 30 days activity
-    thirty_days_ago = get_current_time() - timedelta(days=30)
+    # Last 30 days activity (including today)
+    thirty_days_ago = get_current_time() - timedelta(days=29)  # Changed from 30 to 29
     
     # Tasks completed in last 30 days (general count)
     tasks_completed_recently = Task.query.filter(
@@ -108,9 +112,9 @@ def index():
         Task.is_complete == True
     ).count()
     
-    # Get daily activity for chart (last 30 days, aggregated)
+    # Get daily task completion for chart (last 30 days, including today)
     activity_data = []
-    for i in range(30):
+    for i in range(30):  # Back to 30 days
         date = thirty_days_ago + timedelta(days=i)
         date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         date_end = date_start + timedelta(days=1)
@@ -121,15 +125,9 @@ def index():
             Task.is_complete == True
         ).count()
         
-        daily_logs = Log.query.filter(
-            Log.created_at >= date_start,
-            Log.created_at < date_end
-        ).count()
-        
         activity_data.append({
             'date': date.strftime('%Y-%m-%d'),
-            'tasks': daily_tasks,
-            'activity': daily_logs
+            'tasks': daily_tasks
         })
     
     # Get some general project types/status distribution
@@ -151,6 +149,10 @@ def index():
                          total_projects=total_projects,
                          total_clients=total_clients,
                          total_active_projects=total_active_projects,
+                         total_users=total_users,
+                         total_memberships=total_memberships,
+                         open_tasks=open_tasks,
+                         total_equipment=total_equipment,
                          tasks_completed_recently=tasks_completed_recently,
                          activity_data=activity_data,
                          project_status_counts=project_status_counts)
@@ -1267,6 +1269,7 @@ def analytics():
     total_projects = Project.query.count()
     total_clients = Client.query.count()
     open_tasks = Task.query.filter_by(is_complete=False).count()
+
     
     # Get task completion data for last 30 days (including today)
     twenty_nine_days_ago = get_current_time() - timedelta(days=29)
@@ -1366,17 +1369,7 @@ def analytics():
         Log.created_at >= thirty_days_ago
     ).group_by(Project.id, Project.name, Client.name).order_by(desc('log_count')).limit(8).all()
     
-    # Most active users by logging (last 30 days)
-    most_active_loggers = db.session.query(
-        User.first_name,
-        User.last_name,
-        func.count(Log.id).label('log_count'),
-        func.sum(Log.hours).label('total_hours'),
-        func.sum(text('CASE WHEN is_touch = 1 THEN 1 ELSE 0 END')).label('touch_count'),
-        func.sum(text('CASE WHEN is_touch = 0 THEN 1 ELSE 0 END')).label('detailed_count')
-    ).join(Log).filter(
-        Log.created_at >= thirty_days_ago
-    ).group_by(User.id).order_by(desc('log_count')).limit(8).all()
+
     
     return render_template('analytics.html',
                          # Top metrics
@@ -1384,6 +1377,7 @@ def analytics():
                          total_projects=total_projects,
                          total_clients=total_clients,
                          open_tasks=open_tasks,
+
                          # Task analytics
                          completion_data=completion_data,
                          most_active_projects=most_active_projects,
@@ -1393,8 +1387,7 @@ def analytics():
                          detailed_logs_last_30=detailed_logs_last_30,
                          total_hours_last_30=round(total_hours_last_30, 1),
                          log_activity_data=log_activity_data,
-                         most_logged_projects=most_logged_projects,
-                         most_active_loggers=most_active_loggers)
+                         most_logged_projects=most_logged_projects)
 
 # LOGGING ROUTES
 @app.route('/api/projects_for_logging')
