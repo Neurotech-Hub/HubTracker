@@ -183,21 +183,24 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
 2. **Create Render Web Service**
    - Connect your GitHub repository
    - Set **Build Command**: `pip install -r requirements.txt`
-   - Set **Start Command**: `./start.sh` (or `python ./start.py` if shell script doesn't work)
+   - Set **Start Command**: `python start.py`
    - Set **Environment**: `python`
 
 3. **Environment Variables (in Render Dashboard)**
    ```
    FLASK_ENV=production
    SECRET_KEY=your-secret-key-here
-   DATABASE_URL=sqlite:///hub_tracker.db  # Or PostgreSQL URL for production
    ```
    
-   **Important:** For production, consider using PostgreSQL instead of SQLite for better data persistence and performance.
+   **Note:** The app will automatically use SQLite in the `instance` directory. For production, consider using PostgreSQL for better data persistence and performance.
 
 4. **Database Setup**
-   - The startup script intelligently checks if migrations are needed before running them
-   - **Only runs migrations when necessary** - skips if database is already up to date
+   - The `start.py` script automatically:
+     - Creates the `instance` directory if it doesn't exist
+     - Checks if database migrations are needed
+     - Runs migrations only when necessary (safe for existing data)
+     - Starts the web server with gunicorn
+   - **Your database is completely safe** - the script never destroys existing data
    - Your existing data will be preserved across deployments
    - First user should be created through the web interface (only if no users exist)
 
@@ -247,7 +250,7 @@ heroku run flask db upgrade  # Initialize database
 | -------------- | -------------------------- | -------------------------- | -------------------- |
 | `FLASK_ENV`    | Environment mode           | `development`              | No                   |
 | `SECRET_KEY`   | Flask secret key           | Random                     | **Yes (Production)** |
-| `DATABASE_URL` | Database connection string | `sqlite:///hub_tracker.db` | No                   |
+| `DATABASE_URL` | Database connection string | `sqlite:///hubtracker.db` | No                   |
 | `PORT`         | Server port                | `5000`                     | No                   |
 
 ### Database Migration

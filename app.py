@@ -11,7 +11,13 @@ import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///hubtracker.db')
+# Configure database URI - use instance directory for SQLite
+if os.environ.get('DATABASE_URL'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+else:
+    # For local development and Render with SQLite
+    instance_path = os.path.join(app.instance_path, 'hubtracker.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{instance_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Import models and db

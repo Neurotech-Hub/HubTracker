@@ -11,6 +11,16 @@ import subprocess
 def main():
     print("Starting HubTracker deployment...")
     
+    # Ensure instance directory exists
+    instance_path = os.path.join(os.getcwd(), 'instance')
+    if not os.path.exists(instance_path):
+        print(f"Creating instance directory: {instance_path}")
+        os.makedirs(instance_path, exist_ok=True)
+    
+    # Set Flask environment variables
+    os.environ['FLASK_APP'] = 'app.py'
+    os.environ['FLASK_ENV'] = 'production'
+    
     # Check if database already exists and has been migrated
     print("Checking database status...")
     try:
