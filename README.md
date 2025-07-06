@@ -19,7 +19,7 @@ A modern, full-stack project management web application designed for teams and b
 
 ### Technical Architecture
 - **Backend Framework**: Flask with SQLAlchemy ORM for robust data management
-- **Database**: SQLite with timezone support and migration capabilities
+- **Database**: PostgreSQL (production) / SQLite (development) with timezone support
 - **Frontend Stack**: Bootstrap 5 + Alpine.js for reactive components
 - **Design System**: Custom CSS with consistent UI patterns
 - **API Layer**: RESTful endpoints for dynamic content and integrations
@@ -65,11 +65,19 @@ A modern, full-stack project management web application designed for teams and b
 
 4. **Database Setup**
 
-   HubTracker uses Flask-Migrate for database management. This ensures consistent database schema across all installations.
+   HubTracker supports both SQLite (development) and PostgreSQL (production). For local development, SQLite is recommended for simplicity.
 
+   **SQLite (Recommended for Development):**
    ```bash
    # First time setup only:
    flask db upgrade   # This will create hubtracker.db and apply all migrations
+   ```
+
+   **PostgreSQL (Advanced Setup):**
+   ```bash
+   # Install PostgreSQL first (see PostgreSQL Setup section below)
+   # Then run migrations:
+   flask db upgrade
    ```
 
    If you want sample data to explore features:
@@ -90,6 +98,74 @@ A modern, full-stack project management web application designed for teams and b
 6. **Access the application**
    - Open your browser and go to `http://localhost:5000`
    - Create your first user account and start using the app
+
+### PostgreSQL Setup (Optional)
+
+For production-like local development or when you need PostgreSQL features:
+
+#### Prerequisites
+
+**macOS:**
+```bash
+brew install postgresql
+brew services start postgresql
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update
+sudo apt-get install postgresql postgresql-contrib
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+```
+
+**Windows:**
+- Download from https://www.postgresql.org/download/windows/
+- Install with default settings
+
+#### Manual Setup
+
+1. **Create Database User**
+   ```bash
+   # Connect to PostgreSQL as superuser
+   sudo -u postgres psql
+
+   # Create user (replace 'your_password' with a secure password)
+   CREATE USER hubtracker_user WITH PASSWORD 'your_password';
+
+   # Grant necessary privileges
+   GRANT CREATEDB ON DATABASE postgres TO hubtracker_user;
+
+   # Exit
+   \q
+   ```
+
+2. **Create Database**
+   ```bash
+   # Connect as the new user
+   psql -U hubtracker_user -h localhost
+
+   # Create database
+   CREATE DATABASE hubtracker_dev;
+
+   # Exit
+   \q
+   ```
+
+3. **Create Environment File**
+   Create a `.env` file in your project root:
+   ```env
+   FLASK_ENV=development
+   SECRET_KEY=dev-secret-key-change-in-production
+   DATABASE_URL=postgresql://hubtracker_user:your_password@localhost:5432/hubtracker_dev
+   ```
+
+4. **Install Dependencies and Run**
+   ```bash
+   pip install -r requirements.txt
+   flask db upgrade
+   python app.py
+   ```
 
 ### Database Migration Workflow
 
@@ -208,6 +284,27 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    - Make sure gunicorn is in your requirements.txt
    - Check Render logs for detailed error messages
    - Ensure your repository is properly connected and up to date
+
+#### Render with PostgreSQL (Recommended for Production)
+
+1. **Create PostgreSQL Service in Render**
+   - Go to your Render dashboard
+   - Click "New" → "PostgreSQL"
+   - Choose your plan and region
+   - Note the connection details
+
+2. **Update Environment Variables**
+   Add the PostgreSQL connection string to your web service:
+   ```
+   FLASK_ENV=production
+   SECRET_KEY=your-secret-key-here
+   DATABASE_URL=postgresql://username:password@host:port/database
+   ```
+
+3. **Deploy**
+   - The `start.py` script will automatically detect PostgreSQL and use it
+   - Migrations will run automatically on first deployment
+   - Your data will be persistent and backed up by Render
 
 #### Other Cloud Platforms
 

@@ -9,6 +9,13 @@ import re
 from markupsafe import Markup
 import json
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, continue without it
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 # Configure database URI - use instance directory for SQLite

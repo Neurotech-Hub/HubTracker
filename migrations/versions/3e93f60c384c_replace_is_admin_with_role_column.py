@@ -21,8 +21,8 @@ def upgrade():
     op.add_column('users', sa.Column('role', sa.String(length=20), nullable=False, server_default='trainee'))
     
     # Update existing admin users
-    op.execute("UPDATE users SET role = 'admin' WHERE is_admin = 1")
-    op.execute("UPDATE users SET role = 'trainee' WHERE is_admin = 0")
+    op.execute("UPDATE users SET role = 'admin' WHERE is_admin IS TRUE")
+    op.execute("UPDATE users SET role = 'trainee' WHERE is_admin IS FALSE")
     
     # Remove old is_admin column
     op.drop_column('users', 'is_admin')
