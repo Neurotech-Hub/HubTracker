@@ -1995,10 +1995,7 @@ def get_preferences():
     if 'user_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
     
-    # Get all preferences for the user
     preferences = UserPreferences.query.filter_by(user_id=session['user_id']).all()
-    
-    # Convert to dictionary
     prefs_dict = {pref.key: pref.value for pref in preferences}
     
     return jsonify(prefs_dict)

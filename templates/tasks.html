@@ -14,7 +14,18 @@
 }
 </script>
 
-<div class="container-fluid py-4" x-data="{ activeView: 'tasks-for-me', loaded: false }" x-init="setTimeout(() => loaded = true, 50)">
+<div class="container-fluid py-4" x-data="{ activeView: 'tasks-for-me', loaded: false }" 
+     x-init="
+        fetch('/api/preferences')
+            .then(response => response.json())
+            .then(prefs => {
+                if (prefs.task_view) {
+                    activeView = prefs.task_view;
+                }
+            })
+            .catch(error => console.error('Error loading preferences:', error));
+        setTimeout(() => loaded = true, 50)
+     ">
     <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -42,19 +53,19 @@
                     <button type="button" 
                             class="selector-option" 
                             :class="{ 'active': activeView === 'tasks-for-me' }"
-                            @click="activeView = 'tasks-for-me'">
+                            @click="activeView = 'tasks-for-me'; savePreference('task_view', 'tasks-for-me')">
                         My Tasks
                     </button>
                     <button type="button" 
                             class="selector-option" 
                             :class="{ 'active': activeView === 'by-project' }"
-                            @click="activeView = 'by-project'">
+                            @click="activeView = 'by-project'; savePreference('task_view', 'by-project')">
                         By Project
                     </button>
                     <button type="button" 
                             class="selector-option" 
                             :class="{ 'active': activeView === 'completed' }"
-                            @click="activeView = 'completed'">
+                            @click="activeView = 'completed'; savePreference('task_view', 'completed')">
                         Completed
                     </button>
                 </div>
@@ -103,6 +114,21 @@
 
 <!-- Include Task Modal -->
 {% include 'partials/task_modal.html' %}
+
+<script>
+// Function to save user preference
+function savePreference(key, value) {
+    fetch('/api/preferences', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            [key]: value
+        })
+    }).catch(error => console.error('Error saving preference:', error));
+}
+</script>
 
 <style>
 /* Task View Selector */
