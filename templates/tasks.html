@@ -22,9 +22,12 @@
                 if (prefs.task_view) {
                     activeView = prefs.task_view;
                 }
+                loaded = true;
             })
-            .catch(error => console.error('Error loading preferences:', error));
-        setTimeout(() => loaded = true, 50)
+            .catch(error => {
+                console.error('Error loading preferences:', error);
+                loaded = true;
+            });
      ">
     <!-- Page Header -->
     <div class="row mb-4">
@@ -82,7 +85,7 @@
                         <!-- Tasks for Me -->
                         <div class="task-view" 
                              :class="{ 'active': activeView === 'tasks-for-me' }"
-                             x-show.transition.in.opacity.duration.300ms="activeView === 'tasks-for-me'">
+                             x-show="activeView === 'tasks-for-me'">
                             <div class="task-list-section" x-data="taskList('tasks-for-me')" x-init="init()">
                                 {% include 'partials/tasks_for_me_section.html' %}
                             </div>
@@ -91,7 +94,7 @@
                         <!-- Tasks by Project -->
                         <div class="task-view" 
                              :class="{ 'active': activeView === 'by-project' }"
-                             x-show.transition.in.opacity.duration.300ms="activeView === 'by-project'">
+                             x-show="activeView === 'by-project'">
                             <div class="task-list-section" x-data="taskList('all-tasks')" x-init="init()">
                                 {% include 'partials/task_list_by_project.html' %}
                             </div>
@@ -100,7 +103,7 @@
                         <!-- Completed Tasks -->
                         <div class="task-view" 
                              :class="{ 'active': activeView === 'completed' }"
-                             x-show.transition.in.opacity.duration.300ms="activeView === 'completed'">
+                             x-show="activeView === 'completed'">
                             <div class="task-list-section" x-data="taskList('completed-tasks')" x-init="init()">
                                 {% include 'partials/task_list_items.html' %}
                             </div>
@@ -198,16 +201,15 @@ function savePreference(key, value) {
 }
 
 .task-view {
-    position: absolute;
     width: 100%;
     opacity: 0;
     transition: opacity 0.3s ease;
+    display: none;
 }
 
 .task-view.active {
-    position: relative;
     opacity: 1;
-    z-index: 1;
+    display: block;
 }
 
 @media (max-width: 768px) {

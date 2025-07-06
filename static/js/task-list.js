@@ -19,21 +19,29 @@ function taskList(listType) {
                 }
 
                 const tasksData = JSON.parse(tasksDataElement.textContent);
+                console.log('Tasks data:', tasksData); // Debug
                 this.currentUserId = tasksData.currentUserId;
 
                 // Initialize tasks based on list type
                 if (listType === 'tasks-for-me') {
-                    this.tasks = tasksData.tasksForMe || [];
+                    this.tasks = Array.from(tasksData.tasksForMe || []);
                     this.filteredTasks = [...this.tasks];
                 } else if (listType === 'all-tasks') {
-                    this.tasks = tasksData.allTasks || [];
+                    this.tasks = Array.from(tasksData.allTasks || []);
                     this.filteredTasks = [...this.tasks];
                 } else if (listType === 'completed-tasks') {
-                    // Load completed tasks from API
-                    this.loadCompletedTasks();
+                    console.log('Loading completed tasks'); // Debug
+                    this.tasks = Array.from(tasksData.completedTasks || []);
+                    this.filteredTasks = [...this.tasks];
+                    console.log('Completed tasks loaded:', this.tasks); // Debug
                 }
 
                 this.isInitialized = true;
+                console.log('Task list initialized:', {
+                    listType,
+                    tasks: Array.from(this.tasks),
+                    filteredTasks: Array.from(this.filteredTasks)
+                }); // Debug
             } catch (error) {
                 console.error('Error initializing task list:', error);
                 this.tasks = [];

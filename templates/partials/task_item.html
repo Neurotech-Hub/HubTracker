@@ -47,6 +47,11 @@
             <span x-show="showCreator && task.creator_name" class="task-meta-item task-creator-meta">
                 <span>Created by <span x-text="task.creator_name"></span> • <span x-text="formatDate(task.created_at)"></span></span>
             </span>
+
+            <!-- Completion info -->
+            <span x-show="task.is_complete && task.completed_by_name" class="task-meta-item task-completion-meta">
+                <span>Completed by <span x-text="task.completed_by_name"></span> • <span x-text="formatDate(task.completed_on)"></span></span>
+            </span>
         </div>
     </div>
     
