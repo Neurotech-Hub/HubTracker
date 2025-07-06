@@ -183,7 +183,7 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
 2. **Create Render Web Service**
    - Connect your GitHub repository
    - Set **Build Command**: `pip install -r requirements.txt`
-   - Set **Start Command**: `python start.py`
+   - Set **Start Command**: `./start.sh` (or `python ./start.py` if shell script doesn't work)
    - Set **Environment**: `python`
 
 3. **Environment Variables (in Render Dashboard)**
@@ -192,11 +192,20 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    SECRET_KEY=your-secret-key-here
    DATABASE_URL=sqlite:///hub_tracker.db  # Or PostgreSQL URL for production
    ```
+   
+   **Important:** For production, consider using PostgreSQL instead of SQLite for better data persistence and performance.
 
 4. **Database Setup**
-   - The `start.py` script automatically runs `flask db upgrade` on each deploy
-   - Database will be created fresh (no sample data)
-   - First user should be created through the web interface
+   - The startup script runs `flask db upgrade` on each deploy to apply any new migrations
+   - **This does NOT create a fresh database** - it only applies schema changes
+   - Your existing data will be preserved across deployments
+   - First user should be created through the web interface (only if no users exist)
+
+5. **Troubleshooting Render Deployment**
+   - If you get "No such file or directory" error for start.py, try using `./start.sh` instead
+   - Make sure gunicorn is in your requirements.txt
+   - Check Render logs for detailed error messages
+   - Ensure your repository is properly connected and up to date
 
 #### Other Cloud Platforms
 

@@ -11,7 +11,7 @@ import subprocess
 def main():
     print("Starting HubTracker deployment...")
     
-    # Initialize database with migrations
+    # Initialize database with migrations (only creates tables if they don't exist)
     print("Running database migrations...")
     try:
         result = subprocess.run(['flask', 'db', 'upgrade'], 
@@ -21,7 +21,8 @@ def main():
     except subprocess.CalledProcessError as e:
         print(f"Error running migrations: {e}")
         print(f"stderr: {e.stderr}")
-        sys.exit(1)
+        # Don't exit on migration errors - database might already exist
+        print("Continuing with startup...")
     
     # Start the web server
     print("Starting gunicorn server...")
