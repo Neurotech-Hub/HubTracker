@@ -1305,7 +1305,7 @@ def analytics():
         all_completions = Task.query.filter(
             Task.completed_on >= date_start,
             Task.completed_on < date_end,
-            Task.is_complete == True
+            Task.is_complete.is_(True)
         ).count()
         
         # Current user completions for this day
@@ -1313,7 +1313,7 @@ def analytics():
             Task.completed_on >= date_start,
             Task.completed_on < date_end,
             Task.completed_by_user_id == session['user_id'],
-            Task.is_complete == True
+            Task.is_complete.is_(True)
         ).count()
         
         completion_data.append({
@@ -1328,7 +1328,7 @@ def analytics():
         Client.name.label('client_name'),
         func.count(Task.id).label('completed_tasks')
     ).join(Client).join(Task).filter(
-        Task.is_complete == True,
+        Task.is_complete.is_(True),
         Task.completed_on >= twenty_nine_days_ago
     ).group_by(Project.id, Project.name, Client.name).order_by(desc('completed_tasks')).limit(10).all()
     
@@ -1336,8 +1336,8 @@ def analytics():
     
     # Total log metrics
     total_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago).count()
-    touch_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago, Log.is_touch == True).count()
-    detailed_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago, Log.is_touch == False).count()
+    touch_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago, Log.is_touch.is_(True)).count()
+    detailed_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago, Log.is_touch.is_(False)).count()
     total_hours_last_30 = db.session.query(func.sum(Log.hours)).filter(Log.created_at >= thirty_days_ago).scalar() or 0
     
     # Daily log activity for chart
@@ -1361,13 +1361,13 @@ def analytics():
             touch_count = Log.query.filter(
                 Log.created_at >= date_start,
                 Log.created_at < date_end,
-                Log.is_touch == True
+                Log.is_touch.is_(True)
             ).count()
             
             detailed_count = Log.query.filter(
                 Log.created_at >= date_start,
                 Log.created_at < date_end,
-                Log.is_touch == False
+                Log.is_touch.is_(False)
             ).count()
             
             log_activity_data.append({
@@ -1383,8 +1383,8 @@ def analytics():
         Client.name.label('client_name'),
         func.count(Log.id).label('log_count'),
         func.sum(Log.hours).label('total_hours'),
-        func.sum(text('CASE WHEN is_touch = 1 THEN 1 ELSE 0 END')).label('touch_count'),
-        func.sum(text('CASE WHEN is_touch = 0 THEN 1 ELSE 0 END')).label('detailed_count')
+        func.sum(text('CASE WHEN is_touch IS TRUE THEN 1 ELSE 0 END')).label('touch_count'),
+        func.sum(text('CASE WHEN is_touch IS FALSE THEN 1 ELSE 0 END')).label('detailed_count')
     ).join(Client).join(Log).filter(
         Log.created_at >= thirty_days_ago
     ).group_by(Project.id, Project.name, Client.name).order_by(desc('log_count')).limit(8).all()
