@@ -377,7 +377,9 @@ def get_tasks():
         return jsonify({'error': 'Not logged in'}), 401
     
     # Get all tasks with their related data
-    tasks = Task.query.join(
+    tasks = Task.query.filter(
+        Task.is_complete == False  # Only get incomplete tasks for main list
+    ).join(
         User, User.id == Task.created_by, aliased=True
     ).outerjoin(
         Project, Project.id == Task.project_id
@@ -413,19 +415,19 @@ def get_tasks():
     
     return jsonify({'tasks': tasks_data})
 
-@app.route('/api/tasks-i-created')
-def get_tasks_i_created():
+@app.route('/api/completed-tasks')
+def get_completed_tasks():
     if 'user_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
     
-    # Get tasks created by current user
+    # Get the 10 most recently completed tasks
     tasks = Task.query.filter(
-        Task.created_by == session['user_id']
+        Task.is_complete == True
     ).outerjoin(
         Project, Project.id == Task.project_id
     ).outerjoin(
         Client, Client.id == Project.client_id
-    ).all()
+    ).order_by(Task.completed_on.desc()).limit(10).all()
     
     # Convert tasks to dictionary
     tasks_data = []

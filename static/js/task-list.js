@@ -24,21 +24,31 @@ function taskList(listType) {
                 // Initialize tasks based on list type
                 if (listType === 'tasks-for-me') {
                     this.tasks = tasksData.tasksForMe || [];
-                } else if (listType === 'tasks-i-created') {
-                    this.tasks = tasksData.tasksICreated || [];
+                    this.filteredTasks = [...this.tasks];
                 } else if (listType === 'all-tasks') {
                     this.tasks = tasksData.allTasks || [];
+                    this.filteredTasks = [...this.tasks];
                 } else if (listType === 'completed-tasks') {
-                    this.tasks = tasksData.completedTasks || [];
+                    // Load completed tasks from API
+                    this.loadCompletedTasks();
                 }
 
-                // Initialize filtered tasks
-                this.filteredTasks = [...this.tasks];
                 this.isInitialized = true;
-
-                console.log(`TaskList ${listType} initialized with ${this.tasks.length} tasks:`, this.tasks);
             } catch (error) {
                 console.error('Error initializing task list:', error);
+                this.tasks = [];
+                this.filteredTasks = [];
+            }
+        },
+
+        async loadCompletedTasks() {
+            try {
+                const response = await fetch('/api/completed-tasks');
+                const data = await response.json();
+                this.tasks = data.tasks || [];
+                this.filteredTasks = [...this.tasks];
+            } catch (error) {
+                console.error('Error loading completed tasks:', error);
                 this.tasks = [];
                 this.filteredTasks = [];
             }

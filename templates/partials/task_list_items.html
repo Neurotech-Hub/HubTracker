@@ -1,49 +1,61 @@
 <!-- Simple Task List Items -->
-<div class="task-list">
-    <template x-for="taskItem in filteredTasks" :key="taskItem.id">
-        <div x-data="{
-            get task() { return taskItem; },
-            variant: 'interactive',
-            showProject: true,
-            showAssignee: true,
-            showCreator: true,
-            showActions: true,
-            showFlag: true,
-            alwaysShowMetadata: false,
-            
-            formatDate(dateString) {
-                if (!dateString) return '';
-                const date = new Date(dateString);
-                return date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                });
-            },
-            
-            editTask(task) {
-                const modal = document.getElementById('taskModal');
-                if (modal) {
-                    modal.dataset.editTaskId = task.id;
-                    modal.dataset.editDescription = task.description;
-                    modal.dataset.editProjectId = task.project_id || (task.project_name ? 'lookup' : '');
-                    modal.dataset.editProjectName = task.project_name || '';
-                    modal.dataset.editUserId = task.assigned_to_id || '';
-                    modal.dataset.editUserName = task.assigned_to_name || '';
-                    
-                    const bootstrapModal = new bootstrap.Modal(modal);
-                    bootstrapModal.show();
-                }
-            }
-        }">
-            {% include 'partials/task_item.html' %}
+<div class="task-list-wrapper">
+    <!-- Section Header -->
+    <div class="task-section-header-compact">
+        <div class="d-flex align-items-center mb-3">
+            <h6 class="mb-0 me-2 text-muted">
+                <i class="bi bi-check-circle me-1"></i>Completed Tasks
+            </h6>
         </div>
-    </template>
+    </div>
 
-    <!-- Empty State -->
-    <div x-cloak x-show="filteredTasks && filteredTasks.length === 0" class="text-center text-muted py-5">
-        <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.5;"></i>
-        <p class="mt-2 mb-0">No tasks found</p>
-        <small x-show="searchQuery">Try adjusting your search</small>
+    <!-- Task List -->
+    <div class="task-list">
+        <template x-for="taskItem in filteredTasks" :key="taskItem.id">
+            <div x-data="{
+                get task() { return taskItem; },
+                variant: 'interactive',
+                showProject: true,
+                showAssignee: true,
+                showCreator: true,
+                showActions: true,
+                showFlag: true,
+                alwaysShowMetadata: false,
+                
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                },
+                
+                editTask(task) {
+                    const modal = document.getElementById('taskModal');
+                    if (modal) {
+                        modal.dataset.editTaskId = task.id;
+                        modal.dataset.editDescription = task.description;
+                        modal.dataset.editProjectId = task.project_id || (task.project_name ? 'lookup' : '');
+                        modal.dataset.editProjectName = task.project_name || '';
+                        modal.dataset.editUserId = task.assigned_to_id || '';
+                        modal.dataset.editUserName = task.assigned_to_name || '';
+                        
+                        const bootstrapModal = new bootstrap.Modal(modal);
+                        bootstrapModal.show();
+                    }
+                }
+            }">
+                {% include 'partials/task_item.html' %}
+            </div>
+        </template>
+
+        <!-- Empty State -->
+        <div x-cloak x-show="filteredTasks && filteredTasks.length === 0" class="text-center text-muted py-5">
+            <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.5;"></i>
+            <p class="mt-2 mb-0">No tasks found</p>
+            <small x-show="searchQuery">Try adjusting your search</small>
+        </div>
     </div>
 </div> 

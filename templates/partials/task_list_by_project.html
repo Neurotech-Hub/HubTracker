@@ -40,7 +40,16 @@
 
     <!-- Task Groups -->
     <div class="fade-in" :class="{ 'loaded': filteredTasks }">
-        <!-- Separate x-if from x-for -->
+        <!-- Section Header -->
+        <div class="task-section-header-compact">
+            <div class="d-flex align-items-center mb-3">
+                <h6 class="mb-0 me-2 text-muted">
+                    <i class="bi bi-list-check me-1"></i>Tasks by Project
+                </h6>
+            </div>
+        </div>
+
+        <!-- Project Groups -->
         <div x-cloak x-show="filteredTasks && projects && projects.length > 0">
             <template x-for="project in projects" :key="project.id">
                 <div class="project-group mb-4">
