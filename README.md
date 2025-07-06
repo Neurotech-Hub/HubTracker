@@ -19,7 +19,7 @@ A modern, full-stack project management web application designed for teams and b
 
 ### Technical Architecture
 - **Backend Framework**: Flask with SQLAlchemy ORM for robust data management
-- **Database**: PostgreSQL (production) / SQLite (development) with timezone support
+- **Database**: PostgreSQL with timezone support and migration capabilities
 - **Frontend Stack**: Bootstrap 5 + Alpine.js for reactive components
 - **Design System**: Custom CSS with consistent UI patterns
 - **API Layer**: RESTful endpoints for dynamic content and integrations
@@ -65,20 +65,20 @@ A modern, full-stack project management web application designed for teams and b
 
 4. **Database Setup**
 
-   HubTracker supports both SQLite (development) and PostgreSQL (production). For local development, SQLite is recommended for simplicity.
+   HubTracker uses PostgreSQL for all environments. You'll need to set up PostgreSQL locally or use a cloud database.
 
-   **SQLite (Recommended for Development):**
-   ```bash
-   # First time setup only:
-   flask db upgrade   # This will create hubtracker.db and apply all migrations
-   ```
-
-   **PostgreSQL (Advanced Setup):**
+   **Local PostgreSQL Setup:**
    ```bash
    # Install PostgreSQL first (see PostgreSQL Setup section below)
    # Then run migrations:
    flask db upgrade
    ```
+
+   **Cloud Database (Recommended):**
+   - Use Render PostgreSQL service for production
+   - Use any PostgreSQL cloud service for development
+   - Set DATABASE_URL environment variable
+   - Run migrations: flask db upgrade
 
    If you want sample data to explore features:
    ```bash
@@ -99,9 +99,9 @@ A modern, full-stack project management web application designed for teams and b
    - Open your browser and go to `http://localhost:5000`
    - Create your first user account and start using the app
 
-### PostgreSQL Setup (Optional)
+### PostgreSQL Setup
 
-For production-like local development or when you need PostgreSQL features:
+PostgreSQL is required for HubTracker. You can set it up locally or use a cloud service.
 
 #### Prerequisites
 
@@ -218,8 +218,9 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    # WARNING: This will delete all data and migration history!
    
    # 1. Stop the Flask application
-   # 2. Delete the database file
-   rm instance/hubtracker.db
+   # 2. Drop and recreate your PostgreSQL database
+   dropdb your_database_name
+   createdb your_database_name
    
    # 3. Delete migration history
    rm -rf migrations/versions/*
@@ -266,9 +267,10 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    ```
    FLASK_ENV=production
    SECRET_KEY=your-secret-key-here
+   DATABASE_URL=postgresql://username:password@host:port/database
    ```
    
-   **Note:** The app will automatically use SQLite in the `instance` directory. For production, consider using PostgreSQL for better data persistence and performance.
+   **Note:** PostgreSQL is required for production deployment. Set up a PostgreSQL service in Render and use the provided connection string.
 
 4. **Database Setup**
    - The `start.py` script automatically:
@@ -285,7 +287,7 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    - Check Render logs for detailed error messages
    - Ensure your repository is properly connected and up to date
 
-#### Render with PostgreSQL (Recommended for Production)
+#### Render Deployment (PostgreSQL Required)
 
 1. **Create PostgreSQL Service in Render**
    - Go to your Render dashboard
@@ -325,14 +327,12 @@ heroku run flask db upgrade  # Initialize database
    ```bash
    export FLASK_ENV=production
    export SECRET_KEY=your-secret-key-here
-   export DATABASE_URL=postgresql://user:pass@localhost/hubtracker  # Optional
+   export DATABASE_URL=postgresql://user:pass@localhost/hubtracker
    ```
 
 2. **Initialize Database**
    ```bash
-   flask db upgrade        # Recommended: Uses migrations
-   # OR
-   python init_clean_db.py # Alternative: Direct setup
+   flask db upgrade        # Uses migrations to set up PostgreSQL tables
    ```
 
 3. **Run with Gunicorn**
@@ -347,7 +347,7 @@ heroku run flask db upgrade  # Initialize database
 | -------------- | -------------------------- | -------------------------- | -------------------- |
 | `FLASK_ENV`    | Environment mode           | `development`              | No                   |
 | `SECRET_KEY`   | Flask secret key           | Random                     | **Yes (Production)** |
-| `DATABASE_URL` | Database connection string | `sqlite:///hubtracker.db` | No                   |
+| `DATABASE_URL` | PostgreSQL connection string | None                     | **Yes**              |
 | `PORT`         | Server port                | `5000`                     | No                   |
 
 ### Database Migration
