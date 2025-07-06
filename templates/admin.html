@@ -124,7 +124,7 @@
         </div>
 
         <!-- Data Import Section -->
-        <div class="col-12">
+        <div class="col-12 mb-4">
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">Data Import</h5>
@@ -138,6 +138,22 @@
                         </div>
                         <button type="submit" class="btn btn-primary">Import Data</button>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Export Section -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Database Export</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Download a complete backup of the SQLite database.</p>
+                    <a href="{{ url_for('download_database') }}" class="btn btn-success">
+                        <i class="bi bi-download me-1"></i>Download Database
+                    </a>
+                    <div class="form-text mt-2">This will download the current database file as hubtracker.db</div>
                 </div>
             </div>
         </div>

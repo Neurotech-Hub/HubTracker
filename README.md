@@ -202,7 +202,6 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    - First user should be created through the web interface (only if no users exist)
 
 5. **Troubleshooting Render Deployment**
-   - If you get "No such file or directory" error for start.py, try using `./start.sh` instead
    - Make sure gunicorn is in your requirements.txt
    - Check Render logs for detailed error messages
    - Ensure your repository is properly connected and up to date

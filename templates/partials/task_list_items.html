@@ -1,29 +1,29 @@
 <!-- Simple Task List Items -->
 <div class="task-list-wrapper loaded" x-data="{
-    formatDate(dateString) {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-    },
-    
-    editTask(task) {
-        const modal = document.getElementById('taskModal');
-        if (modal) {
-            modal.dataset.editTaskId = task.id;
-            modal.dataset.editDescription = task.description;
-            modal.dataset.editProjectId = task.project_id || (task.project_name ? 'lookup' : '');
-            modal.dataset.editProjectName = task.project_name || '';
-            modal.dataset.editUserId = task.assigned_to_id || '';
-            modal.dataset.editUserName = task.assigned_to_name || '';
-            
-            const bootstrapModal = new bootstrap.Modal(modal);
-            bootstrapModal.show();
-        }
-    }
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                },
+                
+                editTask(task) {
+                    const modal = document.getElementById('taskModal');
+                    if (modal) {
+                        modal.dataset.editTaskId = task.id;
+                        modal.dataset.editDescription = task.description;
+                        modal.dataset.editProjectId = task.project_id || (task.project_name ? 'lookup' : '');
+                        modal.dataset.editProjectName = task.project_name || '';
+                        modal.dataset.editUserId = task.assigned_to_id || '';
+                        modal.dataset.editUserName = task.assigned_to_name || '';
+                        
+                        const bootstrapModal = new bootstrap.Modal(modal);
+                        bootstrapModal.show();
+                    }
+                }
 }" x-init="setTimeout(() => $el.classList.add('loaded'), 50)">
     <!-- Section Header -->
     <div class="task-section-header-compact">

@@ -1962,6 +1962,36 @@ def delete_user(user_id):
     flash('User deleted successfully', 'success')
     return redirect(url_for('admin'))
 
+@app.route('/download_database')
+def download_database():
+    """Download the SQLite database file"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Check if user is admin
+    if session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    import os
+    from flask import send_file
+    
+    # Get the database file path
+    db_path = os.path.join(app.instance_path, 'hubtracker.db')
+    
+    # Check if database file exists
+    if not os.path.exists(db_path):
+        flash('Database file not found', 'error')
+        return redirect(url_for('admin'))
+    
+    # Send the file for download
+    return send_file(
+        db_path,
+        as_attachment=True,
+        download_name='hubtracker.db',
+        mimetype='application/x-sqlite3'
+    )
+
 @app.route('/test-tasks')
 def test_tasks():
     if 'user_id' not in session:
