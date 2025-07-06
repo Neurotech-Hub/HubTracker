@@ -11,18 +11,32 @@ import subprocess
 def main():
     print("Starting HubTracker deployment...")
     
-    # Initialize database with migrations (only creates tables if they don't exist)
-    print("Running database migrations...")
+    # Check if database already exists and has been migrated
+    print("Checking database status...")
     try:
-        result = subprocess.run(['flask', 'db', 'upgrade'], 
+        # Check current migration status
+        result = subprocess.run(['flask', 'db', 'current'], 
                               capture_output=True, text=True, check=True)
-        print("Database migrations completed successfully")
-        print(result.stdout)
+        current_revision = result.stdout.strip()
+        print(f"Current database revision: {current_revision}")
+        
+        # Only run migrations if we're not at the latest revision
+        if current_revision == "(None)" or "None" in current_revision:
+            print("Database needs initialization, running migrations...")
+            subprocess.run(['flask', 'db', 'upgrade'], check=True)
+            print("Database initialization completed")
+        else:
+            print("Database is up to date, skipping migrations")
+            
     except subprocess.CalledProcessError as e:
-        print(f"Error running migrations: {e}")
-        print(f"stderr: {e.stderr}")
-        # Don't exit on migration errors - database might already exist
-        print("Continuing with startup...")
+        print(f"Database check failed: {e}")
+        print("Attempting to initialize database...")
+        try:
+            subprocess.run(['flask', 'db', 'upgrade'], check=True)
+            print("Database initialization completed")
+        except subprocess.CalledProcessError as e2:
+            print(f"Database initialization failed: {e2}")
+            print("Continuing with startup anyway...")
     
     # Start the web server
     print("Starting gunicorn server...")

@@ -196,8 +196,8 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    **Important:** For production, consider using PostgreSQL instead of SQLite for better data persistence and performance.
 
 4. **Database Setup**
-   - The startup script runs `flask db upgrade` on each deploy to apply any new migrations
-   - **This does NOT create a fresh database** - it only applies schema changes
+   - The startup script intelligently checks if migrations are needed before running them
+   - **Only runs migrations when necessary** - skips if database is already up to date
    - Your existing data will be preserved across deployments
    - First user should be created through the web interface (only if no users exist)
 
