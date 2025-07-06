@@ -183,7 +183,7 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
 2. **Create Render Web Service**
    - Connect your GitHub repository
    - Set **Build Command**: `pip install -r requirements.txt`
-   - Set **Start Command**: `python app.py`
+   - Set **Start Command**: `./start.sh`
    - Set **Environment**: `python`
 
 3. **Environment Variables (in Render Dashboard)**
@@ -194,7 +194,7 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    ```
 
 4. **Database Setup**
-   - Render will automatically run migrations on deploy
+   - The `start.sh` script automatically runs `flask db upgrade` on each deploy
    - Database will be created fresh (no sample data)
    - First user should be created through the web interface
 
