@@ -923,7 +923,11 @@ def delete_project(project_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    project = Project.query.get_or_404(project_id)
+    # Check if project exists
+    project = Project.query.get(project_id)
+    if not project:
+        flash(f'Project with ID {project_id} not found', 'error')
+        return redirect(url_for('projects'))
     
     # Check if project has tasks
     if project.tasks.count() > 0:

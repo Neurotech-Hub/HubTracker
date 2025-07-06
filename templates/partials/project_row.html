@@ -69,7 +69,7 @@
             
             {% if show_delete %}
             <button type="button" class="action-btn-clean btn-delete" 
-                    onclick="confirmProjectDelete('{{ project.name }}', '{{ url_for('delete_project', project_id=project.id) }}', {{ project.open_tasks_count }})"
+                    onclick="confirmProjectDelete('{{ project.name|replace("'", "\\'")|replace('"', '\\"') }}', '{{ url_for('delete_project', project_id=project.id) }}', {{ project.open_tasks_count }})"
                     title="Delete Project">
                 <i class="bi bi-trash"></i>
             </button>
