@@ -413,6 +413,44 @@ def get_tasks():
     
     return jsonify({'tasks': tasks_data})
 
+@app.route('/api/tasks-i-created')
+def get_tasks_i_created():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    # Get tasks created by current user
+    tasks = Task.query.filter(
+        Task.created_by == session['user_id']
+    ).outerjoin(
+        Project, Project.id == Task.project_id
+    ).outerjoin(
+        Client, Client.id == Project.client_id
+    ).all()
+    
+    # Convert tasks to dictionary
+    tasks_data = []
+    for task in tasks:
+        task_dict = {
+            'id': task.id,
+            'description': task.description,
+            'is_complete': task.is_complete,
+            'completed_on': task.completed_on.isoformat() if task.completed_on else None,
+            'created_at': task.created_at.isoformat(),
+            'project_id': task.project_id,
+            'project_name': task.project.name if task.project else None,
+            'client_name': task.project.client.name if task.project and task.project.client else None,
+            'assigned_to_id': task.assigned_to,
+            'assigned_to_name': task.assignee.full_name if task.assignee else None,
+            'created_by_id': task.created_by,
+            'created_by_name': task.creator.full_name if task.creator else None,
+            'completed_by_id': task.completed_by_user_id,
+            'completed_by_name': task.completer.full_name if task.completer else None,
+            'is_flagged': bool(task.flags.filter_by(user_id=session['user_id']).first())
+        }
+        tasks_data.append(task_dict)
+    
+    return jsonify({'tasks': tasks_data})
+
 @app.route('/add_task', methods=['POST'])
 def add_task():
     if 'user_id' not in session:

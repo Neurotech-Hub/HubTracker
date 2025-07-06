@@ -14,7 +14,7 @@
 }
 </script>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4" x-data="{ activeView: 'tasks-for-me', loaded: false }" x-init="setTimeout(() => loaded = true, 50)">
     <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -33,107 +33,67 @@
         </div>
     </div>
 
-    <!-- Task Lists -->
-    <div class="row g-4">
-        <!-- Tasks for Me -->
-        <div class="col-12 task-section" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 50)" :class="{ 'loaded': loaded }">
-            <div class="card">
-                <div class="card-body">
-                    <!-- Task List Component -->
-                    <div class="task-list-section" x-data="taskList('tasks-for-me')" x-init="init()">
-                        {% include 'partials/tasks_for_me_section.html' %}
-                    </div>
+    <!-- Task View Selector -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="task-view-selector">
+                <div class="selector-track">
+                    <div class="selector-pill" :class="activeView"></div>
+                    <button type="button" 
+                            class="selector-option" 
+                            :class="{ 'active': activeView === 'tasks-for-me' }"
+                            @click="activeView = 'tasks-for-me'">
+                        My Tasks
+                    </button>
+                    <button type="button" 
+                            class="selector-option" 
+                            :class="{ 'active': activeView === 'by-project' }"
+                            @click="activeView = 'by-project'">
+                        By Project
+                    </button>
+                    <button type="button" 
+                            class="selector-option" 
+                            :class="{ 'active': activeView === 'completed' }"
+                            @click="activeView = 'completed'">
+                        Completed
+                    </button>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- All Tasks -->
-        <div class="col-12 task-section" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 50)" :class="{ 'loaded': loaded }">
+    <!-- Task Lists Container -->
+    <div class="row task-section" :class="{ 'loaded': loaded }">
+        <div class="col-12">
             <div class="card">
                 <div class="card-body">
-                    <!-- Task List Component -->
-                    <div class="task-list-section" x-data="taskList('all-tasks')" x-init="init()">
-                        <!-- Compact Section Header -->
-                        <div class="task-section-header-compact">
-                            <div class="d-flex align-items-center mb-3">
-                                <h6 class="mb-0 me-2 text-muted">
-                                    <i class="bi bi-list-check me-1"></i>Tasks by Project
-                                </h6>
-                                
-                                <!-- Subtle inline filter - always visible -->
-                                <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
-                                    <input 
-                                        type="text" 
-                                        class="form-control form-control-sm border-0 bg-transparent text-muted flex-grow-1"
-                                        style="font-size: 0.75rem; min-width: 100px;"
-                                        placeholder="filter..." 
-                                        x-model="searchQuery"
-                                        @input="filterTasks()"
-                                        @keydown.escape="clearSearch()"
-                                    >
-                                    <button 
-                                        class="btn btn-sm btn-link text-muted p-0 ms-1" 
-                                        type="button" 
-                                        @click="clearSearch()" 
-                                        x-show="searchQuery" 
-                                        title="Clear filter"
-                                        style="font-size: 0.7rem; line-height: 1;"
-                                    >
-                                        <i class="bi bi-x"></i>
-                                    </button>
-                                </div>
+                    <div class="task-views-container">
+                        <!-- Tasks for Me -->
+                        <div class="task-view" 
+                             :class="{ 'active': activeView === 'tasks-for-me' }"
+                             x-show.transition.in.opacity.duration.300ms="activeView === 'tasks-for-me'">
+                            <div class="task-list-section" x-data="taskList('tasks-for-me')" x-init="init()">
+                                {% include 'partials/tasks_for_me_section.html' %}
                             </div>
                         </div>
 
-                        {% include 'partials/task_list_by_project.html' %}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Completed Tasks -->
-        <div class="col-12 task-section" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 50)" :class="{ 'loaded': loaded }">
-            <div class="card">
-                <div class="card-body">
-                    <!-- Task List Component -->
-                    <div class="task-list-section" x-data="taskList('completed-tasks')" x-init="init()">
-                        <!-- Compact Section Header -->
-                        <div class="task-section-header-compact">
-                            <div class="d-flex align-items-center mb-3">
-                                <h6 class="mb-0 me-2 text-muted">
-                                    <i class="bi bi-check-circle me-1"></i>Completed Tasks
-                                </h6>
-                                <!-- Loading State for Count -->
-                                <span x-show="!filteredTasks" class="task-count-bubble skeleton skeleton-text">&nbsp;</span>
-                                <!-- Actual Count -->
-                                <span x-cloak x-show="filteredTasks" class="task-count-bubble" x-text="filteredTasks.length || 0"></span>
-                                
-                                <!-- Subtle inline filter - always visible -->
-                                <div class="task-filter-inline d-flex align-items-center flex-grow-1 ms-3">
-                                    <input 
-                                        type="text" 
-                                        class="form-control form-control-sm border-0 bg-transparent text-muted flex-grow-1"
-                                        style="font-size: 0.75rem; min-width: 100px;"
-                                        placeholder="filter..." 
-                                        x-model="searchQuery"
-                                        @input="filterTasks()"
-                                        @keydown.escape="clearSearch()"
-                                    >
-                                    <button 
-                                        class="btn btn-sm btn-link text-muted p-0 ms-1" 
-                                        type="button" 
-                                        @click="clearSearch()" 
-                                        x-show="searchQuery" 
-                                        title="Clear filter"
-                                        style="font-size: 0.7rem; line-height: 1;"
-                                    >
-                                        <i class="bi bi-x"></i>
-                                    </button>
-                                </div>
+                        <!-- Tasks by Project -->
+                        <div class="task-view" 
+                             :class="{ 'active': activeView === 'by-project' }"
+                             x-show.transition.in.opacity.duration.300ms="activeView === 'by-project'">
+                            <div class="task-list-section" x-data="taskList('all-tasks')" x-init="init()">
+                                {% include 'partials/task_list_by_project.html' %}
                             </div>
                         </div>
 
-                        {% include 'partials/task_list_items.html' %}
+                        <!-- Completed Tasks -->
+                        <div class="task-view" 
+                             :class="{ 'active': activeView === 'completed' }"
+                             x-show.transition.in.opacity.duration.300ms="activeView === 'completed'">
+                            <div class="task-list-section" x-data="taskList('completed-tasks')" x-init="init()">
+                                {% include 'partials/task_list_items.html' %}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -141,8 +101,97 @@
     </div>
 </div>
 
-<!-- Edit Task Modal removed - now using the smart task form modal -->
-
-<!-- Include Task Modal for consistency -->
+<!-- Include Task Modal -->
 {% include 'partials/task_modal.html' %}
+
+<style>
+/* Task View Selector */
+.task-view-selector {
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem;
+}
+
+.selector-track {
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 0.25rem;
+    display: inline-flex;
+    position: relative;
+    min-width: 400px;
+}
+
+.selector-pill {
+    position: absolute;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    width: calc(33.333% - 0.5rem);
+    background: white;
+    border-radius: 999px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.selector-pill.tasks-for-me {
+    left: 0.25rem;
+}
+
+.selector-pill.by-project {
+    left: calc(33.333% + 0.25rem);
+}
+
+.selector-pill.completed {
+    left: calc(66.666% + 0.25rem);
+}
+
+.selector-option {
+    flex: 1;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-weight: 500;
+    font-size: 0.875rem;
+    position: relative;
+    z-index: 1;
+    transition: all 0.3s ease;
+    border-radius: 999px;
+}
+
+.selector-option:hover {
+    color: #334155;
+}
+
+.selector-option.active {
+    color: #1a1a1a;
+}
+
+/* Task Views Container */
+.task-views-container {
+    position: relative;
+}
+
+.task-view {
+    position: absolute;
+    width: 100%;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.task-view.active {
+    position: relative;
+    opacity: 1;
+    z-index: 1;
+}
+
+@media (max-width: 768px) {
+    .selector-track {
+        min-width: 100%;
+    }
+
+    .selector-option {
+        padding: 0.75rem 1rem;
+    }
+}
+</style>
 {% endblock %} 
