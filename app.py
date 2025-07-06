@@ -650,6 +650,7 @@ def serialize_task(task):
             'assigned_to_id': None,
             'creator_name': None,
             'completed_by_name': None,
+            'is_flagged': False,
         }
 
 @app.route('/tasks')

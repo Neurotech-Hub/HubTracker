@@ -25,14 +25,14 @@ function taskList(listType) {
                 // Initialize tasks based on list type
                 if (listType === 'tasks-for-me') {
                     this.tasks = Array.from(tasksData.tasksForMe || []);
-                    this.filteredTasks = [...this.tasks];
+                    this.filteredTasks = this.sortTasksByPriority([...this.tasks]);
                 } else if (listType === 'all-tasks') {
                     this.tasks = Array.from(tasksData.allTasks || []);
-                    this.filteredTasks = [...this.tasks];
+                    this.filteredTasks = this.sortTasksByPriority([...this.tasks]);
                 } else if (listType === 'completed-tasks') {
                     console.log('Loading completed tasks'); // Debug
                     this.tasks = Array.from(tasksData.completedTasks || []);
-                    this.filteredTasks = [...this.tasks];
+                    this.filteredTasks = [...this.tasks]; // No need to sort completed tasks by flag
                     console.log('Completed tasks loaded:', this.tasks); // Debug
                 }
 
@@ -49,49 +49,57 @@ function taskList(listType) {
             }
         },
 
-        async loadCompletedTasks() {
-            try {
-                const response = await fetch('/api/completed-tasks');
-                const data = await response.json();
-                this.tasks = data.tasks || [];
-                this.filteredTasks = [...this.tasks];
-            } catch (error) {
-                console.error('Error loading completed tasks:', error);
-                this.tasks = [];
-                this.filteredTasks = [];
-            }
-        },
+        // Sort tasks with flagged tasks at the top
+        sortTasksByPriority(tasks) {
+            return tasks.sort((a, b) => {
+                // First, sort by flagged status (flagged tasks first)
+                if (a.is_flagged && !b.is_flagged) return -1;
+                if (!a.is_flagged && b.is_flagged) return 1;
 
-        // Computed property for projects (used by task_list_by_project.html)
-        get projects() {
-            if (!this.isInitialized) return [];
-            return this.getTasksByProject();
+                // Then sort by creation date (newest first) within each group
+                const dateA = new Date(a.created_at);
+                const dateB = new Date(b.created_at);
+                return dateB - dateA;
+            });
         },
 
         // Filter tasks based on search query
         filterTasks() {
             if (!this.isInitialized) return;
 
+            let filtered;
             if (!this.searchQuery.trim()) {
-                this.filteredTasks = [...this.tasks];
-                return;
+                filtered = [...this.tasks];
+            } else {
+                const query = this.searchQuery.toLowerCase();
+                filtered = this.tasks.filter(task =>
+                    task.description.toLowerCase().includes(query) ||
+                    (task.project_name && task.project_name.toLowerCase().includes(query)) ||
+                    (task.client_name && task.client_name.toLowerCase().includes(query)) ||
+                    (task.assigned_to_name && task.assigned_to_name.toLowerCase().includes(query)) ||
+                    (task.creator_name && task.creator_name.toLowerCase().includes(query))
+                );
             }
 
-            const query = this.searchQuery.toLowerCase();
-            this.filteredTasks = this.tasks.filter(task =>
-                task.description.toLowerCase().includes(query) ||
-                (task.project_name && task.project_name.toLowerCase().includes(query)) ||
-                (task.client_name && task.client_name.toLowerCase().includes(query)) ||
-                (task.assigned_to_name && task.assigned_to_name.toLowerCase().includes(query)) ||
-                (task.creator_name && task.creator_name.toLowerCase().includes(query))
-            );
+            // Apply priority sorting to filtered results (except for completed tasks)
+            if (listType !== 'completed-tasks') {
+                this.filteredTasks = this.sortTasksByPriority(filtered);
+            } else {
+                this.filteredTasks = filtered;
+            }
         },
 
         // Clear search
         clearSearch() {
             if (!this.isInitialized) return;
             this.searchQuery = '';
-            this.filteredTasks = [...this.tasks];
+
+            // Apply priority sorting when clearing search (except for completed tasks)
+            if (listType !== 'completed-tasks') {
+                this.filteredTasks = this.sortTasksByPriority([...this.tasks]);
+            } else {
+                this.filteredTasks = [...this.tasks];
+            }
         },
 
         // Group tasks by project
@@ -116,7 +124,18 @@ function taskList(listType) {
                 projectGroups[projectKey].tasks.push(task);
             });
 
+            // Sort tasks within each project group by priority
+            Object.values(projectGroups).forEach(group => {
+                group.tasks = this.sortTasksByPriority(group.tasks);
+            });
+
             return Object.values(projectGroups);
+        },
+
+        // Computed property for projects (used by task_list_by_project.html)
+        get projects() {
+            if (!this.isInitialized) return [];
+            return this.getTasksByProject();
         },
 
         // Toggle completed tasks visibility
