@@ -12,6 +12,29 @@ def get_current_time():
     """Get current time in Chicago timezone"""
     return datetime.now(TIMEZONE)
 
+# Association table for User-Equipment relationship
+user_equipment = db.Table('user_equipment',
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('equipment_id', db.Integer, db.ForeignKey('equipment.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('created_at', db.DateTime(timezone=True), default=get_current_time, nullable=False)
+)
+
+class Equipment(db.Model):
+    __tablename__ = 'equipment'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    manual = db.Column(db.String(255), nullable=True)  # URL to manual
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+    
+    # Relationships
+    users = db.relationship('User', secondary=user_equipment, backref=db.backref('equipment', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<Equipment {self.name}>'
+
 class User(db.Model):
     __tablename__ = 'users'
     
@@ -30,6 +53,7 @@ class User(db.Model):
     led_projects = db.relationship('Project', backref='project_leader', lazy='dynamic')
     pinned_projects = db.relationship('UserProjectPin', backref='user', lazy='dynamic')
     flagged_tasks = db.relationship('UserTaskFlag', backref='user', lazy='dynamic')
+    preferences = db.relationship('UserPreferences', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<User {self.first_name} {self.last_name or ""}>'
@@ -258,4 +282,20 @@ class UserTaskFlag(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'task_id', name='unique_user_task_flag'),)
     
     def __repr__(self):
-        return f'<UserTaskFlag {self.user_id}:{self.task_id}>' 
+        return f'<UserTaskFlag {self.user_id}:{self.task_id}>'
+
+class UserPreferences(db.Model):
+    __tablename__ = 'user_preferences'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    key = db.Column(db.String(50), nullable=False)  # Name of the preference (e.g., 'task_slider_position')
+    value = db.Column(db.String(255), nullable=True)  # Value of the preference
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+    
+    # Ensure one preference key per user
+    __table_args__ = (db.UniqueConstraint('user_id', 'key', name='unique_user_preference'),)
+    
+    def __repr__(self):
+        return f'<UserPreferences {self.user_id}:{self.key}={self.value}>' 

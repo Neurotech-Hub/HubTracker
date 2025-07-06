@@ -30,6 +30,7 @@
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Role</th>
+                                    <th>Equipment</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -42,6 +43,11 @@
                                         <span class="badge {% if user.role == 'admin' %}bg-danger{% elif user.role == 'finance' %}bg-success{% else %}bg-info{% endif %}">
                                             {{ user.role }}
                                         </span>
+                                    </td>
+                                    <td>
+                                        {% for equipment in user.equipment %}
+                                        <span class="badge bg-secondary me-1">{{ equipment.name }}</span>
+                                        {% endfor %}
                                     </td>
                                     <td>
                                         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}">
@@ -62,8 +68,63 @@
             </div>
         </div>
 
-        <!-- Data Import Section -->
+        <!-- Equipment Management Section -->
         <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Equipment Management</h5>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addEquipmentModal">
+                        <i class="bi bi-plus-circle me-1"></i>Add Equipment
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Manual</th>
+                                    <th>Assigned Users</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for equipment in equipment_list %}
+                                <tr>
+                                    <td>{{ equipment.name }}</td>
+                                    <td>{{ equipment.description or '' }}</td>
+                                    <td>
+                                        {% if equipment.manual %}
+                                        <a href="{{ equipment.manual }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-file-earmark-text"></i>
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% for user in equipment.users %}
+                                        <span class="badge bg-secondary me-1">{{ user.full_name }}</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editEquipmentModal{{ equipment.id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteEquipmentModal{{ equipment.id }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Import Section -->
+        <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">Data Import</h5>
@@ -76,37 +137,6 @@
                             <div class="form-text">Upload a JSON or TXT file containing labs and projects data.</div>
                         </div>
                         <button type="submit" class="btn btn-primary">Import Data</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- System Settings Section -->
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">System Settings</h5>
-                </div>
-                <div class="card-body">
-                    <form action="{{ url_for('update_settings') }}" method="POST">
-                        <div class="mb-3">
-                            <label for="defaultProjectStatus" class="form-label">Default Project Status</label>
-                            <select class="form-select" id="defaultProjectStatus" name="default_project_status">
-                                <option value="Active">Active</option>
-                                <option value="Awaiting">Awaiting</option>
-                                <option value="Paused">Paused</option>
-                                <option value="Archived">Archived</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="timezone" class="form-label">Timezone</label>
-                            <select class="form-select" id="timezone" name="timezone">
-                                <option value="America/Chicago">America/Chicago</option>
-                                <option value="America/New_York">America/New_York</option>
-                                <option value="America/Los_Angeles">America/Los_Angeles</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Save Settings</button>
                     </form>
                 </div>
             </div>
@@ -137,16 +167,30 @@
                         <input type="email" class="form-control" id="email" name="email" required>
                     </div>
                     <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
-                    <div class="mb-3">
                         <label for="role" class="form-label">Role</label>
-                        <select class="form-select" id="role" name="role" required>
+                        <select class="form-select" id="role" name="role" required onchange="togglePasswordRequired(this, 'password')">
                             <option value="trainee">Trainee</option>
                             <option value="finance">Finance</option>
                             <option value="admin">Admin</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password">
+                        <div class="form-text password-help">Password is only required for admin users.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Equipment Access</label>
+                        <div class="equipment-checkboxes">
+                            {% for equipment in equipment_list %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="equipment[]" value="{{ equipment.id }}" id="equipment{{ equipment.id }}">
+                                <label class="form-check-label" for="equipment{{ equipment.id }}">
+                                    {{ equipment.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -182,16 +226,38 @@
                         <input type="email" class="form-control" id="email{{ user.id }}" name="email" value="{{ user.email }}" required>
                     </div>
                     <div class="mb-3">
-                        <label for="password{{ user.id }}" class="form-label">New Password (leave blank to keep current)</label>
-                        <input type="password" class="form-control" id="password{{ user.id }}" name="password">
-                    </div>
-                    <div class="mb-3">
                         <label for="role{{ user.id }}" class="form-label">Role</label>
-                        <select class="form-select" id="role{{ user.id }}" name="role" required>
+                        <select class="form-select" id="role{{ user.id }}" name="role" required onchange="togglePasswordRequired(this, 'password{{ user.id }}', '{{ user.role }}')">
                             <option value="trainee" {% if user.role == 'trainee' %}selected{% endif %}>Trainee</option>
                             <option value="finance" {% if user.role == 'finance' %}selected{% endif %}>Finance</option>
                             <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password{{ user.id }}" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="password{{ user.id }}" name="password">
+                        <div class="form-text password-help">
+                            {% if user.role == 'admin' %}
+                            Leave blank to keep current password.
+                            {% else %}
+                            Password is only required when promoting to admin role.
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Equipment Access</label>
+                        <div class="equipment-checkboxes">
+                            {% for equipment in equipment_list %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="equipment[]" value="{{ equipment.id }}" 
+                                       id="equipment{{ equipment.id }}_user{{ user.id }}"
+                                       {% if equipment in user.equipment %}checked{% endif %}>
+                                <label class="form-check-label" for="equipment{{ equipment.id }}_user{{ user.id }}">
+                                    {{ equipment.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -227,4 +293,135 @@
 </div>
 {% endif %}
 {% endfor %}
+
+<!-- Add Equipment Modal -->
+<div class="modal fade" id="addEquipmentModal" tabindex="-1" aria-labelledby="addEquipmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('add_equipment') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addEquipmentModalLabel">Add Equipment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="equipmentName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="equipmentName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="equipmentDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="equipmentDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="equipmentManual" class="form-label">Manual URL</label>
+                        <input type="url" class="form-control" id="equipmentManual" name="manual" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Equipment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Equipment Modals -->
+{% for equipment in equipment_list %}
+<div class="modal fade" id="editEquipmentModal{{ equipment.id }}" tabindex="-1" aria-labelledby="editEquipmentModalLabel{{ equipment.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('edit_equipment', equipment_id=equipment.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editEquipmentModalLabel{{ equipment.id }}">Edit Equipment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="equipmentName{{ equipment.id }}" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="equipmentName{{ equipment.id }}" name="name" value="{{ equipment.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="equipmentDescription{{ equipment.id }}" class="form-label">Description</label>
+                        <textarea class="form-control" id="equipmentDescription{{ equipment.id }}" name="description" rows="3">{{ equipment.description or '' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="equipmentManual{{ equipment.id }}" class="form-label">Manual URL</label>
+                        <input type="url" class="form-control" id="equipmentManual{{ equipment.id }}" name="manual" value="{{ equipment.manual or '' }}" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Equipment Modal -->
+<div class="modal fade" id="deleteEquipmentModal{{ equipment.id }}" tabindex="-1" aria-labelledby="deleteEquipmentModalLabel{{ equipment.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('delete_equipment', equipment_id=equipment.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteEquipmentModalLabel{{ equipment.id }}">Delete Equipment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete equipment <strong>{{ equipment.name }}</strong>?</p>
+                    <p class="text-danger">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete Equipment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+function togglePasswordRequired(selectElement, passwordId, currentRole) {
+    const passwordInput = document.getElementById(passwordId);
+    const helpText = passwordInput.nextElementSibling;
+    const selectedRole = selectElement.value;
+    
+    if (selectedRole === 'admin') {
+        if (currentRole && currentRole !== 'admin') {
+            // Promoting to admin
+            passwordInput.required = true;
+            helpText.textContent = 'Password is required when promoting to admin role.';
+        } else if (!currentRole) {
+            // New admin user
+            passwordInput.required = true;
+            helpText.textContent = 'Password is required for admin users.';
+        } else {
+            // Existing admin
+            passwordInput.required = false;
+            helpText.textContent = 'Leave blank to keep current password.';
+        }
+    } else {
+        passwordInput.required = false;
+        helpText.textContent = 'Password is optional for non-admin users.';
+    }
+}
+
+// Initialize password requirements on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const addRoleSelect = document.getElementById('role');
+    if (addRoleSelect) {
+        togglePasswordRequired(addRoleSelect, 'password');
+    }
+    
+    // Initialize for edit modals
+    document.querySelectorAll('[id^="role"]').forEach(select => {
+        if (select.id !== 'role') { // Skip the add user form
+            const userId = select.id.replace('role', '');
+            togglePasswordRequired(select, 'password' + userId, select.options[select.selectedIndex].value);
+        }
+    });
+});
+</script>
 {% endblock %} 

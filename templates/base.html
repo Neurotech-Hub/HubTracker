@@ -76,7 +76,7 @@
                 <small class="text-muted d-block">Logged in as</small>
                 <a href="{{ url_for('profile') }}" class="text-white text-decoration-none">{{ session.user_name }}</a>
             </div>
-            {% if session.is_admin %}
+            {% if session.role == 'admin' %}
             <a href="{{ url_for('admin') }}" class="btn btn-outline-light btn-sm w-100 mt-2 mb-2">
                 <i class="bi bi-gear me-2"></i>Admin
             </a>

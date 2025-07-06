@@ -15,7 +15,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Import models and db
-from models import db, User, Client, Membership, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, MembershipSupplement
+from models import db, User, Client, Membership, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, MembershipSupplement, Equipment, UserPreferences
 
 # Initialize extensions
 db.init_app(app)
@@ -209,23 +209,33 @@ def login():
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '').strip()
         
-        if not email or not password:
-            flash('Email and password are required', 'error')
+        if not email:
+            flash('Email is required', 'error')
             return render_template('login.html')
         
         user = User.query.filter_by(email=email).first()
-        if user and user.check_password(password):
-            # Only allow admin users to login for now
-            if user.role != 'admin':
-                flash('Only administrators can login at this time', 'error')
-                return render_template('login.html')
-            
-            session['user_id'] = user.id
-            session['user_name'] = user.full_name
-            session['role'] = user.role
-            return redirect(url_for('dashboard'))
-        else:
+        if not user:
             flash('Invalid email or password', 'error')
+            return render_template('login.html')
+        
+        # Only check password for admin users
+        if user.role == 'admin':
+            if not password:
+                flash('Password is required for admin users', 'error')
+                return render_template('login.html')
+            if not user.check_password(password):
+                flash('Invalid email or password', 'error')
+                return render_template('login.html')
+        
+        # Only allow admin users to login for now
+        if user.role != 'admin':
+            flash('Only administrators can login at this time', 'error')
+            return render_template('login.html')
+        
+        session['user_id'] = user.id
+        session['user_name'] = user.full_name
+        session['role'] = user.role
+        return redirect(url_for('dashboard'))
     
     return render_template('login.html')
 
@@ -361,21 +371,47 @@ def get_users():
         ]
     }
 
-@app.route('/api/tasks-i-created')
-def get_tasks_i_created():
+@app.route('/api/tasks')
+def get_tasks():
     if 'user_id' not in session:
-        return {'tasks': []}, 401
+        return jsonify({'error': 'Not logged in'}), 401
     
-    # Get tasks created by current user - filter out completed
-    tasks_i_created_query = Task.query.filter(
-        (Task.created_by == session['user_id']) &
-        (Task.is_complete == False)
-    ).order_by(Task.created_at.desc()).all()
+    # Get all tasks with their related data
+    tasks = Task.query.join(
+        User, User.id == Task.created_by, aliased=True
+    ).outerjoin(
+        Project, Project.id == Task.project_id
+    ).outerjoin(
+        Client, Client.id == Project.client_id
+    ).outerjoin(
+        User, User.id == Task.assigned_to, aliased=True
+    ).outerjoin(
+        User, User.id == Task.completed_by_user_id, aliased=True
+    ).all()
     
-    # Serialize tasks with related data
-    tasks_i_created = [serialize_task(task) for task in tasks_i_created_query]
+    # Convert tasks to dictionary
+    tasks_data = []
+    for task in tasks:
+        task_dict = {
+            'id': task.id,
+            'description': task.description,
+            'is_complete': task.is_complete,
+            'completed_on': task.completed_on.isoformat() if task.completed_on else None,
+            'created_at': task.created_at.isoformat(),
+            'project_id': task.project_id,
+            'project_name': task.project.name if task.project else None,
+            'client_name': task.project.client.name if task.project and task.project.client else None,
+            'assigned_to_id': task.assigned_to,
+            'assigned_to_name': task.assignee.full_name if task.assignee else None,
+            'created_by_id': task.created_by,
+            'created_by_name': task.creator.full_name if task.creator else None,
+            'completed_by_id': task.completed_by_user_id,
+            'completed_by_name': task.completer.full_name if task.completer else None,
+            'is_flagged': bool(task.flags.filter_by(user_id=session['user_id']).first())
+        }
+        tasks_data.append(task_dict)
     
-    return {'tasks': tasks_i_created}
+    return jsonify({'tasks': tasks_data})
 
 @app.route('/add_task', methods=['POST'])
 def add_task():
@@ -1603,8 +1639,9 @@ def admin():
         return redirect(url_for('dashboard'))
     
     users = User.query.order_by(User.first_name.asc()).all()
+    equipment_list = Equipment.query.order_by(Equipment.name.asc()).all()
     
-    return render_template('admin.html', users=users)
+    return render_template('admin.html', users=users, equipment_list=equipment_list)
 
 @app.route('/import_labs_projects', methods=['POST'])
 def import_labs_projects():
@@ -1674,18 +1711,66 @@ def run_import_script():
     
     return redirect(url_for('admin'))
 
-@app.route('/update_settings', methods=['POST'])
-def update_settings():
+@app.route('/add_equipment', methods=['POST'])
+def add_equipment():
     if 'user_id' not in session or session.get('role') != 'admin':
         flash('Access denied. Administrator privileges required.', 'error')
         return redirect(url_for('dashboard'))
     
-    default_project_status = request.form.get('default_project_status')
-    timezone = request.form.get('timezone')
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+    manual = request.form.get('manual', '').strip()
     
-    # Here you would typically save these to a settings table or config file
-    # For now, we'll just show a success message
-    flash('Settings updated successfully', 'success')
+    if not name:
+        flash('Equipment name is required', 'error')
+        return redirect(url_for('admin'))
+    
+    equipment = Equipment(
+        name=name,
+        description=description if description else None,
+        manual=manual if manual else None
+    )
+    
+    db.session.add(equipment)
+    db.session.commit()
+    flash('Equipment added successfully', 'success')
+    return redirect(url_for('admin'))
+
+@app.route('/edit_equipment/<int:equipment_id>', methods=['POST'])
+def edit_equipment(equipment_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    equipment = Equipment.query.get_or_404(equipment_id)
+    
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+    manual = request.form.get('manual', '').strip()
+    
+    if not name:
+        flash('Equipment name is required', 'error')
+        return redirect(url_for('admin'))
+    
+    equipment.name = name
+    equipment.description = description if description else None
+    equipment.manual = manual if manual else None
+    
+    db.session.commit()
+    flash('Equipment updated successfully', 'success')
+    return redirect(url_for('admin'))
+
+@app.route('/delete_equipment/<int:equipment_id>', methods=['POST'])
+def delete_equipment(equipment_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    equipment = Equipment.query.get_or_404(equipment_id)
+    
+    db.session.delete(equipment)
+    db.session.commit()
+    flash('Equipment deleted successfully', 'success')
     return redirect(url_for('admin'))
 
 @app.route('/add_user', methods=['POST'])
@@ -1703,9 +1788,10 @@ def add_user():
     email = request.form.get('email', '').strip()
     password = request.form.get('password', '').strip()
     role = request.form.get('role', 'trainee')  # Default to trainee if not specified
+    equipment_ids = request.form.getlist('equipment[]')
     
-    if not first_name or not email or not password:
-        flash('First name, email, and password are required', 'error')
+    if not first_name or not email:
+        flash('First name and email are required', 'error')
         return redirect(url_for('admin'))
     
     # Check if email already exists
@@ -1719,13 +1805,24 @@ def add_user():
         flash('Invalid role specified', 'error')
         return redirect(url_for('admin'))
     
+    # Only require password for admin users
+    if role == 'admin' and not password:
+        flash('Password is required for admin users', 'error')
+        return redirect(url_for('admin'))
+    
     user = User(
         first_name=first_name,
         email=email,
         role=role
     )
     user.set_last_name(last_name)
-    user.set_password(password)
+    if password:  # Only set password if provided
+        user.set_password(password)
+    
+    # Add equipment associations
+    if equipment_ids:
+        equipment_list = Equipment.query.filter(Equipment.id.in_(equipment_ids)).all()
+        user.equipment.extend(equipment_list)
     
     db.session.add(user)
     db.session.commit()
@@ -1749,6 +1846,7 @@ def edit_user(user_id):
     email = request.form.get('email', '').strip()
     password = request.form.get('password', '').strip()
     role = request.form.get('role', 'trainee')  # Default to trainee if not specified
+    equipment_ids = request.form.getlist('equipment[]')
     
     if not first_name or not email:
         flash('First name and email are required', 'error')
@@ -1765,6 +1863,11 @@ def edit_user(user_id):
         flash('Invalid role specified', 'error')
         return redirect(url_for('admin'))
     
+    # Only require password for admin users if changing to admin role
+    if role == 'admin' and user.role != 'admin' and not password:
+        flash('Password is required when promoting to admin', 'error')
+        return redirect(url_for('admin'))
+    
     user.first_name = first_name
     user.set_last_name(last_name)
     user.email = email
@@ -1773,6 +1876,12 @@ def edit_user(user_id):
     # Only update password if provided
     if password:
         user.set_password(password)
+    
+    # Update equipment associations
+    user.equipment = []  # Clear existing associations
+    if equipment_ids:
+        equipment_list = Equipment.query.filter(Equipment.id.in_(equipment_ids)).all()
+        user.equipment.extend(equipment_list)
     
     db.session.commit()
     
@@ -1842,6 +1951,85 @@ def test_tasks():
         })
     
     return render_template('test_tasks.html', tasks=tasks_data, current_user_id=session['user_id'])
+
+@app.route('/api/preferences', methods=['GET'])
+def get_preferences():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    # Get all preferences for the user
+    preferences = UserPreferences.query.filter_by(user_id=session['user_id']).all()
+    
+    # Convert to dictionary
+    prefs_dict = {pref.key: pref.value for pref in preferences}
+    
+    return jsonify(prefs_dict)
+
+@app.route('/api/preferences', methods=['POST'])
+def save_preferences():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    data = request.get_json()
+    if not data or not isinstance(data, dict):
+        return jsonify({'error': 'Invalid data'}), 400
+    
+    # Update or create each preference
+    for key, value in data.items():
+        # Find existing preference
+        pref = UserPreferences.query.filter_by(
+            user_id=session['user_id'],
+            key=key
+        ).first()
+        
+        if pref:
+            # Update existing
+            pref.value = value
+        else:
+            # Create new
+            pref = UserPreferences(
+                user_id=session['user_id'],
+                key=key,
+                value=value
+            )
+            db.session.add(pref)
+    
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+@app.route('/api/task-form-data')
+def get_task_form_data():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    # Get all active projects
+    projects = Project.query.join(
+        Client, Client.id == Project.client_id
+    ).filter(
+        Project.status == 'Active'
+    ).order_by(Project.name).all()
+    
+    # Get all users
+    users = User.query.order_by(User.first_name).all()
+    
+    # Convert to dictionaries
+    projects_data = [{
+        'id': p.id,
+        'name': p.name,
+        'display_name': f"{p.name} ({p.client.name})" if p.client else p.name,
+        'client_name': p.client.name if p.client else None,
+        'is_default': p.is_default
+    } for p in projects]
+    
+    users_data = [{
+        'id': u.id,
+        'name': u.full_name
+    } for u in users]
+    
+    return jsonify({
+        'projects': projects_data,
+        'users': users_data
+    })
 
 if __name__ == '__main__':
     with app.app_context():
