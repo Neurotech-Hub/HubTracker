@@ -7,6 +7,7 @@ import markdown
 from sqlalchemy import func, desc, text
 import re
 from markupsafe import Markup
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -100,7 +101,6 @@ def index():
     
     # Last 30 days activity
     thirty_days_ago = get_current_time() - timedelta(days=30)
-    recent_activity = Log.query.filter(Log.created_at >= thirty_days_ago).count()
     
     # Tasks completed in last 30 days (general count)
     tasks_completed_recently = Task.query.filter(
@@ -151,7 +151,6 @@ def index():
                          total_projects=total_projects,
                          total_clients=total_clients,
                          total_active_projects=total_active_projects,
-                         recent_activity=recent_activity,
                          tasks_completed_recently=tasks_completed_recently,
                          activity_data=activity_data,
                          project_status_counts=project_status_counts)
@@ -187,7 +186,7 @@ def login():
             user = User(
                 first_name=first_name,
                 email=email,
-                is_admin=True
+                role='admin'
             )
             user.set_last_name(last_name)
             user.set_password(password)
@@ -198,6 +197,7 @@ def login():
             # Log them in
             session['user_id'] = user.id
             session['user_name'] = user.full_name
+            session['role'] = user.role
             flash('Welcome! Your admin account has been created.', 'success')
             return redirect(url_for('dashboard'))
         
@@ -215,9 +215,14 @@ def login():
         
         user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
+            # Only allow admin users to login for now
+            if user.role != 'admin':
+                flash('Only administrators can login at this time', 'error')
+                return render_template('login.html')
+            
             session['user_id'] = user.id
             session['user_name'] = user.full_name
-            session['is_admin'] = user.is_admin
+            session['role'] = user.role
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid email or password', 'error')
@@ -1586,20 +1591,102 @@ def get_supplement(supplement_id):
         'notes': supplement.notes
     }
 
-# USERS ROUTES (Admin only)
-@app.route('/users')
-def users():
+# ADMIN ROUTES (Admin only)
+@app.route('/admin')
+def admin():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
     # Check if user is admin
-    if not session.get('is_admin', False):
+    if session.get('role') != 'admin':
         flash('Access denied. Administrator privileges required.', 'error')
         return redirect(url_for('dashboard'))
     
     users = User.query.order_by(User.first_name.asc()).all()
     
-    return render_template('users.html', users=users)
+    return render_template('admin.html', users=users)
+
+@app.route('/import_labs_projects', methods=['POST'])
+def import_labs_projects():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if 'import_file' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('admin'))
+    
+    file = request.files['import_file']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('admin'))
+    
+    if not file.filename.endswith(('.json', '.txt')):
+        flash('Invalid file type. Please upload a JSON or TXT file.', 'error')
+        return redirect(url_for('admin'))
+    
+    try:
+        content = file.read()
+        data = json.loads(content)
+        
+        for client_data in data.get('Clients', []):
+            # Check if client already exists
+            client = Client.query.filter_by(name=client_data['Name']).first()
+            if not client:
+                client = Client(name=client_data['Name'])
+                db.session.add(client)
+                db.session.commit()
+            
+            # Add projects
+            for project_name in client_data.get('Projects', []):
+                # Check if project already exists for this client
+                project = Project.query.filter_by(name=project_name, client_id=client.id).first()
+                if not project:
+                    project = Project(
+                        name=project_name,
+                        client_id=client.id,
+                        status='Archived',
+                        project_lead_id=1
+                    )
+                    db.session.add(project)
+            
+        db.session.commit()
+        flash('Import completed successfully', 'success')
+        
+    except json.JSONDecodeError:
+        flash('Invalid JSON format in uploaded file', 'error')
+    except Exception as e:
+        flash(f'Error during import: {str(e)}', 'error')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/run_import_script', methods=['POST'])
+def run_import_script():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        import import_labs
+        flash('Import script executed successfully', 'success')
+    except Exception as e:
+        flash(f'Error running import script: {str(e)}', 'error')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/update_settings', methods=['POST'])
+def update_settings():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    default_project_status = request.form.get('default_project_status')
+    timezone = request.form.get('timezone')
+    
+    # Here you would typically save these to a settings table or config file
+    # For now, we'll just show a success message
+    flash('Settings updated successfully', 'success')
+    return redirect(url_for('admin'))
 
 @app.route('/add_user', methods=['POST'])
 def add_user():
@@ -1607,7 +1694,7 @@ def add_user():
         return redirect(url_for('login'))
     
     # Check if user is admin
-    if not session.get('is_admin', False):
+    if session.get('role') != 'admin':
         flash('Access denied. Administrator privileges required.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -1615,22 +1702,27 @@ def add_user():
     last_name = request.form.get('last_name', '').strip()
     email = request.form.get('email', '').strip()
     password = request.form.get('password', '').strip()
-    is_admin = request.form.get('is_admin') == 'on'
+    role = request.form.get('role', 'trainee')  # Default to trainee if not specified
     
     if not first_name or not email or not password:
         flash('First name, email, and password are required', 'error')
-        return redirect(url_for('users'))
+        return redirect(url_for('admin'))
     
     # Check if email already exists
     existing_user = User.query.filter_by(email=email).first()
     if existing_user:
         flash('Email already exists', 'error')
-        return redirect(url_for('users'))
+        return redirect(url_for('admin'))
+    
+    # Validate role
+    if role not in ['admin', 'trainee', 'finance']:
+        flash('Invalid role specified', 'error')
+        return redirect(url_for('admin'))
     
     user = User(
         first_name=first_name,
         email=email,
-        is_admin=is_admin
+        role=role
     )
     user.set_last_name(last_name)
     user.set_password(password)
@@ -1638,7 +1730,7 @@ def add_user():
     db.session.add(user)
     db.session.commit()
     flash('User created successfully', 'success')
-    return redirect(url_for('users'))
+    return redirect(url_for('admin'))
 
 @app.route('/edit_user/<int:user_id>', methods=['POST'])
 def edit_user(user_id):
@@ -1646,7 +1738,7 @@ def edit_user(user_id):
         return redirect(url_for('login'))
     
     # Check if user is admin
-    if not session.get('is_admin', False):
+    if session.get('role') != 'admin':
         flash('Access denied. Administrator privileges required.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -1656,22 +1748,27 @@ def edit_user(user_id):
     last_name = request.form.get('last_name', '').strip()
     email = request.form.get('email', '').strip()
     password = request.form.get('password', '').strip()
-    is_admin = request.form.get('is_admin') == 'on'
+    role = request.form.get('role', 'trainee')  # Default to trainee if not specified
     
     if not first_name or not email:
         flash('First name and email are required', 'error')
-        return redirect(url_for('users'))
+        return redirect(url_for('admin'))
     
     # Check if email already exists (excluding current user)
     existing_user = User.query.filter(User.email == email, User.id != user_id).first()
     if existing_user:
         flash('Email already exists', 'error')
-        return redirect(url_for('users'))
+        return redirect(url_for('admin'))
+    
+    # Validate role
+    if role not in ['admin', 'trainee', 'finance']:
+        flash('Invalid role specified', 'error')
+        return redirect(url_for('admin'))
     
     user.first_name = first_name
     user.set_last_name(last_name)
     user.email = email
-    user.is_admin = is_admin
+    user.role = role
     
     # Only update password if provided
     if password:
@@ -1682,10 +1779,10 @@ def edit_user(user_id):
     # Update session if editing own account
     if user_id == session['user_id']:
         session['user_name'] = user.full_name
-        session['is_admin'] = user.is_admin
+        session['role'] = user.role
     
     flash('User updated successfully', 'success')
-    return redirect(url_for('users'))
+    return redirect(url_for('admin'))
 
 @app.route('/delete_user/<int:user_id>', methods=['POST'])
 def delete_user(user_id):
@@ -1693,14 +1790,14 @@ def delete_user(user_id):
         return redirect(url_for('login'))
     
     # Check if user is admin
-    if not session.get('is_admin', False):
+    if session.get('role') != 'admin':
         flash('Access denied. Administrator privileges required.', 'error')
         return redirect(url_for('dashboard'))
     
     # Prevent deleting yourself
     if user_id == session['user_id']:
         flash('Cannot delete your own account', 'error')
-        return redirect(url_for('users'))
+        return redirect(url_for('admin'))
     
     user = User.query.get_or_404(user_id)
     
@@ -1715,12 +1812,12 @@ def delete_user(user_id):
     
     if has_data:
         flash('Cannot delete user with existing data (tasks, logs, or led projects)', 'error')
-        return redirect(url_for('users'))
+        return redirect(url_for('admin'))
     
     db.session.delete(user)
     db.session.commit()
     flash('User deleted successfully', 'success')
-    return redirect(url_for('users'))
+    return redirect(url_for('admin'))
 
 @app.route('/test-tasks')
 def test_tasks():

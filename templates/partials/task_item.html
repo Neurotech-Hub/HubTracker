@@ -54,7 +54,7 @@
     <div class="task-actions-compact">
         <!-- Flag button -->
         <template x-if="showFlag && task && task.id">
-            <form :action="'/task/' + task.id + '/flag'" method="POST" class="d-inline">
+            <form :action="'/task/' + task.id + (task.is_flagged ? '/unflag' : '/flag')" method="POST" class="d-inline">
                 <button type="submit" class="action-btn-clean btn-flag" 
                         :class="{ 'flagged': task.is_flagged }" 
                         :title="task.is_flagged ? 'Remove Flag' : 'Flag Task'">

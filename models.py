@@ -19,7 +19,7 @@ class User(db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=True)
     email = db.Column(db.String(120), nullable=False, unique=True)
-    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    role = db.Column(db.String(20), nullable=False, default='trainee')  # admin, trainee, finance
     password = db.Column(db.String(255), nullable=True)  # Will implement hashing later
     
     # Relationships
@@ -53,6 +53,11 @@ class User(db.Model):
         # For now, store plaintext
         # TODO: Implement proper password hashing
         self.password = password
+        
+    @property
+    def is_admin(self):
+        """Helper property to maintain compatibility"""
+        return self.role == 'admin'
 
 class Membership(db.Model):
     __tablename__ = 'memberships'

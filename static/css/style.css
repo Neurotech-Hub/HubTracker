@@ -2651,3 +2651,33 @@ textarea:focus::placeholder {
 .modal.show .modal-dialog {
     opacity: 1;
 }
+
+/* Flag button styles */
+.action-btn-clean.btn-flag {
+    transition: all 0.15s ease;
+}
+
+.action-btn-clean.btn-flag:hover {
+    background: #eff6ff;
+    color: var(--primary-color);
+}
+
+.action-btn-clean.btn-flag.flagged {
+    color: var(--primary-color);
+}
+
+.action-btn-clean.btn-flag.flagged:hover {
+    background: #eff6ff;
+    color: var(--primary-color);
+}
+
+.action-btn-clean.btn-disabled {
+    color: #d1d5db;
+    cursor: not-allowed;
+}
+
+.action-btn-clean.btn-disabled:hover {
+    background: transparent;
+    color: #d1d5db;
+    transform: none;
+}

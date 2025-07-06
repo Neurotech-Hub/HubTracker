@@ -1,102 +1,46 @@
-.
-├── Al-Hasani Lab
-├── APEX
-├── Bagnall Lab
-│   └── FishFeeder
-├── Buchser Lab
-├── Carlson Lab
-│   ├── EOD Logger
-│   ├── McD EOD Proposal
-├── Cavalli Lab
-│   └── Custom Wells
-├── Chen Lab
-│   ├── In-vivo Thermistor
-│   └── Liquid Media Heater
-├── Ching Lab
-│   ├── ARCH Branding
-│   ├── ARCH-Stim
-├── Creed Lab
-│   ├── MouseStim
-│   ├── Sipper
-├── Dantzer Lab
-│   └── Juxta5
-├── Franken Lab
-│   ├── ToneTTL
-│   ├── Headstage
-│   ├── Photo Conditioner
-│   └── Woody Skull
-├── Gallagher Lab
-│   ├── Mola mola
-│   └── OceanX
-├── Gereau Lab
-├── Goodhill Lab
-├── Hengen Lab
-│   ├── Commutator Cable
-├── Holy Lab
-│   └── Light Sheet Manipulator
-├── Hublink
-│   ├── BEAM
-│   ├── Gap Fund
-│   ├── HubWheel
-├── Kepecs Lab
-│   ├── BPOD
-│   ├── Bridge
-│   ├── FED
-│   ├── Maze
-│   ├── Thermal Camera
-│   └── Wheel
-├── Kozloff Lab
-├── Kravitz Lab
-│   ├── AudioBNC
-│   ├── FED3
-│   ├── FED4
-│   └── TubeTrode
-├── Leuthardt Lab
-├── Maloney Lab
-├── Monosov Lab
-│   ├── 3D
-│   ├── Box
-│   ├── Diagrams
-│   ├── Drawings
-│   ├── KiCad
-│   └── Media
-├── Neuromuscular Lab
-│   └── Slicer
-├── Neurotech Hub
-├── Norris (Scott) Lab
-├── OBrien Lab
-│   ├── AFE PCB Fix
-│   ├── Archive
-│   ├── CSI Fanout
-│   ├── HDMI CSI Converter
-│   ├── Laser Driver
-├── Oviedo Lab
-├── Padao-Schioppa Lab
-│   ├── Neuropixels Interfaces
-├── Papouin Lab
-│   ├── Glasses
-│   └── Novel Objects
-├── Pignatelli Lab
-│   └── Slice Chamber
-├── Pradhan Lab
-│   └── CSD Protocol
-├── PsyGene
-├── Rajagopol Lab
-│   └── Flicker Tool
-├── Raman Lab
-│   ├── Chemisensor
-├── Richards Lab
-│   ├── Dunnart Mask
-│   ├── Goggles MRI
-│   ├── R21 Mouse Behavior
-├── Rosengart Lab
-│   ├── ARPA-H
-│   ├── Sydney Light Tent
-├── Samineni Lab
-│   └── Inscopix Breakout
-├── Sasaki Lab
-├── Sheets Lab
-│   └── Bio-protocol Manuscript
-├── Shmuylovich Lab
-│   └── LED Array
-└── Synder Lab
+{
+  "Clients": [
+    {"Name": "Al-Hasani Lab", "Projects": []},
+    {"Name": "APEX", "Projects": []},
+    {"Name": "Bagnall Lab", "Projects": ["FishFeeder"]},
+    {"Name": "Buchser Lab", "Projects": []},
+    {"Name": "Carlson Lab", "Projects": ["EOD Logger", "McD EOD Proposal"]},
+    {"Name": "Cavalli Lab", "Projects": ["Custom Wells"]},
+    {"Name": "Chen Lab", "Projects": ["In-vivo Thermistor", "Liquid Media Heater"]},
+    {"Name": "Ching Lab", "Projects": ["ARCH Branding", "ARCH-Stim"]},
+    {"Name": "Creed Lab", "Projects": ["MouseStim", "Sipper"]},
+    {"Name": "Dantzer Lab", "Projects": ["Juxta5"]},
+    {"Name": "Franken Lab", "Projects": ["ToneTTL", "Headstage", "Photo Conditioner", "Woody Skull"]},
+    {"Name": "Gallagher Lab", "Projects": ["Mola mola", "OceanX"]},
+    {"Name": "Gereau Lab", "Projects": []},
+    {"Name": "Goodhill Lab", "Projects": []},
+    {"Name": "Hengen Lab", "Projects": ["Commutator Cable"]},
+    {"Name": "Holy Lab", "Projects": ["Light Sheet Manipulator"]},
+    {"Name": "Hublink", "Projects": ["BEAM", "Gap Fund", "HubWheel"]},
+    {"Name": "Kepecs Lab", "Projects": ["BPOD", "Bridge", "FED", "Maze", "Thermal Camera", "Wheel"]},
+    {"Name": "Kozloff Lab", "Projects": []},
+    {"Name": "Kravitz Lab", "Projects": ["AudioBNC", "FED3", "FED4", "TubeTrode"]},
+    {"Name": "Leuthardt Lab", "Projects": []},
+    {"Name": "Maloney Lab", "Projects": []},
+    {"Name": "Monosov Lab", "Projects": ["3D", "Box", "Diagrams", "Drawings", "KiCad", "Media"]},
+    {"Name": "Neuromuscular Lab", "Projects": ["Slicer"]},
+    {"Name": "Neurotech Hub", "Projects": []},
+    {"Name": "Norris (Scott) Lab", "Projects": []},
+    {"Name": "OBrien Lab", "Projects": ["AFE PCB Fix", "Archive", "CSI Fanout", "HDMI CSI Converter", "Laser Driver"]},
+    {"Name": "Oviedo Lab", "Projects": []},
+    {"Name": "Padao-Schioppa Lab", "Projects": ["Neuropixels Interfaces"]},
+    {"Name": "Papouin Lab", "Projects": ["Glasses", "Novel Objects"]},
+    {"Name": "Pignatelli Lab", "Projects": ["Slice Chamber"]},
+    {"Name": "Pradhan Lab", "Projects": ["CSD Protocol"]},
+    {"Name": "PsyGene", "Projects": []},
+    {"Name": "Rajagopol Lab", "Projects": ["Flicker Tool"]},
+    {"Name": "Raman Lab", "Projects": ["Chemisensor"]},
+    {"Name": "Richards Lab", "Projects": ["Dunnart Mask", "Goggles MRI", "R21 Mouse Behavior"]},
+    {"Name": "Rosengart Lab", "Projects": ["ARPA-H", "Sydney Light Tent"]},
+    {"Name": "Samineni Lab", "Projects": ["Inscopix Breakout"]},
+    {"Name": "Sasaki Lab", "Projects": []},
+    {"Name": "Sheets Lab", "Projects": ["Bio-protocol Manuscript"]},
+    {"Name": "Shmuylovich Lab", "Projects": ["LED Array"]},
+    {"Name": "Synder Lab", "Projects": []}
+  ]
+}
