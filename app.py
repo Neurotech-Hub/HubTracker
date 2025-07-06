@@ -24,6 +24,9 @@ if DATABASE_URL:
     # Convert postgres:// to postgresql:// for newer SQLAlchemy versions
     if DATABASE_URL.startswith('postgres://'):
         DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    # Convert to use psycopg driver for psycopg3
+    if DATABASE_URL.startswith('postgresql://'):
+        DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 else:
     # For local development and Render with SQLite

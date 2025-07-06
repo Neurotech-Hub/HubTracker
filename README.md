@@ -157,7 +157,7 @@ sudo systemctl enable postgresql
    ```env
    FLASK_ENV=development
    SECRET_KEY=dev-secret-key-change-in-production
-   DATABASE_URL=postgresql://hubtracker_user:your_password@localhost:5432/hubtracker_dev
+   DATABASE_URL=postgresql+psycopg://hubtracker_user:your_password@localhost:5432/hubtracker_dev
    ```
 
 4. **Install Dependencies and Run**
@@ -267,7 +267,7 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    ```
    FLASK_ENV=production
    SECRET_KEY=your-secret-key-here
-   DATABASE_URL=postgresql://username:password@host:port/database
+   DATABASE_URL=postgresql+psycopg://username:password@host:port/database
    ```
    
    **Note:** PostgreSQL is required for production deployment. Set up a PostgreSQL service in Render and use the provided connection string.
@@ -300,7 +300,7 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    ```
    FLASK_ENV=production
    SECRET_KEY=your-secret-key-here
-   DATABASE_URL=postgresql://username:password@host:port/database
+   DATABASE_URL=postgresql+psycopg://username:password@host:port/database
    ```
 
 3. **Deploy**
@@ -327,7 +327,7 @@ heroku run flask db upgrade  # Initialize database
    ```bash
    export FLASK_ENV=production
    export SECRET_KEY=your-secret-key-here
-   export DATABASE_URL=postgresql://user:pass@localhost/hubtracker
+   export DATABASE_URL=postgresql+psycopg://user:pass@localhost/hubtracker
    ```
 
 2. **Initialize Database**
