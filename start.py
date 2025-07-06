@@ -21,6 +21,26 @@ def main():
     os.environ['FLASK_APP'] = 'app.py'
     os.environ['FLASK_ENV'] = 'production'
     
+    # Debug: Check DATABASE_URL
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        # Mask password for security
+        if '@' in database_url:
+            parts = database_url.split('@')
+            if ':' in parts[0]:
+                user_pass = parts[0].split(':')
+                if len(user_pass) >= 3:  # postgresql://user:pass@host
+                    masked_url = f"{user_pass[0]}:{user_pass[1]}:***@{parts[1]}"
+                else:
+                    masked_url = f"{parts[0].split(':')[0]}:***@{parts[1]}"
+            else:
+                masked_url = database_url
+        else:
+            masked_url = database_url
+        print(f"Database URL found: {masked_url}")
+    else:
+        print("No DATABASE_URL found, will use SQLite")
+    
     # Check if database already exists and has been migrated
     print("Checking database status...")
     
