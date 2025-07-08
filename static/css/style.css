@@ -1299,45 +1299,337 @@ textarea:disabled::placeholder {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+
+    /* Hide desktop sidebar on mobile */
     .sidebar {
-        transform: translateX(-100%);
+        display: none !important;
     }
 
-    .sidebar.show {
-        transform: translateX(0);
-    }
-
-    .main-content.with-sidebar {
-        margin-left: 0;
-    }
-
-    .mobile-nav-toggle {
+    /* Show mobile top navigation */
+    .mobile-top-nav {
         display: block !important;
+    }
+
+    /* Adjust main content for mobile top nav */
+    .main-content {
+        margin-left: 0 !important;
+        padding-top: 3.25rem;
+        /* Account for fixed top nav */
+    }
+
+    /* Ensure flash messages appear below mobile nav */
+    .flash-messages-container {
+        top: 3.25rem;
+    }
+
+    /* Adjust floating action button for mobile */
+    .floating-action-btn {
+        bottom: 1.5rem;
+        right: 1.5rem;
+    }
+
+    /* Hide pinned projects on very small screens */
+    @media (max-width: 480px) {
+        .mobile-nav-section {
+            display: none;
+        }
+
+        /* Adjust mobile nav header for very small screens */
+        .mobile-nav-header {
+            padding: 0.75rem;
+        }
+
+        .mobile-nav-brand {
+            font-size: 1.1rem;
+        }
+
+        .mobile-nav-toggle {
+            padding: 0.375rem;
+            font-size: 1.25rem;
+        }
     }
 }
 
 @media (min-width: 769px) {
+
+    /* Hide mobile navigation on desktop */
+    .mobile-top-nav {
+        display: none !important;
+    }
+
+    /* Show desktop sidebar */
     .sidebar {
+        display: flex !important;
         transform: translateX(0);
     }
 
-    .mobile-nav-toggle {
-        display: none !important;
+    /* Reset main content for desktop */
+    .main-content.with-sidebar {
+        margin-left: var(--sidebar-width);
+        padding-top: 0;
     }
+
+    /* Reset flash messages for desktop */
+    .flash-messages-container {
+        top: 0;
+    }
+}
+
+/* Mobile Top Navigation Bar */
+.mobile-top-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--sidebar-bg);
+    z-index: 1000;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: none;
+    /* Hidden by default, shown on mobile */
+}
+
+.mobile-nav-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mobile-nav-brand {
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.mobile-nav-brand .logo-hub {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.mobile-nav-brand .logo-tracker {
+    color: var(--primary-color);
+    font-weight: 400;
+    margin-left: 0.1em;
 }
 
 /* Mobile Navigation Toggle */
 .mobile-nav-toggle {
-    position: fixed;
-    top: 1rem;
-    left: 1rem;
-    z-index: 1001;
-    background: var(--sidebar-bg);
+    background: transparent;
     color: white;
     border: none;
+    padding: 0.375rem;
+    font-size: 1.25rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
     border-radius: 0.375rem;
-    padding: 0.5rem;
-    display: none;
+}
+
+.mobile-nav-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-nav-toggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+}
+
+.mobile-nav-toggle i {
+    transition: transform 0.3s ease;
+}
+
+/* Expandable Navigation Menu */
+.mobile-nav-menu {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: var(--sidebar-bg);
+}
+
+.mobile-nav-menu.expanded {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* Mobile Navigation Links */
+.mobile-nav-links {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.mobile-nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.mobile-nav-link:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    text-decoration: none;
+}
+
+.mobile-nav-link.active {
+    color: white;
+    background: var(--primary-color);
+}
+
+.mobile-nav-link i {
+    width: 1.5rem;
+    text-align: center;
+    margin-right: 0.75rem;
+}
+
+/* Mobile Navigation Sections */
+.mobile-nav-section {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mobile-nav-section-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 0.5rem;
+}
+
+/* Mobile Pinned Projects */
+.mobile-pinned-projects {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.mobile-pinned-project {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 0.375rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.mobile-pinned-project:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    text-decoration: none;
+}
+
+.mobile-pinned-project.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.mobile-project-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.mobile-project-name {
+    font-weight: 500;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.125rem;
+}
+
+.mobile-project-client {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mobile-task-count {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.75rem;
+    min-width: 1.5rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* Mobile Navigation Footer */
+.mobile-nav-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mobile-user-info {
+    margin-bottom: 0.75rem;
+}
+
+.mobile-user-label {
+    display: block;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 0.25rem;
+}
+
+.mobile-user-name {
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.mobile-user-name:hover {
+    color: white;
+    text-decoration: none;
+}
+
+.mobile-nav-action {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.375rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.375rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.mobile-nav-action:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    text-decoration: none;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mobile-nav-action:last-child {
+    margin-bottom: 0;
+}
+
+/* Body state when mobile nav is expanded */
+body.mobile-nav-expanded {
+    padding-top: 0;
+}
+
+/* Mobile nav toggle animation when expanded */
+.mobile-top-nav.expanded .mobile-nav-toggle i {
+    transform: rotate(180deg);
 }
 
 /* Utility Classes */
