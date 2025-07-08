@@ -44,7 +44,7 @@
     <!-- Kanban Board -->
     <div class="row mb-4 task-section" :class="{ 'loaded': loaded }">
         <div class="col-12">
-            <div class="row g-3 mb-3">
+            <div class="row g-3 mb-3 kanban-row-mobile">
                 <!-- Active Column -->
                 <div class="col-lg-4">
                     <div class="kanban-column">
@@ -188,6 +188,9 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Kanban Scroll Gutter for Mobile -->
+                <div class="kanban-scroll-gutter d-block d-lg-none" aria-label="Scroll area"></div>
             </div>
 
             <!-- Compact Archive Zone -->
