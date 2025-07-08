@@ -1879,7 +1879,9 @@ def add_user():
     
     # Add equipment associations
     if equipment_ids:
-        equipment_list = Equipment.query.filter(Equipment.id.in_(equipment_ids)).all()
+        # Convert string IDs to integers
+        equipment_int_ids = [int(id) for id in equipment_ids if id.isdigit()]
+        equipment_list = Equipment.query.filter(Equipment.id.in_(equipment_int_ids)).all()
         user.equipment.extend(equipment_list)
     
     db.session.add(user)
@@ -1938,7 +1940,9 @@ def edit_user(user_id):
     # Update equipment associations
     user.equipment = []  # Clear existing associations
     if equipment_ids:
-        equipment_list = Equipment.query.filter(Equipment.id.in_(equipment_ids)).all()
+        # Convert string IDs to integers
+        equipment_int_ids = [int(id) for id in equipment_ids if id.isdigit()]
+        equipment_list = Equipment.query.filter(Equipment.id.in_(equipment_int_ids)).all()
         user.equipment.extend(equipment_list)
     
     db.session.commit()
