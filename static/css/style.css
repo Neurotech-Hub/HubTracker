@@ -2188,6 +2188,39 @@ body.mobile-nav-expanded {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* Mobile spacing for dashboard action buttons */
+@media (max-width: 768px) {
+    .dashboard-action-btn {
+        margin-bottom: 0.75rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        border-radius: 12px !important;
+    }
+
+    .dashboard-action-btn:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* Remove top/bottom border-radius for middle buttons in a vertical stack */
+@media (max-width: 768px) {
+    .dashboard-action-btn:not(:first-child):not(:last-child) {
+        border-radius: 0 !important;
+    }
+
+    .dashboard-action-btn:first-child:not(:last-child) {
+        border-bottom-left-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+    }
+
+    .dashboard-action-btn:last-child:not(:first-child) {
+        border-top-left-radius: 0 !important;
+        border-top-right-radius: 0 !important;
+    }
+}
+
 /* Dashboard Task Button - matches task form styling */
 .dashboard-task-btn {
     background: rgba(255, 255, 255, 0.95) !important;
@@ -2982,4 +3015,43 @@ textarea:focus::placeholder {
     background: transparent;
     color: #d1d5db;
     transform: none;
+}
+
+/* Dashboard Action Group Responsive Layout */
+.dashboard-action-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+@media (max-width: 768px) {
+    .dashboard-action-group .dashboard-action-btn {
+        margin-bottom: 0.75rem !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
+        border-radius: 12px !important;
+    }
+
+    .dashboard-action-group .dashboard-action-btn:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    .dashboard-action-group {
+        gap: 0;
+    }
+}
+
+@media (min-width: 769px) {
+    .dashboard-action-group {
+        flex-direction: row;
+        gap: 1rem;
+    }
+
+    .dashboard-action-group .dashboard-action-btn {
+        margin-bottom: 0 !important;
+        width: auto;
+        flex: 1 1 0;
+    }
 }

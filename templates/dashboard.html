@@ -230,23 +230,21 @@
 
     <!-- Quick Actions -->
     <div class="row mb-4 fade-in" :class="{ 'loaded': loaded }">
-        <div class="col-md-4">
-            <button type="button" class="btn btn-primary w-100 dashboard-action-btn" 
-                    data-bs-toggle="modal" data-bs-target="#addProjectModal">
-                <i class="bi bi-plus-circle me-2"></i>New Project
-            </button>
-        </div>
-        <div class="col-md-4">
-            <button type="button" class="btn btn-primary w-100 dashboard-action-btn" 
-                    data-bs-toggle="modal" data-bs-target="#addClientModal">
-                <i class="bi bi-plus-circle me-2"></i>New Client
-            </button>
-        </div>
-        <div class="col-md-4">
-            <button type="button" class="btn btn-primary w-100 dashboard-action-btn" 
-                    data-bs-toggle="modal" data-bs-target="#addMembershipModal">
-                <i class="bi bi-plus-circle me-2"></i>New Membership
-            </button>
+        <div class="col-12 col-md-4 offset-md-0">
+            <div class="dashboard-action-group">
+                <button type="button" class="btn btn-primary w-100 dashboard-action-btn" 
+                        data-bs-toggle="modal" data-bs-target="#addProjectModal">
+                    <i class="bi bi-plus-circle me-2"></i>New Project
+                </button>
+                <button type="button" class="btn btn-primary w-100 dashboard-action-btn" 
+                        data-bs-toggle="modal" data-bs-target="#addClientModal">
+                    <i class="bi bi-plus-circle me-2"></i>New Client
+                </button>
+                <button type="button" class="btn btn-primary w-100 dashboard-action-btn" 
+                        data-bs-toggle="modal" data-bs-target="#addMembershipModal">
+                    <i class="bi bi-plus-circle me-2"></i>New Membership
+                </button>
+            </div>
         </div>
     </div>
 
