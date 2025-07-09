@@ -319,10 +319,13 @@ def dashboard():
     from datetime import timedelta
     
     # Get recent activity from ActivityLog
+    recent_activities = []
     try:
+        # Check if ActivityLog table exists by trying to query it
         recent_activities = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(20).all()
     except Exception as e:
         print(f"Warning: ActivityLog table not available: {e}")
+        # Set empty list to prevent further errors
         recent_activities = []
     
 
@@ -330,62 +333,78 @@ def dashboard():
     # Process activities for display - combine all into single list for proper ordering
     all_activities = []
     
-    for activity in recent_activities:
-        if activity.activity_type == 'task_completed':
-            # Get the task details
-            task = db.session.get(Task, activity.entity_id)
-            if task:
+    try:
+        for activity in recent_activities:
+            if activity.activity_type == 'task_completed':
+                # Get the task details
+                task = db.session.get(Task, activity.entity_id)
+                if task:
+                    all_activities.append({
+                        'type': 'task_completed',
+                        'data': serialize_task(task),
+                        'created_at': activity.created_at
+                    })
+            elif activity.activity_type == 'task_created' and activity.entity_id:
+                # Get the task details for assignments
+                task = db.session.get(Task, activity.entity_id)
+                if task:
+                    all_activities.append({
+                        'type': 'task_created',
+                        'data': serialize_task(task),
+                        'created_at': activity.created_at
+                    })
+            elif activity.activity_type == 'time_logged':
+                # Get the log details
+                log = db.session.get(Log, activity.entity_id)
+                if log:
+                    all_activities.append({
+                        'type': 'time_logged',
+                        'data': log,
+                        'created_at': activity.created_at
+                    })
+            elif activity.activity_type == 'project_status_change':
                 all_activities.append({
-                    'type': 'task_completed',
-                    'data': serialize_task(task),
+                    'type': 'project_status_change',
+                    'data': activity,
                     'created_at': activity.created_at
                 })
-        elif activity.activity_type == 'task_created' and activity.entity_id:
-            # Get the task details for assignments
-            task = db.session.get(Task, activity.entity_id)
-            if task:
+            elif activity.activity_type == 'client_created':
                 all_activities.append({
-                    'type': 'task_created',
-                    'data': serialize_task(task),
+                    'type': 'client_created',
+                    'data': activity,
                     'created_at': activity.created_at
                 })
-        elif activity.activity_type == 'time_logged':
-            # Get the log details
-            log = db.session.get(Log, activity.entity_id)
-            if log:
+            elif activity.activity_type == 'membership_supplement_added':
                 all_activities.append({
-                    'type': 'time_logged',
-                    'data': log,
+                    'type': 'membership_supplement_added',
+                    'data': activity,
                     'created_at': activity.created_at
                 })
-        elif activity.activity_type == 'project_status_change':
-            all_activities.append({
-                'type': 'project_status_change',
-                'data': activity,
-                'created_at': activity.created_at
-            })
-        elif activity.activity_type == 'client_created':
-            all_activities.append({
-                'type': 'client_created',
-                'data': activity,
-                'created_at': activity.created_at
-            })
-        elif activity.activity_type == 'membership_supplement_added':
-            all_activities.append({
-                'type': 'membership_supplement_added',
-                'data': activity,
-                'created_at': activity.created_at
-            })
-        elif activity.activity_type == 'user_created':
-            all_activities.append({
-                'type': 'user_created',
-                'data': activity,
-                'created_at': activity.created_at
-            })
-    
-    # Sort by creation time (most recent first) and limit to 20
-    all_activities.sort(key=lambda x: x['created_at'], reverse=True)
-    all_activities = all_activities[:20]
+            elif activity.activity_type == 'user_created':
+                all_activities.append({
+                    'type': 'user_created',
+                    'data': activity,
+                    'created_at': activity.created_at
+                })
+            elif activity.activity_type == 'project_created':
+                all_activities.append({
+                    'type': 'project_created',
+                    'data': activity,
+                    'created_at': activity.created_at
+                })
+            elif activity.activity_type == 'membership_created':
+                all_activities.append({
+                    'type': 'membership_created',
+                    'data': activity,
+                    'created_at': activity.created_at
+                })
+        
+        # Sort by creation time (most recent first) and limit to 20
+        all_activities.sort(key=lambda x: x['created_at'], reverse=True)
+        all_activities = all_activities[:20]
+    except Exception as e:
+        print(f"Warning: Error processing activities: {e}")
+        all_activities = []
     
 
     
