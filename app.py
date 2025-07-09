@@ -35,7 +35,7 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Import models and db
-from models import db, User, Client, Membership, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, MembershipSupplement, Equipment, UserPreferences
+from models import db, User, Client, Membership, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, MembershipSupplement, Equipment, UserPreferences, ActivityLog
 
 # Initialize extensions
 db.init_app(app)
@@ -102,11 +102,40 @@ def render_tags(value):
     value = re.sub(r'#\[(.*?)\]', r'<span class="task-tag task-tag-project">#\1</span>', value)
     return Markup(value)
 
+@app.template_filter('time_ago')
+def time_ago(datetime_obj):
+    """Convert datetime to 'time ago' format"""
+    if not datetime_obj:
+        return ''
+    
+    from datetime import datetime
+    now = get_current_time()
+    diff = now - datetime_obj
+    
+    if diff.days > 0:
+        if diff.days == 1:
+            return '1 day ago'
+        else:
+            return f'{diff.days} days ago'
+    elif diff.seconds >= 3600:
+        hours = diff.seconds // 3600
+        if hours == 1:
+            return '1 hour ago'
+        else:
+            return f'{hours} hours ago'
+    elif diff.seconds >= 60:
+        minutes = diff.seconds // 60
+        if minutes == 1:
+            return '1 minute ago'
+        else:
+            return f'{minutes} minutes ago'
+    else:
+        return 'just now'
+
 # Add global functions to Jinja2 environment
 app.jinja_env.globals.update(min=min)
 app.jinja_env.filters['render_tags'] = render_tags
-
-app.jinja_env.filters['render_tags'] = render_tags
+app.jinja_env.filters['time_ago'] = time_ago
 
 @app.route('/')
 def index():
@@ -272,7 +301,7 @@ def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    user = User.query.get(session['user_id'])
+    user = db.session.get(User, session['user_id'])
     
     # Get tasks assigned to current user - filter out completed (for dashboard widget)
     tasks_for_me_query = Task.query.filter(
@@ -286,34 +315,79 @@ def dashboard():
         (Task.is_complete == False)
     ).order_by(Task.created_at.desc()).all()
     
-    # Recent Activity (last 7 days)
+    # Recent Activity (limit 20 items)
     from datetime import timedelta
-    seven_days_ago = get_current_time() - timedelta(days=7)
     
-    # Recent tasks completed by me
-    recent_my_completions = Task.query.filter(
-        Task.completed_by_user_id == session['user_id'],
-        Task.completed_on >= seven_days_ago
-    ).order_by(Task.completed_on.desc()).limit(5).all()
+    # Get recent activity from ActivityLog
+    recent_activities = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(20).all()
     
-    # Recent tasks assigned to me
-    recent_assignments = Task.query.filter(
-        Task.assigned_to == session['user_id'],
-        Task.created_at >= seven_days_ago,
-        Task.is_complete == False
-    ).order_by(Task.created_at.desc()).limit(3).all()
+
     
-    # Recent logs I created
-    recent_logs = Log.query.filter(
-        Log.user_id == session['user_id'],
-        Log.created_at >= seven_days_ago
-    ).order_by(Log.created_at.desc()).limit(5).all()
+    # Process activities for display - combine all into single list for proper ordering
+    all_activities = []
+    
+    for activity in recent_activities:
+        if activity.activity_type == 'task_completed':
+            # Get the task details
+            task = db.session.get(Task, activity.entity_id)
+            if task:
+                all_activities.append({
+                    'type': 'task_completed',
+                    'data': serialize_task(task),
+                    'created_at': activity.created_at
+                })
+        elif activity.activity_type == 'task_created' and activity.entity_id:
+            # Get the task details for assignments
+            task = db.session.get(Task, activity.entity_id)
+            if task:
+                all_activities.append({
+                    'type': 'task_created',
+                    'data': serialize_task(task),
+                    'created_at': activity.created_at
+                })
+        elif activity.activity_type == 'time_logged':
+            # Get the log details
+            log = db.session.get(Log, activity.entity_id)
+            if log:
+                all_activities.append({
+                    'type': 'time_logged',
+                    'data': log,
+                    'created_at': activity.created_at
+                })
+        elif activity.activity_type == 'project_status_change':
+            all_activities.append({
+                'type': 'project_status_change',
+                'data': activity,
+                'created_at': activity.created_at
+            })
+        elif activity.activity_type == 'client_created':
+            all_activities.append({
+                'type': 'client_created',
+                'data': activity,
+                'created_at': activity.created_at
+            })
+        elif activity.activity_type == 'membership_supplement_added':
+            all_activities.append({
+                'type': 'membership_supplement_added',
+                'data': activity,
+                'created_at': activity.created_at
+            })
+        elif activity.activity_type == 'user_created':
+            all_activities.append({
+                'type': 'user_created',
+                'data': activity,
+                'created_at': activity.created_at
+            })
+    
+    # Sort by creation time (most recent first) and limit to 20
+    all_activities.sort(key=lambda x: x['created_at'], reverse=True)
+    all_activities = all_activities[:20]
+    
+
     
     # Serialize tasks with related data
     tasks_for_me = [serialize_task(task) for task in tasks_for_me_query]
     tasks_i_created = [serialize_task(task) for task in tasks_i_created_query]
-    recent_my_completions_serialized = [serialize_task(task) for task in recent_my_completions]
-    recent_assignments_serialized = [serialize_task(task) for task in recent_assignments]
     
     # Get day of week for personalized messages
     import datetime
@@ -338,9 +412,7 @@ def dashboard():
                          user=user,
                          tasks_for_me=tasks_for_me, 
                          tasks_i_created=tasks_i_created,
-                         recent_my_completions=recent_my_completions_serialized,
-                         recent_assignments=recent_assignments_serialized,
-                         recent_logs=recent_logs,
+                         all_activities=all_activities,
                          day_of_week=day_of_week,
                          # Kanban data
                          active_projects=active_projects,
@@ -502,6 +574,19 @@ def add_task():
         )
         db.session.add(task)
         db.session.commit()
+        
+        # Log task creation activity
+        ActivityLog.log_activity(
+            user_id=session['user_id'],
+            activity_type='task_created',
+            entity_type='task',
+            entity_id=task.id,
+            new_value={
+                'description': task.description,
+                'project_id': task.project_id,
+                'assigned_to': task.assigned_to
+            }
+        )
     
     # Redirect back to the referring page or dashboard
     return redirect(request.referrer or url_for('dashboard'))
@@ -512,8 +597,23 @@ def complete_task(task_id):
         return redirect(url_for('login'))
     
     task = Task.query.get_or_404(task_id)
+    was_complete = task.is_complete
     task.toggle_complete(session['user_id'])
     db.session.commit()
+    
+    # Log task completion activity (only if it was completed, not uncompleted)
+    if not was_complete and task.is_complete:
+        ActivityLog.log_activity(
+            user_id=session['user_id'],
+            activity_type='task_completed',
+            entity_type='task',
+            entity_id=task.id,
+            new_value={
+                'description': task.description,
+                'project_id': task.project_id,
+                'assigned_to': task.assigned_to
+            }
+        )
     
     return redirect(request.referrer or url_for('tasks'))
 
@@ -878,6 +978,21 @@ def add_project():
     
     db.session.add(project)
     db.session.commit()
+    
+    # Log project creation activity
+    ActivityLog.log_activity(
+        user_id=session['user_id'],
+        activity_type='project_created',
+        entity_type='project',
+        entity_id=project.id,
+        new_value={
+            'name': project.name,
+            'client_id': project.client_id,
+            'status': project.status,
+            'project_lead_id': project.project_lead_id
+        }
+    )
+    
     flash('Project created successfully', 'success')
     return redirect(url_for('projects'))
 
@@ -924,7 +1039,7 @@ def delete_project(project_id):
         return redirect(url_for('login'))
     
     # Check if project exists
-    project = Project.query.get(project_id)
+    project = db.session.get(Project, project_id)
     if not project:
         flash(f'Project with ID {project_id} not found', 'error')
         return redirect(url_for('projects'))
@@ -1001,6 +1116,19 @@ def add_client():
     
     db.session.add(client)
     db.session.commit()
+    
+    # Log client creation activity
+    ActivityLog.log_activity(
+        user_id=session['user_id'],
+        activity_type='client_created',
+        entity_type='client',
+        entity_id=client.id,
+        new_value={
+            'name': client.name,
+            'membership_id': client.membership_id
+        }
+    )
+    
     flash('Client created successfully', 'success')
     return redirect(url_for('clients'))
 
@@ -1140,6 +1268,22 @@ def add_membership():
     
     db.session.add(membership)
     db.session.commit()
+    
+    # Log membership creation activity
+    ActivityLog.log_activity(
+        user_id=session['user_id'],
+        activity_type='membership_created',
+        entity_type='membership',
+        entity_id=membership.id,
+        new_value={
+            'title': membership.title,
+            'cost': membership.cost,
+            'time': membership.time,
+            'budget': membership.budget,
+            'is_annual': membership.is_annual
+        }
+    )
+    
     flash('Membership created successfully', 'success')
     return redirect(url_for('memberships'))
 
@@ -1265,9 +1409,9 @@ def update_project_status(project_id):
     if new_status not in valid_statuses:
         return jsonify({'success': False, 'error': 'Invalid status'}), 400
     
-    # Update project status
-    project.status = new_status
-    project.updated_at = get_current_time()
+    # Use the new update_status method that logs activity
+    print(f"DEBUG: Updating project {project_id} status to {new_status}")
+    project.update_status(new_status, session['user_id'])
     
     try:
         db.session.commit()
@@ -1449,7 +1593,7 @@ def add_touch_log():
         return {'success': False, 'error': 'Project ID required'}, 400
     
     # Verify project exists (allow any non-archived project)
-    project = Project.query.filter(Project.id == project_id, Project.status != 'Archived').first()
+    project = Project.query.filter(Project.id == int(project_id), Project.status != 'Archived').first()
     if not project:
         return {'success': False, 'error': 'Project not found or archived'}, 404
     
@@ -1457,10 +1601,24 @@ def add_touch_log():
     log = Log(
         is_touch=True,
         user_id=session['user_id'],
-        project_id=project_id
+        project_id=int(project_id)
     )
     
     db.session.add(log)
+    db.session.commit()
+    
+    # Log touch activity
+    ActivityLog.log_activity(
+        user_id=session['user_id'],
+        activity_type='time_logged',
+        entity_type='log',
+        entity_id=log.id,
+        new_value={
+            'is_touch': log.is_touch,
+            'project_id': log.project_id
+        }
+    )
+    
     db.session.commit()
     
     return {'success': True, 'message': f'Touch logged for {project.name}'}
@@ -1484,7 +1642,7 @@ def add_time_log():
         return redirect(request.referrer or url_for('dashboard'))
     
     # Verify project exists (allow any non-archived project)
-    project = Project.query.filter(Project.id == project_id, Project.status != 'Archived').first()
+    project = Project.query.filter(Project.id == int(project_id), Project.status != 'Archived').first()
     if not project:
         flash('Project not found or archived', 'error')
         return redirect(request.referrer or url_for('dashboard'))
@@ -1496,10 +1654,26 @@ def add_time_log():
         fixed_cost=float(fixed_cost) if fixed_cost else None,
         notes=notes,
         user_id=session['user_id'],
-        project_id=project_id
+        project_id=int(project_id)
     )
     
     db.session.add(log)
+    db.session.commit()
+    
+    # Log time logging activity
+    ActivityLog.log_activity(
+        user_id=session['user_id'],
+        activity_type='time_logged',
+        entity_type='log',
+        entity_id=log.id,
+        new_value={
+            'is_touch': log.is_touch,
+            'hours': log.hours,
+            'fixed_cost': float(log.fixed_cost) if log.fixed_cost else None,
+            'project_id': log.project_id
+        }
+    )
+    
     db.session.commit()
     
     flash(f'Time logged for {project.name}', 'success')
@@ -1630,6 +1804,21 @@ def add_supplement(membership_id):
         notes=notes
     )
     db.session.add(supplement)
+    db.session.commit()
+    
+    # Log membership supplement activity
+    ActivityLog.log_activity(
+        user_id=session['user_id'],
+        activity_type='membership_supplement_added',
+        entity_type='membership_supplement',
+        entity_id=supplement.id,
+        new_value={
+            'membership_id': supplement.membership_id,
+            'time': supplement.time,
+            'budget': supplement.budget
+        }
+    )
+    
     db.session.commit()
     
     flash('Supplement added successfully.', 'success')
@@ -1886,6 +2075,21 @@ def add_user():
     
     db.session.add(user)
     db.session.commit()
+    
+    # Log user creation activity
+    ActivityLog.log_activity(
+        user_id=session['user_id'],
+        activity_type='user_created',
+        entity_type='user',
+        entity_id=user.id,
+        new_value={
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'role': user.role
+        }
+    )
+    
     flash('User created successfully', 'success')
     return redirect(url_for('admin'))
 

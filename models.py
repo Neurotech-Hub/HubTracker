@@ -205,6 +205,21 @@ class Project(db.Model):
     
     def __repr__(self):
         return f'<Project {self.name}>'
+    
+    def update_status(self, new_status, user_id):
+        """Update project status and log the change"""
+        old_status = self.status
+        self.status = new_status
+        
+        # Log the activity
+        ActivityLog.log_activity(
+            user_id=user_id,
+            activity_type='project_status_change',
+            entity_type='project',
+            entity_id=self.id,
+            old_value={'status': old_status},
+            new_value={'status': new_status, 'name': self.name}
+        )
 
 class Task(db.Model):
     __tablename__ = 'tasks'
@@ -230,6 +245,19 @@ class Task(db.Model):
         self.is_complete = True
         self.completed_by_user_id = user_id
         self.completed_on = get_current_time()
+        
+        # Log the activity
+        ActivityLog.log_activity(
+            user_id=user_id,
+            activity_type='task_completed',
+            entity_type='task',
+            entity_id=self.id,
+            new_value={
+                'description': self.description,
+                'project_id': self.project_id,
+                'assigned_to': self.assigned_to
+            }
+        )
     
     def toggle_complete(self, user_id):
         """Toggle task completion status"""
@@ -298,4 +326,38 @@ class UserPreferences(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'key', name='unique_user_preference'),)
     
     def __repr__(self):
-        return f'<UserPreferences {self.user_id}:{self.key}={self.value}>' 
+        return f'<UserPreferences {self.user_id}:{self.key}={self.value}>'
+
+class ActivityLog(db.Model):
+    __tablename__ = 'activity_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)  # Who performed the action
+    activity_type = db.Column(db.String(50), nullable=False)  # e.g., 'task_completed', 'project_status_change'
+    entity_type = db.Column(db.String(50), nullable=False)  # e.g., 'task', 'project', 'user'
+    entity_id = db.Column(db.Integer, nullable=False)  # ID of the affected record
+    old_value = db.Column(db.JSON, nullable=True)  # Previous state
+    new_value = db.Column(db.JSON, nullable=True)  # New state
+    extra_data = db.Column(db.JSON, nullable=True)  # Additional context
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    
+    # Relationships
+    user = db.relationship('User', backref='activity_logs', lazy='joined')
+    
+    def __repr__(self):
+        return f'<ActivityLog {self.activity_type} on {self.entity_type}:{self.entity_id}>'
+    
+    @classmethod
+    def log_activity(cls, user_id, activity_type, entity_type, entity_id, old_value=None, new_value=None, extra_data=None):
+        """Helper method to create activity log entries"""
+        log = cls(
+            user_id=user_id,
+            activity_type=activity_type,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            old_value=old_value,
+            new_value=new_value,
+            extra_data=extra_data
+        )
+        db.session.add(log)
+        return log 

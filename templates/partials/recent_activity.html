@@ -1,0 +1,170 @@
+<!-- Recent Activity -->
+<div class="row fade-in" :class="{ 'loaded': loaded }">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-activity me-2"></i>{{ title|default('Recent Activity') }}
+                </h5>
+                <small class="text-muted">{{ limit_text|default('Limit 20') }}</small>
+            </div>
+            <div class="card-body">
+                <!-- Loading State -->
+                <div x-show="!loaded" class="skeleton-loading">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="skeleton-circle skeleton me-2"></div>
+                        <div class="skeleton-content flex-grow-1">
+                            <div class="skeleton-text long skeleton"></div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="skeleton-circle skeleton me-2"></div>
+                        <div class="skeleton-content flex-grow-1">
+                            <div class="skeleton-text medium skeleton"></div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="skeleton-circle skeleton me-2"></div>
+                        <div class="skeleton-content flex-grow-1">
+                            <div class="skeleton-text long skeleton"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actual Content -->
+                <div x-cloak x-show="loaded">
+                    {% set activities = activities|default(all_activities) %}
+                    {% if activities %}
+                        {% for activity in activities %}
+                        <div class="d-flex align-items-center mb-2">
+                            {% if activity.type == 'task_completed' %}
+                                <div class="activity-icon-compact bg-success text-white me-2">
+                                    <i class="bi bi-check-circle"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="task-description-main completed-text">
+                                        {{ activity.data.original_input|default(activity.data.description)|render_tags|safe }}
+                                        {% if activity.data.is_flagged %}
+                                        <i class="bi bi-flag-fill text-primary ms-1" title="Flagged task"></i>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">by {{ activity.data.completed_by_name or 'Unknown' }}</small>
+                                </div>
+                                <small class="text-muted">completed</small>
+                            {% elif activity.type == 'task_created' %}
+                                <div class="activity-icon-compact bg-primary text-white me-2">
+                                    <i class="bi bi-person-check"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="task-description-main">
+                                        {{ activity.data.original_input|default(activity.data.description)|render_tags|safe }}
+                                        {% if activity.data.is_flagged %}
+                                        <i class="bi bi-flag-fill text-primary ms-1" title="Flagged task"></i>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">assigned to {{ activity.data.assigned_to_name or 'Unknown' }}</small>
+                                </div>
+                                <small class="text-muted">assigned</small>
+                            {% elif activity.type == 'time_logged' %}
+                                <div class="activity-icon-compact bg-info text-white me-2">
+                                    <i class="bi bi-{{ 'fingerprint' if activity.data.is_touch else 'clock' }}"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="task-description-main">
+                                        {% if activity.data.is_touch %}
+                                            Quick touch logged
+                                        {% else %}
+                                            Time logged{% if activity.data.hours %}: {{ activity.data.hours }} hours{% endif %}
+                                        {% endif %}
+                                        {% if activity.data.project %}
+                                        for <span class="task-tag task-tag-project">#{{ activity.data.project.name }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">by {{ activity.data.user.full_name }}</small>
+                                </div>
+                                <small class="text-muted">{{ activity.created_at|time_ago }}</small>
+                            {% elif activity.type == 'project_status_change' %}
+                                <div class="activity-icon-compact bg-warning text-white me-2">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="task-description-main">
+                                        Project status changed to <span class="badge bg-light text-dark">{{ activity.data.new_value.status }}</span>
+                                        {% if activity.data.new_value.name %}
+                                        for <span class="task-tag task-tag-project">#{{ activity.data.new_value.name }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">by {{ activity.data.user.full_name if activity.data.user else 'Unknown' }}</small>
+                                </div>
+                                <small class="text-muted">{{ activity.created_at|time_ago }}</small>
+                            {% elif activity.type == 'client_created' %}
+                                <div class="activity-icon-compact bg-success text-white me-2">
+                                    <i class="bi bi-building"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="task-description-main">
+                                        New client added
+                                    </div>
+                                    <small class="text-muted">by {{ activity.data.user.full_name if activity.data.user else 'Unknown' }}</small>
+                                </div>
+                                <small class="text-muted">{{ activity.created_at|time_ago }}</small>
+                            {% elif activity.type == 'membership_supplement_added' %}
+                                <div class="activity-icon-compact bg-success text-white me-2">
+                                    <i class="bi bi-plus-circle"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="task-description-main">
+                                        Membership supplement added
+                                    </div>
+                                    <small class="text-muted">by {{ activity.data.user.full_name if activity.data.user else 'Unknown' }}</small>
+                                </div>
+                                <small class="text-muted">{{ activity.created_at|time_ago }}</small>
+                            {% elif activity.type == 'user_created' %}
+                                <div class="activity-icon-compact bg-primary text-white me-2">
+                                    <i class="bi bi-person-plus"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="task-description-main">
+                                        New team member joined
+                                    </div>
+                                    <small class="text-muted">by {{ activity.data.user.full_name if activity.data.user else 'Unknown' }}</small>
+                                </div>
+                                <small class="text-muted">{{ activity.created_at|time_ago }}</small>
+                            {% elif activity.type == 'project_created' %}
+                                <div class="activity-icon-compact bg-info text-white me-2">
+                                    <i class="bi bi-folder-plus"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="task-description-main">
+                                        New project created: <span class="fw-medium">{{ activity.data.new_value.name }}</span>
+                                    </div>
+                                    <small class="text-muted">by {{ activity.data.user.full_name if activity.data.user else 'Unknown' }}</small>
+                                </div>
+                                <small class="text-muted">{{ activity.created_at|time_ago }}</small>
+                            {% elif activity.type == 'membership_created' %}
+                                <div class="activity-icon-compact bg-warning text-white me-2">
+                                    <i class="bi bi-card-checklist"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="task-description-main">
+                                        New membership created: <span class="fw-medium">{{ activity.data.new_value.title }}</span>
+                                    </div>
+                                    <small class="text-muted">by {{ activity.data.user.full_name if activity.data.user else 'Unknown' }}</small>
+                                </div>
+                                <small class="text-muted">{{ activity.created_at|time_ago }}</small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- No Recent Activity -->
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-clock-history fs-3 mb-2 d-block"></i>
+                            <div class="fw-medium">No recent activity</div>
+                            <div class="small">{{ empty_message|default('Complete tasks or log time to see activity here') }}</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 
