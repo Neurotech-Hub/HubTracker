@@ -42,35 +42,15 @@ def main():
         print("ERROR: No DATABASE_URL found. PostgreSQL is required.")
         sys.exit(1)
     
-    # Check if database has been migrated
-    print("Checking database migration status...")
-    
+    # Run database migrations
+    print("Running database migrations...")
     try:
-        # Try to get current revision using alembic directly
-        result = subprocess.run(['alembic', 'current'], 
-                              capture_output=True, text=True, check=True)
-        current_revision = result.stdout.strip()
-        print(f"Current database revision: {current_revision}")
-        
-        # If we get a revision, database is initialized
-        if current_revision and current_revision != "(None)" and "None" not in current_revision:
-            print("Database is up to date, skipping migrations")
-        else:
-            print("Database needs migrations, running upgrade...")
-            subprocess.run(['alembic', 'upgrade', 'head'], check=True)
-            print("Database migration completed")
-            
+        subprocess.run(['flask', 'db', 'upgrade'], check=True)
+        print("Database migrations completed successfully")
     except subprocess.CalledProcessError as e:
-        print(f"Migration check failed: {e}")
+        print(f"Migration failed: {e}")
         print(f"Error output: {e.stderr}")
-        print("Running initial database setup...")
-        try:
-            subprocess.run(['alembic', 'upgrade', 'head'], check=True)
-            print("Database setup completed")
-        except subprocess.CalledProcessError as e2:
-            print(f"Migration setup failed: {e2}")
-            print(f"Setup error output: {e2.stderr}")
-            print("Continuing anyway - database may already be set up...")
+        print("Continuing anyway - database may already be up to date...")
     
     # Start the web server
     print("Starting gunicorn server...")
