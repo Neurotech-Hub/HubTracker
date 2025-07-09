@@ -319,7 +319,11 @@ def dashboard():
     from datetime import timedelta
     
     # Get recent activity from ActivityLog
-    recent_activities = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(20).all()
+    try:
+        recent_activities = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(20).all()
+    except Exception as e:
+        print(f"Warning: ActivityLog table not available: {e}")
+        recent_activities = []
     
 
     

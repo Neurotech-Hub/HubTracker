@@ -46,7 +46,8 @@ def main():
     print("Checking database migration status...")
     
     try:
-        result = subprocess.run(['flask', 'db', 'current'], 
+        # Try to get current revision using alembic directly
+        result = subprocess.run(['alembic', 'current'], 
                               capture_output=True, text=True, check=True)
         current_revision = result.stdout.strip()
         print(f"Current database revision: {current_revision}")
@@ -56,14 +57,20 @@ def main():
             print("Database is up to date, skipping migrations")
         else:
             print("Database needs migrations, running upgrade...")
-            subprocess.run(['flask', 'db', 'upgrade'], check=True)
+            subprocess.run(['alembic', 'upgrade', 'head'], check=True)
             print("Database migration completed")
             
     except subprocess.CalledProcessError as e:
         print(f"Migration check failed: {e}")
+        print(f"Error output: {e.stderr}")
         print("Running initial database setup...")
-        subprocess.run(['flask', 'db', 'upgrade'], check=True)
-        print("Database setup completed")
+        try:
+            subprocess.run(['alembic', 'upgrade', 'head'], check=True)
+            print("Database setup completed")
+        except subprocess.CalledProcessError as e2:
+            print(f"Migration setup failed: {e2}")
+            print(f"Setup error output: {e2.stderr}")
+            print("Continuing anyway - database may already be set up...")
     
     # Start the web server
     print("Starting gunicorn server...")
