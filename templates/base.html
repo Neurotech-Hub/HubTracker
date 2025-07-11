@@ -368,6 +368,28 @@
                 }
             }, 200);
         }
+        
+        // Auto-dismiss flash messages after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                setTimeout(function() {
+                    // Use Bootstrap's alert dismiss method
+                    const closeButton = alert.querySelector('.btn-close');
+                    if (closeButton) {
+                        closeButton.click();
+                    } else {
+                        // Fallback: manually remove the alert
+                        alert.style.opacity = '0';
+                        alert.style.transition = 'opacity 0.5s ease';
+                        setTimeout(function() {
+                            alert.remove();
+                            checkEmptyContainer();
+                        }, 500);
+                    }
+                }, 5000); // 5 seconds
+            });
+        });
     </script>
     
     <!-- Mobile Navigation Script -->
