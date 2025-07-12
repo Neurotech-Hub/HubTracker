@@ -132,10 +132,24 @@ def time_ago(datetime_obj):
     else:
         return 'just now'
 
+@app.template_filter('currency')
+def currency_filter(value):
+    """Format number as currency with commas and 2 decimal places"""
+    if value is None:
+        return '$0.00'
+    
+    try:
+        # Convert to float and format with commas and 2 decimal places
+        formatted = "${:,.2f}".format(float(value))
+        return formatted
+    except (ValueError, TypeError):
+        return '$0.00'
+
 # Add global functions to Jinja2 environment
 app.jinja_env.globals.update(min=min)
 app.jinja_env.filters['render_tags'] = render_tags
 app.jinja_env.filters['time_ago'] = time_ago
+app.jinja_env.filters['currency'] = currency_filter
 
 @app.route('/')
 def index():
@@ -416,15 +430,33 @@ def dashboard():
     import datetime
     day_of_week = datetime.datetime.now().strftime('%A')
     
-    # Get Kanban data for projects
-    active_projects = Project.query.filter_by(status='Active').order_by(Project.updated_at.desc()).all()
-    awaiting_projects = Project.query.filter_by(status='Awaiting').order_by(Project.updated_at.desc()).all()
-    paused_projects = Project.query.filter_by(status='Paused').order_by(Project.updated_at.desc()).all()
-    archived_projects = Project.query.filter_by(status='Archived').order_by(Project.updated_at.desc()).all()
+    # Get Kanban data for projects (exclude default project)
+    active_projects = Project.query.filter(
+        Project.status == 'Active',
+        Project.is_default == False
+    ).order_by(Project.updated_at.desc()).all()
+    
+    awaiting_projects = Project.query.filter(
+        Project.status == 'Awaiting',
+        Project.is_default == False
+    ).order_by(Project.updated_at.desc()).all()
+    
+    paused_projects = Project.query.filter(
+        Project.status == 'Paused',
+        Project.is_default == False
+    ).order_by(Project.updated_at.desc()).all()
+    
+    archived_projects = Project.query.filter(
+        Project.status == 'Archived',
+        Project.is_default == False
+    ).order_by(Project.updated_at.desc()).all()
     
     # If no Awaiting/Paused projects exist yet, also check Prospective projects for Awaiting column
     if not awaiting_projects:
-        awaiting_projects = Project.query.filter_by(status='Prospective').order_by(Project.updated_at.desc()).all()
+        awaiting_projects = Project.query.filter(
+            Project.status == 'Prospective',
+            Project.is_default == False
+        ).order_by(Project.updated_at.desc()).all()
     
     # Get data for action buttons (creating new items)
     clients = Client.query.order_by(Client.name.asc()).all()
@@ -584,9 +616,11 @@ def add_task():
     print(f"DEBUG add_task: All form data: {dict(request.form)}")
     
     if description:
-        # If no project specified, use default project
+        # If no project specified, use the most recently updated project
         if not project_id:
-            default_project = Project.query.filter_by(is_default=True).first()
+            default_project = Project.query.filter(
+                Project.status != 'Archived'
+            ).order_by(Project.updated_at.desc()).first()
             project_id = default_project.id if default_project else None
         
         task = Task(
@@ -1652,6 +1686,7 @@ def get_projects_for_logging():
             'display_name': f"{project.name} ({client_name})"
         })
     
+    # The first project (most recently updated) will be the default
     return {'projects': projects}
 
 @app.route('/add_touch_log', methods=['POST'])

@@ -321,9 +321,9 @@ function taskForm() {
         },
 
         setDefaultProject() {
-            const defaultProject = this.projects.find(p => p.is_default);
-            if (defaultProject) {
-                this.selectedProject = defaultProject;
+            // Use the first project (most recently updated) as default
+            if (this.projects.length > 0) {
+                this.selectedProject = this.projects[0];
                 // Don't set rawInput - keep the text box empty
             }
         },

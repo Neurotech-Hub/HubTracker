@@ -80,20 +80,20 @@
                                 <div class="col-4">
                                     <div class="text-center">
                                         <div class="text-muted small">Total</div>
-                                        <div class="badge-clean badge-cost">${{ "%.2f"|format(membership.total_budget) }}</div>
+                                        <div class="badge-clean badge-cost">{{ membership.total_budget|currency }}</div>
                                     </div>
                                 </div>
                                 <div class="col-4">
                                     <div class="text-center">
                                         <div class="text-muted small">Used</div>
-                                        <div class="badge-clean badge-status-completed">${{ "%.2f"|format(membership.used_budget) }}</div>
+                                        <div class="badge-clean badge-status-completed">{{ membership.used_budget|currency }}</div>
                                     </div>
                                 </div>
                                 <div class="col-4">
                                     <div class="text-center">
                                         <div class="text-muted small">Remaining</div>
                                         <div class="badge-clean {% if membership.remaining_budget < 0 %}badge-status-archived{% else %}badge-status-active{% endif %}">
-                                            ${{ "%.2f"|format(membership.remaining_budget) }}
+                                            {{ membership.remaining_budget|currency }}
                                         </div>
                                     </div>
                                 </div>
@@ -208,7 +208,7 @@
                                             </td>
                                             <td>
                                                 {% if supplement.budget %}
-                                                <span class="badge-clean badge-cost">${{ "%.2f"|format(supplement.budget) }}</span>
+                                                <span class="badge-clean badge-cost">{{ supplement.budget|currency }}</span>
                                                 {% else %}
                                                 <span class="text-muted">-</span>
                                                 {% endif %}

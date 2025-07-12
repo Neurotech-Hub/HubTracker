@@ -22,7 +22,7 @@
     </td>
     <td class="align-middle">
         {% if membership.cost %}
-        ${{ "%.2f"|format(membership.cost) }}
+        {{ membership.cost|currency }}
         {% else %}
         <span class="text-muted">-</span>
         {% endif %}
@@ -36,7 +36,7 @@
     </td>
     <td class="align-middle">
         {% if membership.budget %}
-        ${{ "%.2f"|format(membership.budget) }}
+        {{ membership.budget|currency }}
         {% else %}
         <span class="text-muted">-</span>
         {% endif %}
