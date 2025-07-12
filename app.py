@@ -1483,8 +1483,11 @@ def project_detail(project_id):
             project.membership_budget = membership.budget
             project.budget_remaining = max(0, membership.budget - project.used_budget)
     
-    # Get all tasks for this project
-    tasks = project.tasks.order_by(Task.created_at.desc()).all()
+    # Get open tasks for this project
+    open_tasks = project.tasks.filter_by(is_complete=False).order_by(Task.created_at.desc()).all()
+    
+    # Get completed tasks for this project
+    completed_tasks = project.tasks.filter_by(is_complete=True).order_by(Task.completed_on.desc()).all()
     
     # Get recent logs for this project
     recent_logs = project.logs.order_by(Log.created_at.desc()).limit(10).all()
@@ -1496,7 +1499,8 @@ def project_detail(project_id):
     ).first() is not None
     
     # Serialize tasks
-    serialized_tasks = [serialize_task(task) for task in tasks]
+    serialized_open_tasks = [serialize_task(task) for task in open_tasks]
+    serialized_completed_tasks = [serialize_task(task) for task in completed_tasks]
     
     # Get clients and users for dropdowns
     clients = Client.query.order_by(Client.name.asc()).all()
@@ -1504,7 +1508,8 @@ def project_detail(project_id):
     
     return render_template('project_detail.html', 
                          project=project, 
-                         tasks=serialized_tasks,
+                         tasks=serialized_open_tasks,
+                         completed_tasks=serialized_completed_tasks,
                          recent_logs=recent_logs,
                          is_pinned=is_pinned,
                          clients=clients,

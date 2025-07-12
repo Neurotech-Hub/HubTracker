@@ -25,15 +25,8 @@
                     }
                 }
 }" x-init="setTimeout(() => $el.classList.add('loaded'), 50)">
-    <!-- Section Header -->
-    <div class="task-section-header-compact">
-        <div class="d-flex align-items-center mb-3">
-            <h6 class="mb-0 me-2 text-muted">
-                <i class="bi bi-check-circle me-1"></i>Completed Tasks
-            </h6>
-            <span class="task-count-bubble" x-text="filteredTasks.length || 0"></span>
-        </div>
-    </div>
+    <!-- Section Header - only show if not already provided by parent -->
+    <!-- This header is removed since the parent template now provides the header -->
 
     <!-- Task List -->
     <div class="task-list">
