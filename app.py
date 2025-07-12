@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 from flask_migrate import Migrate
 from datetime import datetime
 import pytz
@@ -519,6 +519,516 @@ def get_users():
             for u in users
         ]
     }
+
+@app.route('/api/memberships')
+def get_memberships():
+    if 'user_id' not in session:
+        return {'memberships': []}, 401
+    
+    memberships = Membership.query.all()
+    return {
+        'memberships': [
+            {
+                'id': m.id,
+                'title': m.title
+            }
+            for m in memberships
+        ]
+    }
+
+@app.route('/api/clients')
+def get_clients():
+    if 'user_id' not in session:
+        return {'clients': []}, 401
+    
+    clients = Client.query.all()
+    return {
+        'clients': [
+            {
+                'id': c.id,
+                'name': c.name
+            }
+            for c in clients
+        ]
+    }
+
+@app.route('/api/export-report', methods=['POST'])
+def export_report():
+    if 'user_id' not in session:
+        return {'error': 'Not logged in'}, 401
+    
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        from datetime import datetime, timedelta
+        import io
+        
+        # Get form data
+        start_date_str = request.json.get('start_date')
+        end_date_str = request.json.get('end_date')
+        filter_type = request.json.get('filter_type', 'all')
+        filter_value = request.json.get('filter_value', '')
+        
+        # Parse dates
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+        
+        # Create workbook
+        wb = Workbook()
+        
+        # Remove default sheet
+        wb.remove(wb.active)
+        
+        # Create header sheet
+        header_ws = wb.create_sheet("Report Info")
+        
+        # Add header information
+        header_ws['A1'] = "Hub Tracker Report"
+        header_ws['A1'].font = Font(size=16, bold=True)
+        
+        header_ws['A3'] = "Date Range:"
+        header_ws['B3'] = f"{start_date.strftime('%B %d, %Y')} - {end_date.strftime('%B %d, %Y')}"
+        
+        header_ws['A4'] = "Filter:"
+        if filter_type == 'all':
+            header_ws['B4'] = "All Memberships and Clients"
+        elif filter_type == 'membership':
+            membership = db.session.get(Membership, filter_value)
+            header_ws['B4'] = f"Membership: {membership.title if membership else 'Unknown'}"
+        elif filter_type == 'client':
+            client = db.session.get(Client, filter_value)
+            header_ws['B4'] = f"Client: {client.name if client else 'Unknown'}"
+        
+        header_ws['A6'] = "Generated:"
+        header_ws['B6'] = datetime.now().strftime('%B %d, %Y at %I:%M %p')
+        
+        # Auto-adjust column widths
+        for column in header_ws.columns:
+            max_length = 0
+            column_letter = get_column_letter(column[0].column)
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            header_ws.column_dimensions[column_letter].width = adjusted_width
+        
+        # Create data sheet
+        data_ws = wb.create_sheet("Project Data")
+        
+        # Define styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        membership_font = Font(bold=True, size=12)
+        membership_fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+        client_font = Font(bold=True)
+        client_fill = PatternFill(start_color="E7E6E6", end_color="E7E6E6", fill_type="solid")
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Add headers
+        headers = [
+            "Membership", "Client", "Project", "Log Type", "User", "Date/Time", "Hours", "Cost", "Notes", "Status"
+        ]
+        for col, header in enumerate(headers, 1):
+            cell = data_ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = border
+            cell.alignment = Alignment(horizontal="center")
+        
+        # Helper function to calculate project totals
+        def calculate_project_totals(project_id, start_date, end_date):
+            """Calculate total hours and cost for a project within date range"""
+            from sqlalchemy import func
+            from datetime import timedelta
+            
+            # Get detailed logs with actual hours and costs
+            detailed_logs = db.session.query(
+                func.sum(Log.hours).label('total_hours'),
+                func.sum(Log.fixed_cost).label('total_cost')
+            ).filter(
+                Log.project_id == project_id,
+                Log.created_at >= start_date,
+                Log.created_at < end_date + timedelta(days=1),
+                Log.is_touch.is_(False)
+            ).first()
+            
+            # Get touch logs count (30 minutes each)
+            touch_count = db.session.query(func.count(Log.id)).filter(
+                Log.project_id == project_id,
+                Log.created_at >= start_date,
+                Log.created_at < end_date + timedelta(days=1),
+                Log.is_touch.is_(True)
+            ).scalar() or 0
+            touch_hours = touch_count * 0.5
+            
+            total_hours = float(detailed_logs.total_hours or 0) + touch_hours
+            total_cost = float(detailed_logs.total_cost or 0)
+            
+            return total_hours, total_cost
+        
+        # Helper function to calculate membership remaining
+        def calculate_membership_remaining(membership_id):
+            """Calculate remaining budget and time for a membership, using supplement-aware totals"""
+            membership = db.session.get(Membership, membership_id)
+            if not membership:
+                return 0, 0
+            # Use the supplement-aware properties directly
+            total_budget = float(membership.total_budget or 0)
+            total_time = float(membership.total_time or 0)
+            # Calculate used cost and time for this membership (all clients/projects)
+            clients = Client.query.filter_by(membership_id=membership_id).all()
+            client_ids = [c.id for c in clients]
+            projects = Project.query.filter(Project.client_id.in_(client_ids)).all()
+            used_cost = 0
+            used_time = 0
+            for project in projects:
+                hours, cost = calculate_project_totals(project.id, membership.start_date or datetime(2020, 1, 1), datetime.now())
+                used_time += hours
+                used_cost += cost
+            remaining_budget = total_budget - used_cost
+            remaining_time = total_time - used_time
+            return remaining_budget, remaining_time
+        
+        # Get memberships based on filter
+        if filter_type == 'membership':
+            memberships = [db.session.get(Membership, filter_value)] if filter_value else []
+        elif filter_type == 'client':
+            client = db.session.get(Client, filter_value)
+            memberships = [client.membership] if client and client.membership else []
+        else:  # all
+            memberships = Membership.query.all()
+        
+        # Build report data
+        row = 2
+        membership_summaries = []
+        
+        for membership in memberships:
+            if not membership:
+                continue
+                
+            # Add membership header (merged row for clarity)
+            membership_cell = data_ws.cell(row=row, column=1, value=membership.title)
+            membership_cell.font = membership_font
+            membership_cell.fill = membership_fill
+            membership_cell.border = border
+            row += 1
+
+            clients = Client.query.filter_by(membership_id=membership.id).all()
+            membership_total_hours = 0
+            membership_total_cost = 0
+
+            for client in clients:
+                projects = Project.query.filter_by(client_id=client.id).all()
+                
+                # Check if this client has any projects with activity in the date range
+                client_has_activity = False
+                for project in projects:
+                    logs = Log.query.filter(
+                        Log.project_id == project.id,
+                        Log.created_at >= start_date,
+                        Log.created_at < end_date + timedelta(days=1)
+                    ).first()
+                    if logs:
+                        client_has_activity = True
+                        break
+                
+                # Skip clients with no activity in the date range
+                if not client_has_activity:
+                    continue
+
+                # Add client header (merged row for clarity)
+                client_cell = data_ws.cell(row=row, column=2, value=client.name)
+                client_cell.font = client_font
+                client_cell.fill = client_fill
+                client_cell.border = border
+                row += 1
+
+                client_total_hours = 0
+                client_total_cost = 0
+
+                for project in projects:
+                    # Fetch all logs for this project in the date range first
+                    logs = Log.query.filter(
+                        Log.project_id == project.id,
+                        Log.created_at >= start_date,
+                        Log.created_at < end_date + timedelta(days=1)
+                    ).order_by(Log.created_at).all()
+
+                    # Skip projects with no activity in the date range
+                    if not logs:
+                        continue
+
+                    # Add project header (merged row for clarity)
+                    project_cell = data_ws.cell(row=row, column=3, value=project.name)
+                    project_cell.font = Font(italic=True)
+                    project_cell.border = border
+                    row += 1
+
+                    project_hours = 0
+                    project_cost = 0
+
+                    for log in logs:
+                        log_type = "Project Touched" if log.is_touch else "Time/Cost Log"
+                        user_name = log.user.full_name if log.user else "Unknown"
+                        dt_str = log.created_at.strftime('%Y-%m-%d %I:%M %p') if log.created_at else ""
+                        hours = float(log.hours or 0)
+                        cost = float(log.fixed_cost or 0)
+                        notes = log.notes or ""
+                        status = project.status
+
+                        # Write log row
+                        data_ws.cell(row=row, column=1, value=membership.title).border = border
+                        data_ws.cell(row=row, column=2, value=client.name).border = border
+                        data_ws.cell(row=row, column=3, value=project.name).border = border
+                        data_ws.cell(row=row, column=4, value=log_type).border = border
+                        data_ws.cell(row=row, column=5, value=user_name).border = border
+                        data_ws.cell(row=row, column=6, value=dt_str).border = border
+                        data_ws.cell(row=row, column=7, value=hours).border = border
+                        data_ws.cell(row=row, column=8, value=cost).border = border
+                        data_ws.cell(row=row, column=9, value=notes).border = border
+                        data_ws.cell(row=row, column=10, value=status).border = border
+
+                        project_hours += hours if not log.is_touch else 0.5
+                        project_cost += cost
+                        client_total_hours += hours if not log.is_touch else 0.5
+                        client_total_cost += cost
+                        membership_total_hours += hours if not log.is_touch else 0.5
+                        membership_total_cost += cost
+                        row += 1
+
+                    # Project summary row
+                    if logs:
+                        data_ws.cell(row=row, column=3, value=f"{project.name} - TOTAL")
+                        data_ws.cell(row=row, column=7, value=round(project_hours, 2))
+                        data_ws.cell(row=row, column=8, value=round(project_cost, 2))
+                        data_ws.cell(row=row, column=10, value="PROJECT TOTAL")
+                        for col in range(1, 11):
+                            cell = data_ws.cell(row=row, column=col)
+                            cell.font = Font(bold=True)
+                            cell.fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+                            cell.border = border
+                        row += 1
+
+                # Client summary row
+                if projects:
+                    data_ws.cell(row=row, column=2, value=f"{client.name} - TOTAL")
+                    data_ws.cell(row=row, column=7, value=round(client_total_hours, 2))
+                    data_ws.cell(row=row, column=8, value=round(client_total_cost, 2))
+                    data_ws.cell(row=row, column=10, value="CLIENT TOTAL")
+                    for col in range(1, 11):
+                        cell = data_ws.cell(row=row, column=col)
+                        cell.font = Font(bold=True)
+                        cell.fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+                        cell.border = border
+                    row += 1
+
+            # Membership summary row
+            if clients:
+                data_ws.cell(row=row, column=1, value=f"{membership.title} - TOTAL")
+                data_ws.cell(row=row, column=7, value=round(membership_total_hours, 2))
+                data_ws.cell(row=row, column=8, value=round(membership_total_cost, 2))
+                data_ws.cell(row=row, column=10, value="MEMBERSHIP TOTAL")
+                for col in range(1, 11):
+                    cell = data_ws.cell(row=row, column=col)
+                    cell.font = Font(bold=True, size=12)
+                    cell.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+                    cell.border = border
+                row += 1
+                
+                # Calculate and store membership remaining
+                remaining_budget, remaining_time = calculate_membership_remaining(membership.id)
+                membership_summaries.append({
+                    'name': membership.title,
+                    'total_hours': membership_total_hours,
+                    'total_cost': membership_total_cost,
+                    'remaining_budget': remaining_budget,
+                    'remaining_time': remaining_time
+                })
+        
+        # Unassociated Projects Section
+        unassoc_clients = Client.query.filter(Client.membership_id.is_(None)).all()
+        if unassoc_clients:
+            # Section header
+            data_ws.cell(row=row, column=1, value="Unassociated Projects").font = Font(bold=True, size=12)
+            data_ws.cell(row=row, column=1).fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
+            row += 1
+            
+            for client in unassoc_clients:
+                projects = Project.query.filter_by(client_id=client.id).all()
+                
+                # Check if this client has any projects with activity in the date range
+                client_has_activity = False
+                for project in projects:
+                    logs = Log.query.filter(
+                        Log.project_id == project.id,
+                        Log.created_at >= start_date,
+                        Log.created_at < end_date + timedelta(days=1)
+                    ).first()
+                    if logs:
+                        client_has_activity = True
+                        break
+                
+                # Skip clients with no activity in the date range
+                if not client_has_activity:
+                    continue
+                
+                # Client header
+                client_cell = data_ws.cell(row=row, column=2, value=client.name)
+                client_cell.font = client_font
+                client_cell.fill = client_fill
+                client_cell.border = border
+                row += 1
+                
+                client_total_hours = 0
+                client_total_cost = 0
+                
+                for project in projects:
+                    # Fetch all logs for this project in the date range first
+                    logs = Log.query.filter(
+                        Log.project_id == project.id,
+                        Log.created_at >= start_date,
+                        Log.created_at < end_date + timedelta(days=1)
+                    ).order_by(Log.created_at).all()
+                    
+                    # Skip projects with no activity in the date range
+                    if not logs:
+                        continue
+                    
+                    # Project header
+                    project_cell = data_ws.cell(row=row, column=3, value=project.name)
+                    project_cell.font = Font(italic=True)
+                    project_cell.border = border
+                    row += 1
+                    
+                    project_hours = 0
+                    project_cost = 0
+                    
+                    for log in logs:
+                        log_type = "Project Touched" if log.is_touch else "Time/Cost Log"
+                        user_name = log.user.full_name if log.user else "Unknown"
+                        dt_str = log.created_at.strftime('%Y-%m-%d %I:%M %p') if log.created_at else ""
+                        hours = float(log.hours or 0)
+                        cost = float(log.fixed_cost or 0)
+                        notes = log.notes or ""
+                        status = project.status
+                        
+                        # Write log row
+                        data_ws.cell(row=row, column=1, value="Unassociated").border = border
+                        data_ws.cell(row=row, column=2, value=client.name).border = border
+                        data_ws.cell(row=row, column=3, value=project.name).border = border
+                        data_ws.cell(row=row, column=4, value=log_type).border = border
+                        data_ws.cell(row=row, column=5, value=user_name).border = border
+                        data_ws.cell(row=row, column=6, value=dt_str).border = border
+                        data_ws.cell(row=row, column=7, value=hours).border = border
+                        data_ws.cell(row=row, column=8, value=cost).border = border
+                        data_ws.cell(row=row, column=9, value=notes).border = border
+                        data_ws.cell(row=row, column=10, value=status).border = border
+                        
+                        project_hours += hours if not log.is_touch else 0.5
+                        project_cost += cost
+                        client_total_hours += hours if not log.is_touch else 0.5
+                        client_total_cost += cost
+                        row += 1
+                    
+                    # Project summary row
+                    if logs:
+                        data_ws.cell(row=row, column=3, value=f"{project.name} - TOTAL")
+                        data_ws.cell(row=row, column=7, value=round(project_hours, 2))
+                        data_ws.cell(row=row, column=8, value=round(project_cost, 2))
+                        data_ws.cell(row=row, column=10, value="PROJECT TOTAL")
+                        for col in range(1, 11):
+                            cell = data_ws.cell(row=row, column=col)
+                            cell.font = Font(bold=True)
+                            cell.fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+                            cell.border = border
+                        row += 1
+                
+                # Client summary row
+                if projects:
+                    data_ws.cell(row=row, column=2, value=f"{client.name} - TOTAL")
+                    data_ws.cell(row=row, column=7, value=round(client_total_hours, 2))
+                    data_ws.cell(row=row, column=8, value=round(client_total_cost, 2))
+                    data_ws.cell(row=row, column=10, value="CLIENT TOTAL")
+                    for col in range(1, 11):
+                        cell = data_ws.cell(row=row, column=col)
+                        cell.font = Font(bold=True)
+                        cell.fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+                        cell.border = border
+                    row += 1
+        
+        # Create summary sheet
+        summary_ws = wb.create_sheet("Membership Summary")
+        
+        # Add summary headers
+        summary_headers = ["Membership", "Total Hours (Period)", "Total Cost (Period)", "Remaining Budget", "Remaining Time"]
+        for col, header in enumerate(summary_headers, 1):
+            cell = summary_ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = border
+            cell.alignment = Alignment(horizontal="center")
+        
+        # Add summary data
+        for i, summary in enumerate(membership_summaries, 2):
+            summary_ws.cell(row=i, column=1, value=summary['name']).border = border
+            summary_ws.cell(row=i, column=2, value=round(summary['total_hours'], 2)).border = border
+            summary_ws.cell(row=i, column=3, value=round(summary['total_cost'], 2)).border = border
+            summary_ws.cell(row=i, column=4, value=round(summary['remaining_budget'], 2)).border = border
+            summary_ws.cell(row=i, column=5, value=round(summary['remaining_time'], 2)).border = border
+        
+        # Auto-adjust column widths for data sheet
+        for column in data_ws.columns:
+            max_length = 0
+            column_letter = get_column_letter(column[0].column)
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            data_ws.column_dimensions[column_letter].width = adjusted_width
+        
+        # Auto-adjust column widths for summary sheet
+        for column in summary_ws.columns:
+            max_length = 0
+            column_letter = get_column_letter(column[0].column)
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            summary_ws.column_dimensions[column_letter].width = adjusted_width
+        
+        # Save to bytes
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Generate filename
+        filename = f"hub_tracker_report_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}.xlsx"
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        print(f"Export error: {str(e)}")
+        return {'error': f'Export failed: {str(e)}'}, 500
 
 @app.route('/api/tasks')
 def get_tasks():

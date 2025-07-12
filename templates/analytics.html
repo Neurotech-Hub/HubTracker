@@ -26,6 +26,79 @@
         justify-content: center;
         font-size: 1.25rem;
     }
+    
+    /* Compact Export Date Selector */
+    .export-date-selector {
+        display: flex;
+        justify-content: center;
+        padding: 0.25rem;
+    }
+    
+    .selector-track-compact {
+        background: #f1f5f9;
+        border-radius: 999px;
+        padding: 0.125rem;
+        display: inline-flex;
+        position: relative;
+        min-width: 420px;
+    }
+    
+    .selector-pill-compact {
+        position: absolute;
+        top: 0.125rem;
+        bottom: 0.125rem;
+        width: calc(33.333% - 0.25rem);
+        background: white;
+        border-radius: 999px;
+        transition: all 0.3s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .selector-pill-compact.this-month {
+        left: 0.125rem;
+    }
+    
+    .selector-pill-compact.last-month {
+        left: calc(33.333% + 0.125rem);
+    }
+    
+    .selector-pill-compact.fiscal-year {
+        left: calc(66.666% + 0.125rem);
+    }
+    
+    .selector-option-compact {
+        flex: 1;
+        padding: 0.5rem 1rem;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        font-weight: 500;
+        font-size: 0.8rem;
+        position: relative;
+        z-index: 1;
+        transition: all 0.3s ease;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+    
+    .selector-option-compact:hover {
+        color: #334155;
+    }
+    
+    .selector-option-compact.active {
+        color: #1a1a1a;
+    }
+    
+    @media (max-width: 768px) {
+        .selector-track-compact {
+            min-width: 100%;
+        }
+        
+        .selector-option-compact {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -38,8 +111,8 @@
                 <div>
                     <h2 class="mb-0">Analytics</h2>
                 </div>
-                <button class="btn btn-outline-primary">
-                    <i class="bi bi-download me-2"></i>Export Data
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createReportModal">
+                    <i class="bi bi-file-earmark-text me-2"></i>Create Report
                 </button>
             </div>
         </div>
@@ -228,10 +301,226 @@
 
 
 </div>
+
+<!-- Create Report Modal -->
+<div class="modal fade" id="createReportModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-file-earmark-text me-2"></i>Create Report
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div x-data="exportForm()" x-init="init()">
+                    <!-- Date Range Selector -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Date Range</label>
+                            <div class="export-date-selector">
+                                <div class="selector-track-compact">
+                                    <div class="selector-pill-compact" :class="dateRange"></div>
+                                    <button type="button" 
+                                            class="selector-option-compact" 
+                                            :class="{ 'active': dateRange === 'this-month' }"
+                                            @click="setDateRange('this-month')">
+                                        This Month
+                                    </button>
+                                    <button type="button" 
+                                            class="selector-option-compact" 
+                                            :class="{ 'active': dateRange === 'last-month' }"
+                                            @click="setDateRange('last-month')">
+                                        Last Month
+                                    </button>
+                                    <button type="button" 
+                                            class="selector-option-compact" 
+                                            :class="{ 'active': dateRange === 'fiscal-year' }"
+                                            @click="setDateRange('fiscal-year')">
+                                        Fiscal Year
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Inputs -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="startDate" class="form-label">From Date</label>
+                            <input type="date" id="startDate" x-model="startDate" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="endDate" class="form-label">To Date</label>
+                            <input type="date" id="endDate" x-model="endDate" class="form-control">
+                        </div>
+                    </div>
+
+                    <!-- Filter Options -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="filterType" class="form-label">Filter By</label>
+                            <select id="filterType" x-model="filterType" class="form-select" @change="onFilterTypeChange()">
+                                <option value="all">All</option>
+                                <option value="membership">Membership</option>
+                                <option value="client">Client</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" x-show="filterType !== 'all'">
+                            <label for="filterValue" class="form-label" x-text="filterType === 'membership' ? 'Select Membership' : 'Select Client'"></label>
+                            <select id="filterValue" x-model="filterValue" class="form-select">
+                                <option value="">Select...</option>
+                                <template x-if="filterType === 'membership'">
+                                    <template x-for="membership in memberships" :key="membership.id">
+                                        <option :value="membership.id" x-text="membership.title"></option>
+                                    </template>
+                                </template>
+                                <template x-if="filterType === 'client'">
+                                    <template x-for="client in clients" :key="client.id">
+                                        <option :value="client.id" x-text="client.name"></option>
+                                    </template>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" @click="exportData()">
+                            <i class="bi bi-download me-2"></i>Create Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
+// Export Form Functionality
+function exportForm() {
+    return {
+        dateRange: 'this-month',
+        startDate: '',
+        endDate: '',
+        filterType: 'all',
+        filterValue: '',
+        memberships: [],
+        clients: [],
+        
+        init() {
+            this.loadData();
+            this.setDateRange('this-month');
+        },
+        
+        loadData() {
+            // Load memberships and clients for dropdowns
+            fetch('/api/memberships')
+                .then(response => response.json())
+                .then(data => {
+                    this.memberships = data.memberships || [];
+                })
+                .catch(error => console.error('Error loading memberships:', error));
+                
+            fetch('/api/clients')
+                .then(response => response.json())
+                .then(data => {
+                    this.clients = data.clients || [];
+                })
+                .catch(error => console.error('Error loading clients:', error));
+        },
+        
+        setDateRange(range) {
+            this.dateRange = range;
+            const today = new Date();
+            let start, end;
+            
+            switch(range) {
+                case 'this-month':
+                    start = new Date(today.getFullYear(), today.getMonth(), 1);
+                    end = today;
+                    break;
+                case 'last-month':
+                    start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    end = new Date(today.getFullYear(), today.getMonth(), 0);
+                    break;
+                case 'fiscal-year':
+                    const currentYear = today.getMonth() >= 6 ? today.getFullYear() : today.getFullYear() - 1;
+                    start = new Date(currentYear, 6, 1); // July 1
+                    end = today;
+                    break;
+            }
+            
+            this.startDate = start.toISOString().split('T')[0];
+            this.endDate = end.toISOString().split('T')[0];
+        },
+        
+        onFilterTypeChange() {
+            this.filterValue = '';
+        },
+        
+        exportData() {
+            // Show loading state
+            const exportBtn = event.target;
+            const originalText = exportBtn.innerHTML;
+            exportBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating Report...';
+            exportBtn.disabled = true;
+            
+            fetch('/api/export-report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    start_date: this.startDate,
+                    end_date: this.endDate,
+                    filter_type: this.filterType,
+                    filter_value: this.filterValue
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `hub_tracker_report_${this.startDate}_${this.endDate}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('createReportModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // Show success message
+                alert('Report generated successfully!');
+            })
+            .catch(error => {
+                console.error('Export error:', error);
+                alert('Failed to generate report. Please try again.');
+            })
+            .finally(() => {
+                // Reset button state
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+            });
+        }
+    }
+}
+
 // Task Completion Chart
 document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('taskCompletionChart').getContext('2d');
