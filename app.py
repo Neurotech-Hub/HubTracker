@@ -1213,11 +1213,14 @@ def membership_detail(membership_id):
     membership = Membership.query.get_or_404(membership_id)
     
     # Get all clients for this membership
-    clients = membership.clients.order_by(Client.name.asc()).all()
+    associated_clients = membership.clients.order_by(Client.name.asc()).all()
     
-    # Get all projects through these clients
+    # Get all available clients for the form
+    all_clients = Client.query.order_by(Client.name.asc()).all()
+    
+    # Get all projects through associated clients
     projects = []
-    for client in clients:
+    for client in associated_clients:
         projects.extend(client.projects.all())
     
     # Sort projects by name
@@ -1225,7 +1228,8 @@ def membership_detail(membership_id):
     
     return render_template('membership_detail.html', 
                          membership=membership,
-                         clients=clients,
+                         clients=associated_clients,
+                         all_clients=all_clients,
                          projects=projects,
                          MembershipSupplement=MembershipSupplement)
 
@@ -1319,6 +1323,7 @@ def edit_membership(membership_id):
     
     title = request.form.get('title', '').strip()
     start_date_str = request.form.get('start_date')
+    status = request.form.get('status', 'Active')
     is_annual = request.form.get('is_annual') == 'on'
     cost_str = request.form.get('cost', '').strip()
     time_str = request.form.get('time', '').strip()
@@ -1364,6 +1369,7 @@ def edit_membership(membership_id):
     
     membership.title = title
     membership.start_date = start_date
+    membership.status = status
     membership.is_annual = is_annual
     membership.cost = cost
     membership.time = time
@@ -1372,7 +1378,50 @@ def edit_membership(membership_id):
     
     db.session.commit()
     flash('Membership updated successfully', 'success')
-    return redirect(url_for('memberships'))
+    
+    # Redirect back to the membership detail page if we came from there
+    referrer = request.headers.get('Referer', '')
+    if f'/membership/{membership_id}' in referrer:
+        return redirect(url_for('membership_detail', membership_id=membership_id))
+    else:
+        return redirect(url_for('memberships'))
+
+@app.route('/membership/<int:membership_id>/update_clients', methods=['POST'])
+def update_membership_clients(membership_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    membership = Membership.query.get_or_404(membership_id)
+    
+    # Get the list of client IDs that should be associated
+    selected_client_ids = request.form.getlist('client_ids')
+    
+    # Convert to integers
+    try:
+        selected_client_ids = [int(cid) for cid in selected_client_ids]
+    except ValueError:
+        flash('Invalid client ID format', 'error')
+        return redirect(url_for('membership_detail', membership_id=membership_id))
+    
+    # Get all clients that should be associated
+    clients_to_associate = Client.query.filter(Client.id.in_(selected_client_ids)).all()
+    
+    # Get current associated clients
+    current_clients = membership.clients.all()
+    
+    # Remove clients that are no longer selected
+    for client in current_clients:
+        if client.id not in selected_client_ids:
+            client.membership_id = None
+    
+    # Add newly selected clients
+    for client in clients_to_associate:
+        if client not in current_clients:
+            client.membership_id = membership.id
+    
+    db.session.commit()
+    flash('Client associations updated successfully', 'success')
+    return redirect(url_for('membership_detail', membership_id=membership_id))
 
 @app.route('/delete_membership/<int:membership_id>', methods=['POST'])
 def delete_membership(membership_id):

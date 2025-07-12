@@ -182,7 +182,7 @@ function editMembership(membershipId, title, startDate, isAnnual, cost, time, bu
     document.getElementById('editMembershipNotes').value = notes || '';
     
     // Set form action
-    document.getElementById('editMembershipForm').action = `/membership/${membershipId}/edit`;
+    document.getElementById('editMembershipForm').action = `/edit_membership/${membershipId}`;
     
     // Show modal
     new bootstrap.Modal(document.getElementById('editMembershipModal')).show();

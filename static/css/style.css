@@ -1887,6 +1887,9 @@ body.mobile-nav-expanded {
     min-width: 1.25rem;
     height: 1.25rem;
     padding: 0 0.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .pinned-project-item:hover .task-count-bubble {
