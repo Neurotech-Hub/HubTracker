@@ -1539,7 +1539,7 @@ def analytics():
     thirty_days_ago = get_current_time() - timedelta(days=30)
     
     # Get basic stats for the top metrics
-    total_members = User.query.count()
+    total_members = Membership.query.filter_by(status='Active').count()
     total_projects = Project.query.count()
     total_clients = Client.query.count()
     open_tasks = Task.query.filter_by(is_complete=False).count()
@@ -1576,15 +1576,71 @@ def analytics():
             'my_tasks': my_completions
         })
     
-    # Get most active projects by task completion
-    most_active_projects = db.session.query(
+    # Helper function to calculate total logged time for a project
+    def calculate_project_logged_time(project_id, start_date):
+        """Calculate total logged time for a project including touch logs (30 min each)"""
+        from sqlalchemy import func, case
+        
+        # Get detailed logs with actual hours
+        detailed_hours = db.session.query(func.sum(Log.hours)).filter(
+            Log.project_id == project_id,
+            Log.created_at >= start_date,
+            Log.is_touch.is_(False)
+        ).scalar() or 0
+        
+        # Get touch logs count (30 minutes each)
+        touch_count = db.session.query(func.count(Log.id)).filter(
+            Log.project_id == project_id,
+            Log.created_at >= start_date,
+            Log.is_touch.is_(True)
+        ).scalar() or 0
+        
+        # Convert touch logs to hours (30 minutes each)
+        touch_hours = touch_count * 0.5
+        
+        return float(detailed_hours) + touch_hours
+    
+    # Get most active projects by task completion (last 30 days)
+    most_active_projects_raw = db.session.query(
         Project.name,
         Client.name.label('client_name'),
         func.count(Task.id).label('completed_tasks')
     ).join(Client).join(Task).filter(
         Task.is_complete.is_(True),
         Task.completed_on >= twenty_nine_days_ago
-    ).group_by(Project.id, Project.name, Client.name).order_by(desc('completed_tasks')).limit(10).all()
+    ).group_by(Project.id, Project.name, Client.name).order_by(desc('completed_tasks')).limit(8).all()
+    
+    # Convert to dictionaries for JSON serialization
+    most_active_projects = []
+    for project in most_active_projects_raw:
+        most_active_projects.append({
+            'name': project.name,
+            'client_name': project.client_name,
+            'completed_tasks': project.completed_tasks
+        })
+    
+    # Get most active projects by logged time (last 30 days)
+    most_logged_time_projects = []
+    projects_with_logs = db.session.query(
+        Project.id,
+        Project.name,
+        Client.name.label('client_name')
+    ).join(Client).join(Log).filter(
+        Log.created_at >= thirty_days_ago
+    ).group_by(Project.id, Project.name, Client.name).all()
+    
+    for project in projects_with_logs:
+        total_hours = calculate_project_logged_time(project.id, thirty_days_ago)
+        if total_hours > 0:  # Only include projects with actual logged time
+            most_logged_time_projects.append({
+                'name': project.name,
+                'client_name': project.client_name,
+                'total_hours': total_hours
+            })
+    
+    # Sort by total hours and limit to top 8
+    most_logged_time_projects.sort(key=lambda x: x['total_hours'], reverse=True)
+    most_logged_time_projects = most_logged_time_projects[:8]
     
     # LOG ANALYTICS (Last 30 Days)
     
@@ -1655,13 +1711,13 @@ def analytics():
                          # Task analytics
                          completion_data=completion_data,
                          most_active_projects=most_active_projects,
+                         most_logged_time_projects=most_logged_time_projects,
                          # Log analytics
                          total_logs_last_30=total_logs_last_30,
                          touch_logs_last_30=touch_logs_last_30,
                          detailed_logs_last_30=detailed_logs_last_30,
                          total_hours_last_30=round(total_hours_last_30, 1),
-                         log_activity_data=log_activity_data,
-                         most_logged_projects=most_logged_projects)
+                         log_activity_data=log_activity_data)
 
 # LOGGING ROUTES
 @app.route('/api/projects_for_logging')

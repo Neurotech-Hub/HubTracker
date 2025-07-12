@@ -57,7 +57,7 @@
                             </div>
                             <div>
                                 <div class="h4 mb-0">{{ total_members }}</div>
-                                <div class="text-muted small">Members</div>
+                                <div class="text-muted small">Memberships</div>
                             </div>
                         </div>
                     </div>
@@ -119,52 +119,47 @@
                     <small class="text-muted">Last 30 days</small>
                 </div>
                 <div class="card-body">
-                    <canvas id="taskCompletionChart" width="400" height="200"></canvas>
+                    <div style="height: 300px;">
+                        <canvas id="taskCompletionChart" width="400" height="100"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Project and User Activity -->
+    <!-- Project Activity Charts -->
     <div class="row">
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="bi bi-trophy me-2"></i>Most Active Projects
+                        <i class="bi bi-trophy me-2"></i>Most Active Projects by Task Completion
                     </h5>
-                    <small class="text-muted">By task completion (last 30 days)</small>
+                    <small class="text-muted">Last 30 days</small>
                 </div>
                 <div class="card-body">
                     {% if most_active_projects %}
+                    <div class="text-center mb-3">
+                        <canvas id="taskCompletionPieChart" width="300" height="300"></canvas>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover table-sm mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="border-0">#</th>
+                                    <th class="border-0">Rank</th>
                                     <th class="border-0">Project</th>
-                                    <th class="border-0">Client</th>
                                     <th class="border-0">Tasks</th>
-                                    <th class="border-0">Activity</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for project in most_active_projects %}
                                 <tr>
                                     <td>
-                                        <span class="badge-clean badge-rank">#{{ loop.index }}</span>
+                                        {{ loop.index }}
                                     </td>
                                     <td class="fw-medium">{{ project.name }}</td>
-                                    <td class="text-muted">{{ project.client_name }}</td>
                                     <td>
                                         <span class="badge-clean badge-status-completed">{{ project.completed_tasks }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="progress" style="height: 6px;">
-                                            <div class="progress-bar bg-success" 
-                                                 style="width: {{ (project.completed_tasks / most_active_projects[0].completed_tasks * 100) if most_active_projects[0].completed_tasks > 0 else 0 }}%">
-                                            </div>
-                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -186,37 +181,33 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="bi bi-journal-check me-2"></i>Most Logged Projects
+                        <i class="bi bi-clock me-2"></i>Most Active Projects by Logged Time
                     </h5>
-                    <small class="text-muted">By log entries (last 30 days)</small>
+                    <small class="text-muted">Last 30 days</small>
                 </div>
                 <div class="card-body">
-                    {% if most_logged_projects %}
+                    {% if most_logged_time_projects %}
+                    <div class="text-center mb-3">
+                        <canvas id="loggedTimePieChart" width="300" height="300"></canvas>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover table-sm mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="border-0">#</th>
+                                    <th class="border-0">Rank</th>
                                     <th class="border-0">Project</th>
-                                    <th class="border-0">Client</th>
-                                    <th class="border-0">Logs</th>
                                     <th class="border-0">Hours</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for project in most_logged_projects %}
+                                {% for project in most_logged_time_projects %}
                                 <tr>
                                     <td>
-                                        <span class="badge-clean badge-rank">#{{ loop.index }}</span>
+                                        {{ loop.index }}
                                     </td>
                                     <td class="fw-medium">{{ project.name }}</td>
-                                    <td class="text-muted">{{ project.client_name }}</td>
                                     <td>
-                                        <span class="badge-clean badge-status-active">{{ project.log_count }}</span>
-                                        <small class="text-muted">({{ project.touch_count }}T + {{ project.detailed_count }}D)</small>
-                                    </td>
-                                    <td>
-                                        <span class="badge-clean badge-count">{{ "%.1f"|format(project.total_hours or 0) }}h</span>
+                                        <span class="badge-clean badge-count">{{ "%.1f"|format(project.total_hours) }}h</span>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -225,7 +216,7 @@
                     </div>
                     {% else %}
                     <div class="text-center text-muted py-4">
-                        <i class="bi bi-journal-text fs-1 mb-3 d-block"></i>
+                        <i class="bi bi-clock fs-1 mb-3 d-block"></i>
                         <div class="fw-medium">No logging activity</div>
                         <div class="small">Log some time to see project rankings</div>
                     </div>
@@ -289,6 +280,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     display: false
                 }
             },
+            layout: {
+                padding: {
+                    top: 10,
+                    bottom: 10
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
@@ -314,6 +311,94 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+    
+    // Task Completion Pie Chart
+    const taskCompletionCtx = document.getElementById('taskCompletionPieChart');
+    if (taskCompletionCtx) {
+        const mostActiveProjects = {{ most_active_projects | tojson }};
+        
+        if (mostActiveProjects.length > 0) {
+            const labels = mostActiveProjects.map(p => p.name);
+            const data = mostActiveProjects.map(p => p.completed_tasks);
+            const colors = [
+                '#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6',
+                '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
+            ];
+            
+            new Chart(taskCompletionCtx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, data.length),
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 10,
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Logged Time Pie Chart
+    const loggedTimeCtx = document.getElementById('loggedTimePieChart');
+    if (loggedTimeCtx) {
+        const mostLoggedTimeProjects = {{ most_logged_time_projects | tojson }};
+        
+        if (mostLoggedTimeProjects.length > 0) {
+            const labels = mostLoggedTimeProjects.map(p => p.name);
+            const data = mostLoggedTimeProjects.map(p => p.total_hours);
+            const colors = [
+                '#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6',
+                '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
+            ];
+            
+            new Chart(loggedTimeCtx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, data.length),
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 10,
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
 });
 </script>
 {% endblock %} 
