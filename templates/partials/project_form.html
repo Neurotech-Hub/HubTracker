@@ -141,4 +141,16 @@ function editProject(id, name, clientId, projectLeadId, notes, status, isDefault
     document.getElementById('editProjectStatus').value = status;
     document.getElementById('editProjectDefault').checked = isDefault;
 }
+
+function editProjectFromData(button) {
+    const projectId = button.dataset.projectId;
+    const name = button.dataset.projectName;
+    const clientId = button.dataset.projectClientId;
+    const projectLeadId = button.dataset.projectLeadId || '';
+    const notes = button.dataset.projectNotes;
+    const status = button.dataset.projectStatus;
+    const isDefault = button.dataset.projectIsDefault === 'true';
+    
+    editProject(projectId, name, clientId, projectLeadId, notes, status, isDefault);
+}
 </script> 

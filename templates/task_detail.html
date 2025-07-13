@@ -129,7 +129,7 @@
                         </div>
                         <div class="card-body">
                             <div class="d-flex flex-column gap-2">
-                                                    <button class="action-btn-clean btn-edit align-self-start" onclick="editTaskUsingModal({{ task.id }}, '{{ task.description|e }}', {{ task.project_id or 'null' }}, '{{ task.project.name|e if task.project else '' }}', {{ task.assigned_to or 'null' }}, '{{ task.assignee.full_name|e if task.assignee else '' }}')" title="Edit Task">
+                                                    <button class="action-btn-clean btn-edit align-self-start" onclick="editTaskUsingModal({{ task.id }}, {{ task.description|tojson }}, {{ task.project_id or 'null' }}, {{ (task.project.name if task.project else '')|tojson }}, {{ task.assigned_to or 'null' }}, {{ (task.assignee.full_name if task.assignee else '')|tojson }})" title="Edit Task">
                         <i class="bi bi-pencil"></i>
                     </button>
                                 {% if task.project %}

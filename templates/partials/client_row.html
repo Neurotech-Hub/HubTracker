@@ -44,8 +44,12 @@
         <div class="action-btn-group">
             {% if show_edit %}
             <button type="button" class="action-btn-clean btn-edit" 
-                    onclick="editClient({{ client.id }}, '{{ client.name }}', {{ client.membership_id or 'null' }}, '{{ client.notes or '' }}')"
+                    data-client-id="{{ client.id }}"
+                    data-client-name="{{ client.name }}"
+                    data-client-membership-id="{{ client.membership_id or '' }}"
+                    data-client-notes="{{ client.notes or '' }}"
                     data-bs-toggle="modal" data-bs-target="#editClientModal"
+                    onclick="editClientFromData(this)"
                     title="Edit Client">
                 <i class="bi bi-pencil"></i>
             </button>
@@ -53,8 +57,10 @@
             
             {% if show_add_project %}
             <button type="button" class="action-btn-clean btn-add" 
-                    onclick="addProjectForClient({{ client.id }}, '{{ client.name }}')" 
+                    data-client-id="{{ client.id }}"
+                    data-client-name="{{ client.name }}"
                     data-bs-toggle="modal" data-bs-target="#addProjectModal"
+                    onclick="addProjectForClientFromData(this)"
                     title="Add Project">
                 <i class="bi bi-plus"></i>
             </button>
@@ -62,7 +68,10 @@
             
             {% if show_delete %}
             <button type="button" class="action-btn-clean btn-delete" 
-                    onclick="confirmClientDelete('{{ client.name }}', '{{ url_for('delete_client', client_id=client.id) }}', {{ client.projects.count() }})"
+                    data-client-name="{{ client.name }}"
+                    data-delete-url="{{ url_for('delete_client', client_id=client.id) }}"
+                    data-projects-count="{{ client.projects.count() }}"
+                    onclick="confirmClientDeleteFromData(this)"
                     title="Delete Client">
                 <i class="bi bi-trash"></i>
             </button>

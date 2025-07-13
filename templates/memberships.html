@@ -106,6 +106,28 @@ function confirmMembershipDelete(itemName, deleteUrl, clientsCount) {
     
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
+
+function editMembershipFromData(button) {
+    const membershipId = button.dataset.membershipId;
+    const title = button.dataset.membershipTitle;
+    const startDate = button.dataset.membershipStartDate;
+    const isAnnual = button.dataset.membershipIsAnnual === 'true';
+    const cost = button.dataset.membershipCost ? parseFloat(button.dataset.membershipCost) : null;
+    const time = button.dataset.membershipTime ? parseInt(button.dataset.membershipTime) : null;
+    const budget = button.dataset.membershipBudget ? parseFloat(button.dataset.membershipBudget) : null;
+    const notes = button.dataset.membershipNotes;
+    const status = button.dataset.membershipStatus;
+    
+    editMembership(membershipId, title, startDate, isAnnual, cost, time, budget, notes, status);
+}
+
+function confirmMembershipDeleteFromData(button) {
+    const itemName = button.dataset.membershipTitle;
+    const deleteUrl = button.dataset.deleteUrl;
+    const clientsCount = parseInt(button.dataset.clientsCount);
+    
+    confirmMembershipDelete(itemName, deleteUrl, clientsCount);
+}
 </script>
 {% endblock %}
 {% endblock %} 

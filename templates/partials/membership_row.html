@@ -58,10 +58,24 @@
             <a href="{{ url_for('membership_detail', membership_id=membership.id) }}" class="action-btn-clean btn-view" title="View Details">
                 <i class="bi bi-eye"></i>
             </a>
-            <button type="button" class="action-btn-clean btn-edit" title="Edit Membership" onclick="editMembership({{ membership.id }}, '{{ membership.title }}', '{{ membership.start_date.strftime('%Y-%m-%d') if membership.start_date else '' }}', {{ membership.is_annual|tojson }}, {{ membership.cost if membership.cost else 'null' }}, {{ membership.time if membership.time else 'null' }}, {{ membership.budget if membership.budget else 'null' }}, '{{ membership.notes|default('', true) }}', '{{ membership.status }}')">
+            <button type="button" class="action-btn-clean btn-edit" title="Edit Membership" 
+                    data-membership-id="{{ membership.id }}"
+                    data-membership-title="{{ membership.title }}"
+                    data-membership-start-date="{{ membership.start_date.strftime('%Y-%m-%d') if membership.start_date else '' }}"
+                    data-membership-is-annual="{{ membership.is_annual|tojson }}"
+                    data-membership-cost="{{ membership.cost if membership.cost else '' }}"
+                    data-membership-time="{{ membership.time if membership.time else '' }}"
+                    data-membership-budget="{{ membership.budget if membership.budget else '' }}"
+                    data-membership-notes="{{ membership.notes|default('', true) }}"
+                    data-membership-status="{{ membership.status }}"
+                    onclick="editMembershipFromData(this)">
                 <i class="bi bi-pencil"></i>
             </button>
-            <button type="button" class="action-btn-clean btn-delete" title="Delete Membership" onclick="confirmMembershipDelete('{{ membership.title }}', '{{ url_for('delete_membership', membership_id=membership.id) }}', {{ membership.clients.count() }})">
+            <button type="button" class="action-btn-clean btn-delete" title="Delete Membership" 
+                    data-membership-title="{{ membership.title }}"
+                    data-delete-url="{{ url_for('delete_membership', membership_id=membership.id) }}"
+                    data-clients-count="{{ membership.clients.count() }}"
+                    onclick="confirmMembershipDeleteFromData(this)">
                 <i class="bi bi-trash"></i>
             </button>
         </div>

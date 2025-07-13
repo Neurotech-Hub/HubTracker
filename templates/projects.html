@@ -118,6 +118,14 @@ function confirmProjectDelete(itemName, deleteUrl, openTasksCount) {
     
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
+
+function confirmProjectDeleteFromData(button) {
+    const itemName = button.dataset.projectName;
+    const deleteUrl = button.dataset.deleteUrl;
+    const openTasksCount = parseInt(button.dataset.openTasksCount);
+    
+    confirmProjectDelete(itemName, deleteUrl, openTasksCount);
+}
 </script>
 {% endblock %}
 {% endblock %} 

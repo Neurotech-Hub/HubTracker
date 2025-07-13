@@ -180,6 +180,30 @@ function confirmClientDelete(itemName, deleteUrl, projectsCount) {
     
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
+
+function editClientFromData(button) {
+    const clientId = button.dataset.clientId;
+    const name = button.dataset.clientName;
+    const membershipId = button.dataset.clientMembershipId || '';
+    const notes = button.dataset.clientNotes;
+    
+    editClient(clientId, name, membershipId, notes);
+}
+
+function addProjectForClientFromData(button) {
+    const clientId = button.dataset.clientId;
+    const clientName = button.dataset.clientName;
+    
+    addProjectForClient(clientId, clientName);
+}
+
+function confirmClientDeleteFromData(button) {
+    const itemName = button.dataset.clientName;
+    const deleteUrl = button.dataset.deleteUrl;
+    const projectsCount = parseInt(button.dataset.projectsCount);
+    
+    confirmClientDelete(itemName, deleteUrl, projectsCount);
+}
 </script>
 
 <!-- Delete Confirmation Modal -->

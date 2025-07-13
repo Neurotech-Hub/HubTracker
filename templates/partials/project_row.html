@@ -60,8 +60,15 @@
             
             {% if show_edit %}
             <button type="button" class="action-btn-clean btn-edit" 
-                    onclick="editProject({{ project.id }}, '{{ project.name }}', {{ project.client_id }}, {{ project.project_lead_id or 'null' }}, '{{ project.notes or '' }}', '{{ project.status }}', {{ project.is_default|lower }})"
+                    data-project-id="{{ project.id }}"
+                    data-project-name="{{ project.name }}"
+                    data-project-client-id="{{ project.client_id }}"
+                    data-project-lead-id="{{ project.project_lead_id or '' }}"
+                    data-project-notes="{{ project.notes or '' }}"
+                    data-project-status="{{ project.status }}"
+                    data-project-is-default="{{ project.is_default|lower }}"
                     data-bs-toggle="modal" data-bs-target="#editProjectModal"
+                    onclick="editProjectFromData(this)"
                     title="Edit Project">
                 <i class="bi bi-pencil"></i>
             </button>
@@ -69,7 +76,10 @@
             
             {% if show_delete %}
             <button type="button" class="action-btn-clean btn-delete" 
-                    onclick="confirmProjectDelete('{{ project.name|replace("'", "\\'")|replace('"', '\\"') }}', '{{ url_for('delete_project', project_id=project.id) }}', {{ project.open_tasks_count }})"
+                    data-project-name="{{ project.name }}"
+                    data-delete-url="{{ url_for('delete_project', project_id=project.id) }}"
+                    data-open-tasks-count="{{ project.open_tasks_count }}"
+                    onclick="confirmProjectDeleteFromData(this)"
                     title="Delete Project">
                 <i class="bi bi-trash"></i>
             </button>
