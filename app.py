@@ -158,7 +158,7 @@ def index():
     from sqlalchemy import func
     
     # Get public-friendly metrics
-    total_projects = Project.query.filter(Project.status.in_(['Active', 'Awaiting', 'Paused'])).count()
+    total_projects = Project.query.filter_by(status='Active').count()  # Only active projects
     total_clients = Client.query.count()
     total_active_projects = Project.query.filter_by(status='Active').count()
     total_users = User.query.count()
@@ -193,32 +193,178 @@ def index():
             'tasks': daily_tasks
         })
     
-    # Get some general project types/status distribution
-    project_status_results = db.session.query(
-        Project.status,
-        func.count(Project.id).label('count')
-    ).group_by(Project.status).all()
+    # Get trends data for chart (last 30 days) - Hours Logged and Projects Touched
+    trends_data = []
+    for i in range(30):
+        date = thirty_days_ago + timedelta(days=i)
+        date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end = date_start + timedelta(days=1)
+        
+        # Calculate total hours logged for this day (including touch logs as 0.5 hours each)
+        detailed_hours = db.session.query(func.sum(Log.hours)).filter(
+            Log.created_at >= date_start,
+            Log.created_at < date_end,
+            Log.is_touch.is_(False),
+            Log.hours.isnot(None)
+        ).scalar() or 0
+        
+        touch_count = db.session.query(func.count(Log.id)).filter(
+            Log.created_at >= date_start,
+            Log.created_at < date_end,
+            Log.is_touch.is_(True)
+        ).scalar() or 0
+        
+        # Convert touch logs to hours (30 minutes each)
+        touch_hours = touch_count * 0.5
+        total_hours = detailed_hours + touch_hours
+        
+        # Calculate projects touched based on activity logs
+        projects_touched = set()
+        
+        try:
+            # Get activity logs for this day
+            daily_activities = ActivityLog.query.filter(
+                ActivityLog.created_at >= date_start,
+                ActivityLog.created_at < date_end
+            ).all()
+            
+            for activity in daily_activities:
+                project_id = None
+                
+                if activity.activity_type == 'task_completed':
+                    # Get project from task
+                    if activity.new_value and 'project_id' in activity.new_value:
+                        project_id = activity.new_value['project_id']
+                
+                elif activity.activity_type == 'project_status_change':
+                    # Entity_id is the project_id
+                    project_id = activity.entity_id
+                
+                elif activity.activity_type in ['time_logged', 'touch_logged']:
+                    # Get project from log entry
+                    if activity.entity_type == 'log':
+                        log_entry = db.session.get(Log, activity.entity_id)
+                        if log_entry:
+                            project_id = log_entry.project_id
+                
+                if project_id:
+                    projects_touched.add(project_id)
+        
+        except Exception as e:
+            # If ActivityLog table doesn't exist or there's an error, default to 0
+            projects_touched = set()
+        
+        trends_data.append({
+            'date': date.strftime('%Y-%m-%d'),
+            'hours': round(total_hours, 1),
+            'projects_touched': len(projects_touched)
+        })
     
-    # Convert Row objects to dictionaries for JSON serialization
-    project_status_counts = [
-        {
-            'status': row.status,
-            'count': row.count
-        }
-        for row in project_status_results
-    ]
+    # Get task velocity data (tasks completed per day, last 30 days)
+    task_velocity_data = []
+    for i in range(30):
+        date = thirty_days_ago + timedelta(days=i)
+        date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end = date_start + timedelta(days=1)
+        
+        daily_tasks = Task.query.filter(
+            Task.completed_on >= date_start,
+            Task.completed_on < date_end,
+            Task.is_complete == True
+        ).count()
+        
+        task_velocity_data.append({
+            'date': date.strftime('%Y-%m-%d'),
+            'tasks_completed': daily_tasks
+        })
+    
+    # Project Status Data for pie chart (exclude default project)
+    project_status_data = {
+        'Active': Project.query.filter(Project.status == 'Active', Project.is_default == False).count(),
+        'Awaiting': Project.query.filter(Project.status == 'Awaiting', Project.is_default == False).count(),
+        'Paused': Project.query.filter(Project.status == 'Paused', Project.is_default == False).count(),
+        'Archived': Project.query.filter(Project.status == 'Archived', Project.is_default == False).count()
+    }
+    
+    # Recent Activity for public display (limit 10 items, sanitized)
+    public_activities = []
+    try:
+        recent_activities = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(10).all()
+        
+        for activity in recent_activities:
+            activity_item = None
+            
+            if activity.activity_type == 'task_completed':
+                activity_item = {
+                    'type': 'task_completed',
+                    'description': 'Task completed for a project',
+                    'created_at': activity.created_at
+                }
+            elif activity.activity_type == 'project_status_change':
+                old_status = activity.old_value.get('status') if activity.old_value else 'Unknown'
+                new_status = activity.new_value.get('status') if activity.new_value else 'Unknown'
+                activity_item = {
+                    'type': 'project_status_change',
+                    'description': f'A project status changed from {old_status} to {new_status}',
+                    'created_at': activity.created_at
+                }
+            elif activity.activity_type == 'time_logged':
+                activity_item = {
+                    'type': 'time_logged',
+                    'description': 'Time logged for a project',
+                    'created_at': activity.created_at
+                }
+            elif activity.activity_type == 'touch_logged':
+                activity_item = {
+                    'type': 'touch_logged',
+                    'description': 'Quick touch logged for a project',
+                    'created_at': activity.created_at
+                }
+            elif activity.activity_type == 'project_created':
+                activity_item = {
+                    'type': 'project_created',
+                    'description': 'New project created',
+                    'created_at': activity.created_at
+                }
+            elif activity.activity_type == 'client_created':
+                activity_item = {
+                    'type': 'client_created',
+                    'description': 'New client added',
+                    'created_at': activity.created_at
+                }
+            elif activity.activity_type == 'membership_created':
+                activity_item = {
+                    'type': 'membership_created',
+                    'description': 'New membership created',
+                    'created_at': activity.created_at
+                }
+            elif activity.activity_type == 'user_created':
+                activity_item = {
+                    'type': 'user_created',
+                    'description': 'New team member added',
+                    'created_at': activity.created_at
+                }
+            
+            if activity_item:
+                public_activities.append(activity_item)
+    
+    except Exception as e:
+        print(f"Warning: Error processing activities for landing page: {e}")
+        public_activities = []
+    
+    # Update variable names for metrics partial compatibility
+    total_members = total_memberships  # Rename for partial compatibility
     
     return render_template('landing.html',
+                         total_members=total_members,
                          total_projects=total_projects,
                          total_clients=total_clients,
-                         total_active_projects=total_active_projects,
-                         total_users=total_users,
-                         total_memberships=total_memberships,
                          open_tasks=open_tasks,
-                         total_equipment=total_equipment,
-                         tasks_completed_recently=tasks_completed_recently,
                          activity_data=activity_data,
-                         project_status_counts=project_status_counts)
+                         trends_data=trends_data,
+                         task_velocity_data=task_velocity_data,
+                         project_status_data=project_status_data,
+                         public_activities=public_activities)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
