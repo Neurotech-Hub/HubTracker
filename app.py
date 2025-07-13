@@ -489,7 +489,14 @@ def get_projects():
     if 'user_id' not in session:
         return {'projects': []}, 401
     
-    projects = Project.query.join(Client).all()
+    # Order projects: default project first, then by most recently updated
+    projects = Project.query.join(Client).filter(
+        Project.status != 'Archived'
+    ).order_by(
+        Project.is_default.desc(),  # Default project first
+        Project.updated_at.desc()   # Then most recently updated
+    ).all()
+    
     return {
         'projects': [
             {

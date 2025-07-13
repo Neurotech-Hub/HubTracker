@@ -298,6 +298,21 @@ function taskForm() {
             console.log('TaskForm initialized');
             this.loadData();
             this.setupEventListeners();
+
+            // Focus the input after Alpine.js is fully initialized
+            // Only focus if this is not inside a modal (main page task form)
+            this.$nextTick(() => {
+                const isInModal = this.$el.closest('.modal');
+                if (!isInModal) {
+                    // Use a longer delay to ensure all page initialization is complete
+                    setTimeout(() => {
+                        if (this.$refs.taskInput) {
+                            this.$refs.taskInput.focus();
+                            console.log('Task input focused');
+                        }
+                    }, 500);
+                }
+            });
         },
 
         async loadData() {
@@ -321,9 +336,10 @@ function taskForm() {
         },
 
         setDefaultProject() {
-            // Use the first project (most recently updated) as default
+            // Look for a project marked as default first, then use the first project
             if (this.projects.length > 0) {
-                this.selectedProject = this.projects[0];
+                const defaultProject = this.projects.find(p => p.is_default);
+                this.selectedProject = defaultProject || this.projects[0];
                 // Don't set rawInput - keep the text box empty
             }
         },
