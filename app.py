@@ -89,8 +89,8 @@ def inject_pinned_projects():
         
         current_time = get_current_time()
         
-        # Only show reminder after 1PM Chicago time
-        if current_time.hour < 13:
+        # Only show reminder after 12PM (noon) Chicago time
+        if current_time.hour < 12:
             return False
         
         # Check if user has logged today
