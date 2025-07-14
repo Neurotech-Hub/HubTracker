@@ -54,11 +54,10 @@
             <template x-for="project in projects" :key="project.id">
                 <div class="project-group mb-4">
                     <div class="project-header d-flex align-items-center mb-2">
-                        <h6 class="mb-0 text-muted">
-                            <i class="bi bi-hash me-1"></i>
-                            <span x-text="project.name"></span>
-                            <span x-show="project.client_name" class="text-muted" x-text="'(' + project.client_name + ')'"></span>
-                        </h6>
+                        <a :href="'/project/' + project.id" class="task-meta-item task-project-meta mb-0 text-decoration-none">
+                            <i class="bi bi-hash"></i>
+                            <span x-text="project.name + (project.client_name ? ' (' + project.client_name + ')' : '')"></span>
+                        </a>
                         <span class="task-count-bubble ms-2" x-text="project.tasks.length || 0"></span>
                     </div>
                     
