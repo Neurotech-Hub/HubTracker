@@ -83,9 +83,31 @@ def inject_pinned_projects():
         
         return has_logs
     
+    def should_show_log_reminder():
+        if 'user_id' not in session:
+            return False  # Don't show reminder if not logged in
+        
+        current_time = get_current_time()
+        
+        # Only show reminder after 1PM Chicago time
+        if current_time.hour < 13:
+            return False
+        
+        # Check if user has logged today
+        today_start = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = current_time.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        has_logs = Log.query.filter(
+            Log.user_id == session['user_id'],
+            Log.created_at.between(today_start, today_end)
+        ).first() is not None
+        
+        return not has_logs
+    
     return dict(
         get_pinned_projects=get_pinned_projects,
-        has_logged_today=has_logged_today()
+        has_logged_today=has_logged_today(),
+        should_show_log_reminder=should_show_log_reminder()
     )
 
 # Template filters
