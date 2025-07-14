@@ -215,7 +215,9 @@
                                             </td>
                                             <td>
                                                 {% if supplement.notes %}
-                                                {{ supplement.notes }}
+                                                <div class="rendered-notes">
+                                                    {{ supplement.notes|markdown|safe }}
+                                                </div>
                                                 {% else %}
                                                 <span class="text-muted">-</span>
                                                 {% endif %}

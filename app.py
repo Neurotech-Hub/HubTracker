@@ -147,6 +147,7 @@ def currency_filter(value):
 
 # Add global functions to Jinja2 environment
 app.jinja_env.globals.update(min=min)
+app.jinja_env.filters['markdown'] = markdown_filter
 app.jinja_env.filters['render_tags'] = render_tags
 app.jinja_env.filters['time_ago'] = time_ago
 app.jinja_env.filters['currency'] = currency_filter

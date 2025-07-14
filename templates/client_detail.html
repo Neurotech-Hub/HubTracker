@@ -63,7 +63,9 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <p class="mb-0">{{ client.notes }}</p>
+                    <div class="rendered-notes">
+                        {{ client.notes|markdown|safe }}
+                    </div>
                 </div>
             </div>
         </div>
