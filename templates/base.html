@@ -330,6 +330,10 @@
                             <label for="timeLogNotes" class="form-label">Notes</label>
                             <textarea class="form-control" id="timeLogNotes" name="notes" rows="3" required></textarea>
                         </div>
+                        
+                        <div class="mb-3">
+                            <input type="datetime-local" class="form-control" id="timeLogDateTime" name="log_datetime">
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -342,6 +346,37 @@
 
     <!-- Confetti Library -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Time Log Modal JavaScript -->
+    <script>
+    // Set default datetime when time log modal opens
+    document.addEventListener('DOMContentLoaded', function() {
+        const timeLogModal = document.getElementById('timeLogModal');
+        const dateTimeInput = document.getElementById('timeLogDateTime');
+        
+        if (timeLogModal && dateTimeInput) {
+            timeLogModal.addEventListener('shown.bs.modal', function() {
+                // Set to current local time if field is empty
+                if (!dateTimeInput.value) {
+                    const now = new Date();
+                    // Format as YYYY-MM-DDTHH:MM for datetime-local input
+                    const year = now.getFullYear();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const day = String(now.getDate()).padStart(2, '0');
+                    const hours = String(now.getHours()).padStart(2, '0');
+                    const minutes = String(now.getMinutes()).padStart(2, '0');
+                    
+                    dateTimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+                }
+            });
+            
+            // Clear datetime when modal is hidden
+            timeLogModal.addEventListener('hidden.bs.modal', function() {
+                dateTimeInput.value = '';
+            });
+        }
+    });
+    </script>
     
     <!-- Alpine.js with Collapse Plugin -->
     <script defer src="https://unpkg.com/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>

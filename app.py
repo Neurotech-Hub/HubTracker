@@ -2464,6 +2464,7 @@ def add_time_log():
     hours = request.form.get('hours')
     fixed_cost = request.form.get('fixed_cost')
     notes = request.form.get('notes', '').strip()
+    log_datetime_str = request.form.get('log_datetime', '').strip()
     
     if not project_id:
         flash('Project is required', 'error')
@@ -2479,6 +2480,19 @@ def add_time_log():
         flash('Project not found or archived', 'error')
         return redirect(request.referrer or url_for('dashboard'))
     
+    # Parse custom datetime if provided
+    log_datetime = None
+    if log_datetime_str:
+        try:
+            # Parse the datetime-local format (YYYY-MM-DDTHH:MM)
+            from datetime import datetime
+            log_datetime = datetime.strptime(log_datetime_str, '%Y-%m-%dT%H:%M')
+            # Localize to the application timezone
+            log_datetime = TIMEZONE.localize(log_datetime)
+        except ValueError:
+            flash('Invalid date/time format', 'error')
+            return redirect(request.referrer or url_for('dashboard'))
+    
     # Create time log
     log = Log(
         is_touch=False,
@@ -2489,11 +2503,15 @@ def add_time_log():
         project_id=int(project_id)
     )
     
+    # Override created_at if custom datetime provided
+    if log_datetime:
+        log.created_at = log_datetime
+    
     db.session.add(log)
     db.session.commit()
     
-    # Log time logging activity
-    ActivityLog.log_activity(
+    # Log time logging activity with the same datetime
+    activity_log = ActivityLog.log_activity(
         user_id=session['user_id'],
         activity_type='time_logged',
         entity_type='log',
@@ -2505,6 +2523,10 @@ def add_time_log():
             'project_id': log.project_id
         }
     )
+    
+    # Override ActivityLog created_at to match the log entry
+    if log_datetime:
+        activity_log.created_at = log_datetime
     
     db.session.commit()
     

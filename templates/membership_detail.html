@@ -575,5 +575,46 @@ function editSupplement(supplementId) {
         })
         .catch(error => console.error('Error:', error));
 }
+
+// Shared membership functions (also used in memberships.html)
+function editMembershipFromData(button) {
+    const membershipId = button.dataset.membershipId;
+    const title = button.dataset.membershipTitle;
+    const startDate = button.dataset.membershipStartDate;
+    const isAnnual = button.dataset.membershipIsAnnual === 'true';
+    const cost = button.dataset.membershipCost ? parseFloat(button.dataset.membershipCost) : null;
+    const time = button.dataset.membershipTime ? parseInt(button.dataset.membershipTime) : null;
+    const budget = button.dataset.membershipBudget ? parseFloat(button.dataset.membershipBudget) : null;
+    const notes = button.dataset.membershipNotes;
+    const status = button.dataset.membershipStatus;
+    
+    editMembership(membershipId, title, startDate, isAnnual, cost, time, budget, notes, status);
+}
+
+function confirmMembershipDeleteFromData(button) {
+    const itemName = button.dataset.membershipTitle;
+    const deleteUrl = button.dataset.deleteUrl;
+    const clientsCount = parseInt(button.dataset.clientsCount);
+    
+    confirmMembershipDelete(itemName, deleteUrl, clientsCount);
+}
+
+function confirmMembershipDelete(itemName, deleteUrl, clientsCount) {
+    document.getElementById('deleteItemName').textContent = itemName;
+    document.getElementById('deleteForm').action = deleteUrl;
+    
+    // Show warning if there are clients
+    const warningDiv = document.getElementById('clientsWarning');
+    const countSpan = document.getElementById('clientsCount');
+    
+    if (clientsCount > 0) {
+        countSpan.textContent = clientsCount;
+        warningDiv.style.display = 'block';
+    } else {
+        warningDiv.style.display = 'none';
+    }
+    
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
 </script>
 {% endblock %}
