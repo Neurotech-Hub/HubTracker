@@ -73,7 +73,7 @@
                     showCreator: true,
                     showActions: true,
                     showFlag: true,
-                    alwaysShowMetadata: false,
+                    alwaysShowMetadata: true,
                     
                     formatDate(dateString) {
                         if (!dateString) return '';
@@ -121,7 +121,8 @@
                     }
                 }
             }
-        }" class="tasks-created-footer">
+        }" 
+        class="tasks-created-footer">
             <div class="footer-toggle" @click="expandedTasksICreated = !expandedTasksICreated; if (expandedTasksICreated) loadTasksICreated()">
                 <div class="d-flex align-items-center justify-content-between py-2 px-2" style="border-color: #eee !important;">
                     <div></div>
@@ -148,7 +149,7 @@
                             showCreator: false,
                             showActions: true,
                             showFlag: true,
-                            alwaysShowMetadata: false,
+                            alwaysShowMetadata: true,
                             
                             formatDate(dateString) {
                                 if (!dateString) return '';
