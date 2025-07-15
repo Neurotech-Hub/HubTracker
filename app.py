@@ -476,14 +476,14 @@ def dashboard():
         (Task.is_complete == False)
     ).order_by(Task.created_at.desc()).all()
     
-    # Recent Activity (limit 20 items)
+    # Recent Activity (limit 10 items)
     from datetime import timedelta
     
     # Get recent activity from ActivityLog
     recent_activities = []
     try:
         # Check if ActivityLog table exists by trying to query it
-        recent_activities = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(20).all()
+        recent_activities = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(10).all()
     except Exception as e:
         print(f"Warning: ActivityLog table not available: {e}")
         # Set empty list to prevent further errors
@@ -560,9 +560,9 @@ def dashboard():
                     'created_at': activity.created_at
                 })
         
-        # Sort by creation time (most recent first) and limit to 20
+        # Sort by creation time (most recent first) and limit to 10
         all_activities.sort(key=lambda x: x['created_at'], reverse=True)
-        all_activities = all_activities[:20]
+        all_activities = all_activities[:10]
     except Exception as e:
         print(f"Warning: Error processing activities: {e}")
         all_activities = []
@@ -2388,32 +2388,80 @@ def analytics():
                          total_hours_last_30=round(total_hours_last_30, 1),
                          log_activity_data=log_activity_data)
 
-# LOGGING ROUTES
-@app.route('/api/projects_for_logging')
-def get_projects_for_logging():
+# LOGS ROUTES
+@app.route('/logs')
+def logs():
     if 'user_id' not in session:
-        return {'projects': []}, 401
+        return redirect(url_for('login'))
     
-    # Get all non-archived projects, ordered by most recent activity
-    projects_query = db.session.query(
-        Project,
-        Client.name.label('client_name')
-    ).join(Client).filter(
+    # Get all logs with their related data, ordered by most recent first
+    logs = Log.query.join(
+        User, User.id == Log.user_id
+    ).outerjoin(
+        Project, Project.id == Log.project_id
+    ).outerjoin(
+        Client, Client.id == Project.client_id
+    ).order_by(Log.created_at.desc()).all()
+    
+    # Get projects and users for the edit form
+    projects = Project.query.join(Client).filter(
         Project.status != 'Archived'
-    ).order_by(Project.updated_at.desc())
+    ).order_by(Project.name.asc()).all()
     
-    projects = []
-    for project, client_name in projects_query:
-        projects.append({
-            'id': project.id,
-            'name': project.name,
-            'client_name': client_name,
-            'display_name': f"{project.name} ({client_name})"
-        })
+    users = User.query.order_by(User.first_name.asc()).all()
     
-    # The first project (most recently updated) will be the default
-    return {'projects': projects}
+    return render_template('logs.html', 
+                         logs=logs,
+                         projects=projects,
+                         users=users)
 
+@app.route('/edit_log/<int:log_id>', methods=['POST'])
+def edit_log(log_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    log = Log.query.get_or_404(log_id)
+    
+    notes = request.form.get('notes', '').strip()
+    hours = request.form.get('hours')
+    fixed_cost = request.form.get('fixed_cost')
+    project_id = request.form.get('project_id')
+    log_datetime_str = request.form.get('log_datetime', '').strip()
+    
+    # Update log fields
+    log.notes = notes if notes else None
+    log.hours = float(hours) if hours else None
+    log.fixed_cost = float(fixed_cost) if fixed_cost else None
+    log.project_id = int(project_id) if project_id else None
+    
+    # Parse custom datetime if provided
+    if log_datetime_str:
+        try:
+            from datetime import datetime
+            log_datetime = datetime.strptime(log_datetime_str, '%Y-%m-%dT%H:%M')
+            log_datetime = TIMEZONE.localize(log_datetime)
+            log.created_at = log_datetime
+        except ValueError:
+            flash('Invalid date/time format', 'error')
+            return redirect(url_for('logs'))
+    
+    db.session.commit()
+    flash('Log entry updated successfully', 'success')
+    return redirect(url_for('logs'))
+
+@app.route('/delete_log/<int:log_id>', methods=['POST'])
+def delete_log(log_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    log = Log.query.get_or_404(log_id)
+    
+    db.session.delete(log)
+    db.session.commit()
+    flash('Log entry deleted successfully', 'success')
+    return redirect(url_for('logs'))
+
+# LOGGING ROUTES
 @app.route('/add_touch_log', methods=['POST'])
 def add_touch_log():
     if 'user_id' not in session:
@@ -3149,6 +3197,31 @@ def get_task_form_data():
         'projects': projects_data,
         'users': users_data
     })
+
+@app.route('/api/projects_for_logging')
+def get_projects_for_logging():
+    if 'user_id' not in session:
+        return {'projects': []}, 401
+    
+    # Get all non-archived projects, ordered by most recent activity
+    projects_query = db.session.query(
+        Project,
+        Client.name.label('client_name')
+    ).join(Client).filter(
+        Project.status != 'Archived'
+    ).order_by(Project.updated_at.desc())
+    
+    projects = []
+    for project, client_name in projects_query:
+        projects.append({
+            'id': project.id,
+            'name': project.name,
+            'client_name': client_name,
+            'display_name': f"{project.name} ({client_name})"
+        })
+    
+    # The first project (most recently updated) will be the default
+    return {'projects': projects}
 
 if __name__ == '__main__':
     with app.app_context():

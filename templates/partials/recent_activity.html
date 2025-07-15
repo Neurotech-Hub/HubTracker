@@ -6,7 +6,13 @@
                 <h5 class="mb-0">
                     <i class="bi bi-activity me-2"></i>{{ title|default('Recent Activity') }}
                 </h5>
+                {% if view_all_link %}
+                <a href="{{ view_all_link }}" class="text-decoration-none">
+                    <small class="text-muted">{{ limit_text|default('Limit 20') }} <i class="bi bi-arrow-right ms-1"></i></small>
+                </a>
+                {% else %}
                 <small class="text-muted">{{ limit_text|default('Limit 20') }}</small>
+                {% endif %}
             </div>
             <div class="card-body">
                 <!-- Loading State -->

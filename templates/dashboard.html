@@ -252,6 +252,8 @@
     </div>
 
     <!-- Recent Activity -->
+    {% set view_all_link = url_for('logs') %}
+    {% set limit_text = 'View All Logs' %}
     {% include 'partials/recent_activity.html' %}
 </div>
 

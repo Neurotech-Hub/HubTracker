@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - Hub Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">Log Entries</h2>
+                    <small class="text-muted">All time logs and project touches</small>
+                </div>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs List -->
+    <div class="row">
+        <div class="col-12">
+            {% if logs %}
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="border-0">Date/Time</th>
+                                        <th class="border-0">User</th>
+                                        <th class="border-0">Project</th>
+                                        <th class="border-0">Type</th>
+                                        <th class="border-0">Hours</th>
+                                        <th class="border-0">Cost</th>
+                                        <th class="border-0">Notes</th>
+                                        <th class="border-0 text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in logs %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-medium">{{ log.created_at.strftime('%b %d, %Y') }}</div>
+                                            <small class="text-muted">{{ log.created_at.strftime('%I:%M %p') }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="fw-medium">{{ log.user.full_name }}</div>
+                                        </td>
+                                        <td>
+                                            {% if log.project %}
+                                                <div class="fw-medium">{{ log.project.name }}</div>
+                                                <small class="text-muted">{{ log.project.client.name }}</small>
+                                            {% else %}
+                                                <span class="text-muted">No project</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if log.is_touch %}
+                                                <span class="badge bg-info">Touch</span>
+                                            {% else %}
+                                                <span class="badge bg-primary">Time Log</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if log.is_touch %}
+                                                <span class="text-muted">0.5h</span>
+                                            {% elif log.hours %}
+                                                {{ "%.1f"|format(log.hours) }}h
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if log.fixed_cost %}
+                                                {{ log.fixed_cost|currency }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if log.notes %}
+                                                <div class="text-truncate" style="max-width: 200px;" title="{{ log.notes }}">
+                                                    {{ log.notes }}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="action-btn-group">
+                                                {% if not log.is_touch %}
+                                                <button type="button" class="action-btn-clean btn-edit" 
+                                                        data-log-id="{{ log.id }}"
+                                                        data-log-notes="{{ log.notes or '' }}"
+                                                        data-log-hours="{{ log.hours or '' }}"
+                                                        data-log-fixed-cost="{{ log.fixed_cost or '' }}"
+                                                        data-log-project-id="{{ log.project_id or '' }}"
+                                                        data-log-datetime="{{ log.created_at.strftime('%Y-%m-%dT%H:%M') }}"
+                                                        data-bs-toggle="modal" data-bs-target="#editLogModal"
+                                                        onclick="editLogFromData(this)"
+                                                        title="Edit Log">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                {% endif %}
+                                                
+                                                <button type="button" class="action-btn-clean btn-delete" 
+                                                        data-log-id="{{ log.id }}"
+                                                        data-log-type="{{ 'Touch' if log.is_touch else 'Time Log' }}"
+                                                        data-log-project="{{ log.project.name if log.project else 'No project' }}"
+                                                        data-delete-url="{{ url_for('delete_log', log_id=log.id) }}"
+                                                        onclick="confirmLogDeleteFromData(this)"
+                                                        title="Delete Log">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-clock-history fs-1 mb-3 d-block"></i>
+                    <div class="fw-medium">No log entries found</div>
+                    <div class="small mb-3">Start logging time to see entries here</div>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                        <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Edit Log Modal -->
+<div class="modal fade" id="editLogModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editLogForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Log Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editLogProject" class="form-label">Project</label>
+                        <select id="editLogProject" name="project_id" class="form-select">
+                            <option value="">Select project...</option>
+                            {% for project in projects %}
+                            <option value="{{ project.id }}">{{ project.name }} ({{ project.client.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editLogDatetime" class="form-label">Date & Time</label>
+                        <input type="datetime-local" id="editLogDatetime" name="log_datetime" class="form-control">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLogHours" class="form-label">Hours</label>
+                                <input type="number" id="editLogHours" name="hours" class="form-control" step="0.1" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLogCost" class="form-label">Fixed Cost</label>
+                                <input type="number" id="editLogCost" name="fixed_cost" class="form-control" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editLogNotes" class="form-label">Notes</label>
+                        <textarea id="editLogNotes" name="notes" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteLogModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="deleteLogForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Log Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this <strong><span id="deleteLogType"></span></strong> entry?</p>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Project:</strong> <span id="deleteLogProject"></span><br>
+                        This action cannot be undone.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete Log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function editLogFromData(button) {
+    const logId = button.dataset.logId;
+    const notes = button.dataset.logNotes;
+    const hours = button.dataset.logHours;
+    const fixedCost = button.dataset.logFixedCost;
+    const projectId = button.dataset.logProjectId;
+    const datetime = button.dataset.logDatetime;
+    
+    // Set form action
+    document.getElementById('editLogForm').action = `/edit_log/${logId}`;
+    
+    // Populate form fields
+    document.getElementById('editLogProject').value = projectId;
+    document.getElementById('editLogDatetime').value = datetime;
+    document.getElementById('editLogHours').value = hours;
+    document.getElementById('editLogCost').value = fixedCost;
+    document.getElementById('editLogNotes').value = notes;
+}
+
+function confirmLogDeleteFromData(button) {
+    const logType = button.dataset.logType;
+    const logProject = button.dataset.logProject;
+    const deleteUrl = button.dataset.deleteUrl;
+    
+    // Set form action
+    document.getElementById('deleteLogForm').action = deleteUrl;
+    
+    // Update modal content
+    document.getElementById('deleteLogType').textContent = logType;
+    document.getElementById('deleteLogProject').textContent = logProject;
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('deleteLogModal')).show();
+}
+</script>
+{% endblock %} 

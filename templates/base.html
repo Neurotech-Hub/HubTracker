@@ -54,6 +54,9 @@
                 <a href="{{ url_for('analytics') }}" class="mobile-nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                     <i class="bi bi-graph-up me-2"></i>Analytics
                 </a>
+                <a href="{{ url_for('logs') }}" class="mobile-nav-link {% if request.endpoint == 'logs' %}active{% endif %}">
+                    <i class="bi bi-clock-history me-2"></i>Logs
+                </a>
             </nav>
             
             <!-- Pinned Projects Section -->
@@ -122,6 +125,9 @@
                 </a>
                 <a href="{{ url_for('analytics') }}" class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                     <i class="bi bi-graph-up me-2"></i>Analytics
+                </a>
+                <a href="{{ url_for('logs') }}" class="nav-link {% if request.endpoint == 'logs' %}active{% endif %}">
+                    <i class="bi bi-clock-history me-2"></i>Logs
                 </a>
             </div>
             

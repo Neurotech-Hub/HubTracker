@@ -161,6 +161,7 @@
                                 <tr>
                                     <th class="border-0">Rank</th>
                                     <th class="border-0">Project</th>
+                                    <th class="border-0">Client</th>
                                     <th class="border-0">Tasks</th>
                                 </tr>
                             </thead>
@@ -171,6 +172,7 @@
                                         {{ loop.index }}
                                     </td>
                                     <td class="fw-medium">{{ project.name }}</td>
+                                    <td class="text-muted">{{ project.client_name }}</td>
                                     <td>
                                         <span class="badge-clean badge-status-completed">{{ project.completed_tasks }}</span>
                                     </td>
@@ -209,6 +211,7 @@
                                 <tr>
                                     <th class="border-0">Rank</th>
                                     <th class="border-0">Project</th>
+                                    <th class="border-0">Client</th>
                                     <th class="border-0">Hours</th>
                                 </tr>
                             </thead>
@@ -219,6 +222,7 @@
                                         {{ loop.index }}
                                     </td>
                                     <td class="fw-medium">{{ project.name }}</td>
+                                    <td class="text-muted">{{ project.client_name }}</td>
                                     <td>
                                         <span class="badge-clean badge-count">{{ "%.1f"|format(project.total_hours) }}h</span>
                                     </td>
