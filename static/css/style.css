@@ -182,6 +182,45 @@ body {
     display: none;
 }
 
+/* Log Reminder Banner */
+.log-reminder-banner {
+    position: sticky;
+    top: 0;
+    z-index: 998;
+    background: rgba(255, 243, 205, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.log-reminder-banner .alert {
+    margin-bottom: 0;
+    border: none;
+    border-radius: 0;
+    background: rgba(255, 243, 205, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 0.75rem 1rem;
+}
+
+.log-reminder-banner .alert-link {
+    color: #856404;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.log-reminder-banner .alert-link:hover {
+    color: #533f03;
+    text-decoration: underline;
+}
+
+/* Adjust for mobile */
+@media (max-width: 768px) {
+    .log-reminder-banner {
+        top: 3.25rem;
+        /* Account for mobile nav */
+    }
+}
+
 /* Quick Task Form */
 .quick-task-form {
     background: linear-gradient(135deg, #ff6b9d, #c44be6, #8b5cf6, #06b6d4);

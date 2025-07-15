@@ -190,6 +190,16 @@
             {% endif %}
         {% endwith %}
 
+        <!-- Log Reminder Banner -->
+        {% if should_show_log_reminder %}
+        <div class="log-reminder-banner" id="logReminderBanner">
+            <div class="alert alert-warning fade show" role="alert">
+                <i class="bi bi-clock-history me-2"></i>
+                <strong>No time logged yet today</strong> - want to <a href="#" class="alert-link" onclick="openLogModal(event)">create an entry</a>?
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Page Content -->
         <div class="page-content fade-in" :class="{ 'loaded': pageLoaded }">
             <!-- Loading State -->
@@ -414,9 +424,9 @@
             }, 200);
         }
         
-        // Auto-dismiss flash messages after 5 seconds
+        // Auto-dismiss flash messages after 5 seconds (excluding log reminder banner)
         document.addEventListener('DOMContentLoaded', function() {
-            const alerts = document.querySelectorAll('.alert');
+            const alerts = document.querySelectorAll('.flash-messages-container .alert');
             alerts.forEach(function(alert) {
                 setTimeout(function() {
                     // Use Bootstrap's alert dismiss method
@@ -435,6 +445,18 @@
                 }, 5000); // 5 seconds
             });
         });
+
+        // Function to open log modal from reminder banner
+        function openLogModal(event) {
+            event.preventDefault();
+            
+            // Check if log entry modal exists
+            const logModal = document.getElementById('logEntryModal');
+            if (logModal) {
+                const bootstrapModal = new bootstrap.Modal(logModal);
+                bootstrapModal.show();
+            }
+        }
     </script>
     
     <!-- Mobile Navigation Script -->
