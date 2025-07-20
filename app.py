@@ -2261,10 +2261,48 @@ def analytics():
             Task.is_complete.is_(True)
         ).count()
         
+        # All users hours for this day (including touch logs as 0.5 hours each)
+        all_detailed_hours = db.session.query(func.sum(Log.hours)).filter(
+            Log.created_at >= date_start,
+            Log.created_at < date_end,
+            Log.is_touch.is_(False),
+            Log.hours.isnot(None)
+        ).scalar() or 0
+        
+        all_touch_count = db.session.query(func.count(Log.id)).filter(
+            Log.created_at >= date_start,
+            Log.created_at < date_end,
+            Log.is_touch.is_(True)
+        ).scalar() or 0
+        
+        all_touch_hours = all_touch_count * 0.5
+        all_hours = float(all_detailed_hours) + all_touch_hours
+        
+        # Current user hours for this day (including touch logs as 0.5 hours each)
+        my_detailed_hours = db.session.query(func.sum(Log.hours)).filter(
+            Log.created_at >= date_start,
+            Log.created_at < date_end,
+            Log.user_id == session['user_id'],
+            Log.is_touch.is_(False),
+            Log.hours.isnot(None)
+        ).scalar() or 0
+        
+        my_touch_count = db.session.query(func.count(Log.id)).filter(
+            Log.created_at >= date_start,
+            Log.created_at < date_end,
+            Log.user_id == session['user_id'],
+            Log.is_touch.is_(True)
+        ).scalar() or 0
+        
+        my_touch_hours = my_touch_count * 0.5
+        my_hours = float(my_detailed_hours) + my_touch_hours
+        
         completion_data.append({
             'date': date.strftime('%Y-%m-%d'),
             'all_tasks': all_completions,
-            'my_tasks': my_completions
+            'my_tasks': my_completions,
+            'all_hours': round(all_hours, 1),
+            'my_hours': round(my_hours, 1)
         })
     
     # Helper function to calculate total logged time for a project

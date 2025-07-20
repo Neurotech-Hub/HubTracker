@@ -121,13 +121,13 @@
     <!-- Top Metrics -->
     {% include 'partials/metrics_grid.html' %}
 
-    <!-- Task Completion Chart -->
+    <!-- Effort Trends Chart -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="bi bi-graph-up me-2"></i>Task Completion Trends
+                        <i class="bi bi-graph-up me-2"></i>Effort Trends
                     </h5>
                     <small class="text-muted">Last 30 days</small>
                 </div>
@@ -465,7 +465,7 @@ function exportForm() {
     }
 }
 
-// Task Completion Chart
+// Effort Trends Chart
 document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('taskCompletionChart').getContext('2d');
     
@@ -479,6 +479,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const allTasksData = completionData.map(d => d.all_tasks);
     const myTasksData = completionData.map(d => d.my_tasks);
+    const allHoursData = completionData.map(d => d.all_hours);
+    const myHoursData = completionData.map(d => d.my_hours);
     
     new Chart(ctx, {
         type: 'line',
@@ -497,6 +499,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 data: myTasksData,
                 borderColor: '#2ecc71',
                 backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'All Hours',
+                data: allHoursData,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'My Hours',
+                data: myHoursData,
+                borderColor: '#f39c12',
+                backgroundColor: 'rgba(243, 156, 18, 0.1)',
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4
