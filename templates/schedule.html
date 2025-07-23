@@ -792,4 +792,72 @@
             
             // Add acknowledgement to notes
             const acknowledgement = `User acknowledged lab manual and safety requirements on ${new Date().toLocaleString()}`;
-            const notes = purposeInput.value ? `${purposeInput.value}\n\n${acknowledgement}`
+            const notes = purposeInput.value ? `${purposeInput.value}\n\n${acknowledgement}` : acknowledgement;
+            
+            fetch('/api/create_appointment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userData.id,
+                    equipment_id: selectedEquipment.id,
+                    date: selectedDate,
+                    start_time: startTimeSelect.value,
+                    end_time: endTimeSelect.value,
+                    purpose: purposeInput.value || '',
+                    notes: notes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('Error creating appointment: ' + (data.error || 'Unknown error'));
+                    btn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+                btn.disabled = false;
+            })
+            .finally(() => {
+                spinner.classList.add('d-none');
+            });
+        }
+
+        function nextStep() {
+            document.getElementById(`step${currentStep}`).classList.add('d-none');
+            currentStep++;
+            document.getElementById(`step${currentStep}`).classList.remove('d-none');
+            updateProgress();
+        }
+
+        function previousStep() {
+            document.getElementById(`step${currentStep}`).classList.add('d-none');
+            currentStep--;
+            document.getElementById(`step${currentStep}`).classList.remove('d-none');
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const progress = (currentStep / 4) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+            
+            // Update step indicators
+            for (let i = 1; i <= 4; i++) {
+                const indicator = document.getElementById(`step${i}-indicator`);
+                indicator.classList.remove('active', 'completed');
+                
+                if (i < currentStep) {
+                    indicator.classList.add('completed');
+                } else if (i === currentStep) {
+                    indicator.classList.add('active');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
