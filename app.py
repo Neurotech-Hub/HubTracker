@@ -630,7 +630,7 @@ def dashboard():
     # Get data for action buttons (creating new items)
     clients = Client.query.order_by(Client.name.asc()).all()
     memberships = Membership.query.all()
-    users = User.query.order_by(User.first_name.asc()).all()
+    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     
     return render_template('dashboard.html', 
                          user=user,
@@ -1618,7 +1618,7 @@ def projects():
             active_projects.append(project)
     
     clients = Client.query.order_by(Client.name.asc()).all()
-    users = User.query.order_by(User.first_name.asc()).all()
+    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     
     return render_template('projects.html', 
                          active_projects=active_projects,
@@ -1665,8 +1665,8 @@ def project_detail(project_id):
     # Get completed tasks for this project
     completed_tasks = project.tasks.filter_by(is_complete=True).order_by(Task.completed_on.desc()).all()
     
-    # Get recent logs for this project
-    recent_logs = project.logs.order_by(Log.created_at.desc()).limit(10).all()
+    # Get all logs for this project
+    all_logs = project.logs.order_by(Log.created_at.desc()).all()
     
     # Check if current user has pinned this project
     is_pinned = UserProjectPin.query.filter_by(
@@ -1680,13 +1680,13 @@ def project_detail(project_id):
     
     # Get clients and users for dropdowns
     clients = Client.query.order_by(Client.name.asc()).all()
-    users = User.query.order_by(User.first_name.asc()).all()
+    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     
     return render_template('project_detail.html', 
                          project=project, 
                          tasks=serialized_open_tasks,
                          completed_tasks=serialized_completed_tasks,
-                         recent_logs=recent_logs,
+                         all_logs=all_logs,
                          is_pinned=is_pinned,
                          clients=clients,
                          users=users)
@@ -1810,7 +1810,7 @@ def clients():
     
     clients = Client.query.order_by(Client.name.asc()).all()
     memberships = Membership.query.all()
-    users = User.query.order_by(User.first_name.asc()).all()
+    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     
     return render_template('clients.html', clients=clients, memberships=memberships, users=users)
 
@@ -1834,7 +1834,7 @@ def client_detail(client_id):
     
     # Get memberships for dropdown
     memberships = Membership.query.all()
-    users = User.query.order_by(User.first_name.asc()).all()
+    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     
     return render_template('client_detail.html', 
                          client=client, 
@@ -2182,7 +2182,7 @@ def kanban():
     
     # Get clients and users for the add project modal
     clients = Client.query.order_by(Client.name.asc()).all()
-    users = User.query.order_by(User.first_name.asc()).all()
+    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     
     return render_template('kanban.html',
                          active_projects=active_projects,
@@ -2468,7 +2468,7 @@ def logs():
         Project.status != 'Archived'
     ).order_by(Project.name.asc()).all()
     
-    users = User.query.order_by(User.first_name.asc()).all()
+    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     
     return render_template('logs.html', 
                          logs=logs,
@@ -2847,7 +2847,7 @@ def admin():
         flash('Access denied. Administrator privileges required.', 'error')
         return redirect(url_for('dashboard'))
     
-    users = User.query.order_by(User.first_name.asc()).all()
+    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     equipment_list = Equipment.query.order_by(Equipment.name.asc()).all()
     
     return render_template('admin.html', users=users, equipment_list=equipment_list)
@@ -3237,7 +3237,7 @@ def get_task_form_data():
     ).order_by(Project.name).all()
     
     # Get all users
-    users = User.query.order_by(User.first_name).all()
+    users = User.query.filter_by(role='admin').order_by(User.first_name).all()
     
     # Convert to dictionaries
     projects_data = [{
@@ -3263,24 +3263,72 @@ def get_projects_for_logging():
     if 'user_id' not in session:
         return {'projects': []}, 401
     
-    # Get all non-archived projects, ordered by most recent activity
-    projects_query = db.session.query(
-        Project,
-        Client.name.label('client_name')
-    ).join(Client).filter(
+    # 1. Get the default project (if any)
+    default_project = Project.query.filter(Project.is_default==True, Project.status!='Archived').first()
+    default_project_id = default_project.id if default_project else None
+
+    # 2. Get projects with most recent log entries (excluding default project)
+    from sqlalchemy import desc
+    recent_log_projects = db.session.query(
+        Project, Client.name.label('client_name'), db.func.max(Log.created_at).label('last_log')
+    ).join(Client).join(Log).filter(
         Project.status != 'Archived'
-    ).order_by(Project.updated_at.desc())
-    
+    )
+    if default_project_id:
+        recent_log_projects = recent_log_projects.filter(Project.id != default_project_id)
+    recent_log_projects = recent_log_projects.group_by(Project.id, Client.name).order_by(desc('last_log')).all()
+
+    # 3. Get the rest of the projects (excluding those already included)
+    recent_log_project_ids = {p.id for p, _, _ in recent_log_projects}
+    if default_project_id:
+        recent_log_project_ids.add(default_project_id)
+    other_projects = db.session.query(Project, Client.name.label('client_name')).join(Client).filter(
+        Project.status != 'Archived',
+        ~Project.id.in_(recent_log_project_ids)
+    ).order_by(Project.updated_at.desc()).all()
+
+    # 4. Get archived projects (not included above)
+    all_nonarchived_ids = set(recent_log_project_ids)
+    all_nonarchived_ids.update([p.id for p, _ in other_projects])
+    archived_projects = db.session.query(Project, Client.name.label('client_name')).join(Client).filter(
+        Project.status == 'Archived',
+        ~Project.id.in_(all_nonarchived_ids)
+    ).order_by(Project.name.asc()).all()
+
+    # Build the ordered list
     projects = []
-    for project, client_name in projects_query:
+    if default_project:
+        projects.append({
+            'id': default_project.id,
+            'name': default_project.name,
+            'client_name': default_project.client.name if default_project.client else '',
+            'display_name': f"{default_project.name} ({default_project.client.name})" if default_project.client else default_project.name,
+            'status': default_project.status
+        })
+    for project, client_name, _ in recent_log_projects:
         projects.append({
             'id': project.id,
             'name': project.name,
             'client_name': client_name,
-            'display_name': f"{project.name} ({client_name})"
+            'display_name': f"{project.name} ({client_name})",
+            'status': project.status
         })
-    
-    # The first project (most recently updated) will be the default
+    for project, client_name in other_projects:
+        projects.append({
+            'id': project.id,
+            'name': project.name,
+            'client_name': client_name,
+            'display_name': f"{project.name} ({client_name})",
+            'status': project.status
+        })
+    for project, client_name in archived_projects:
+        projects.append({
+            'id': project.id,
+            'name': project.name,
+            'client_name': client_name,
+            'display_name': f"{project.name} ({client_name})",
+            'status': project.status
+        })
     return {'projects': projects}
 
 if __name__ == '__main__':

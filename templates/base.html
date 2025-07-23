@@ -54,9 +54,6 @@
                 <a href="{{ url_for('analytics') }}" class="mobile-nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                     <i class="bi bi-graph-up me-2"></i>Analytics
                 </a>
-                <a href="{{ url_for('logs') }}" class="mobile-nav-link {% if request.endpoint == 'logs' %}active{% endif %}">
-                    <i class="bi bi-clock-history me-2"></i>Logs
-                </a>
             </nav>
             
             <!-- Pinned Projects Section -->
@@ -125,9 +122,6 @@
                 </a>
                 <a href="{{ url_for('analytics') }}" class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                     <i class="bi bi-graph-up me-2"></i>Analytics
-                </a>
-                <a href="{{ url_for('logs') }}" class="nav-link {% if request.endpoint == 'logs' %}active{% endif %}">
-                    <i class="bi bi-clock-history me-2"></i>Logs
                 </a>
             </div>
             
@@ -277,32 +271,53 @@
                         
                         <!-- Project List -->
                         <div class="projects-list">
-                            <template x-for="project in filteredProjects" :key="project.id">
-                                <div class="project-item d-flex align-items-center justify-content-between mb-2">
-                                    <div class="project-touch-area flex-grow-1" @click="logTouch(project.id)">
-                                        <div class="fw-bold" x-text="project.name"></div>
-                                        <div class="text-muted small" x-text="project.client_name"></div>
-                                        <div class="touch-overlay">
-                                            <i class="bi bi-fingerprint"></i>
-                                            <span>Quick Touch</span>
-                                        </div>
-                                    </div>
-                                    <button type="button" 
-                                            class="btn btn-sm log-time-btn ms-2" 
-                                            @click="openTimeLog(project)"
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#timeLogModal"
-                                            title="Log Time"
-                                    >
-                                        <i class="bi bi-clock"></i>
-                                    </button>
+                          <!-- Non-archived projects -->
+                          <template x-for="project in nonArchivedProjects" :key="project.id">
+                            <div class="log-project-row project-item d-flex align-items-center justify-content-between mb-2">
+                              <div class="project-touch-area flex-grow-1" @click="logTouch(project.id)">
+                                <div class="fw-bold">
+                                  <span class="status-dot me-2" :class="'status-' + project.status"></span>
+                                  <span x-text="project.name"></span>
                                 </div>
-                            </template>
-                            
-                            <div x-show="filteredProjects.length === 0" class="text-center text-muted py-4">
-                                <div x-show="searchQuery === ''">Loading projects...</div>
-                                <div x-show="searchQuery !== ''">No projects found matching your search.</div>
+                                <div class="text-muted small" x-text="project.client_name"></div>
+                                <div class="touch-overlay">
+                                  <i class="bi bi-fingerprint"></i>
+                                  <span>Quick Touch</span>
+                                </div>
+                              </div>
+                              <button type="button" class="btn btn-sm log-time-btn ms-2" @click="openTimeLog(project)" data-bs-toggle="modal" data-bs-target="#timeLogModal" title="Log Time">
+                                <i class="bi bi-clock"></i>
+                              </button>
                             </div>
+                          </template>
+                          <!-- Archived projects only show if searching -->
+                          <template x-if="archivedProjects.length > 0 && searchQuery">
+                            <div>
+                              <div class="text-muted small my-2" style="border-top:1px solid #e9ecef; padding-top:6px;">Archived Projects</div>
+                              <template x-for="project in archivedProjects" :key="project.id">
+                                <div class="log-project-row project-item d-flex align-items-center justify-content-between mb-2">
+                                  <div class="project-touch-area flex-grow-1" @click="logTouch(project.id)">
+                                    <div class="fw-bold">
+                                      <span class="status-dot me-2" :class="'status-' + project.status"></span>
+                                      <span x-text="project.name"></span>
+                                    </div>
+                                    <div class="text-muted small" x-text="project.client_name"></div>
+                                    <div class="touch-overlay">
+                                      <i class="bi bi-fingerprint"></i>
+                                      <span>Quick Touch</span>
+                                    </div>
+                                  </div>
+                                  <button type="button" class="btn btn-sm log-time-btn ms-2" @click="openTimeLog(project)" data-bs-toggle="modal" data-bs-target="#timeLogModal" title="Log Time">
+                                    <i class="bi bi-clock"></i>
+                                  </button>
+                                </div>
+                              </template>
+                            </div>
+                          </template>
+                          <div x-show="nonArchivedProjects.length + archivedProjects.length === 0" class="text-center text-muted py-4">
+                            <div x-show="searchQuery === ''">Loading projects...</div>
+                            <div x-show="searchQuery !== ''">No projects found matching your search.</div>
+                          </div>
                         </div>
                     </div>
                 </div>

@@ -196,32 +196,38 @@ function logEntryModal() {
         searchQuery: '',
         allProjects: [],
         filteredProjects: [],
+        nonArchivedProjects: [],
+        archivedProjects: [],
 
         async loadProjects() {
             try {
                 const response = await fetch('/api/projects_for_logging');
                 const data = await response.json();
                 this.allProjects = data.projects || [];
-                this.filteredProjects = [...this.allProjects];
+                this.filterProjects();
             } catch (error) {
                 console.error('Failed to load projects:', error);
                 this.allProjects = [];
-                this.filteredProjects = [];
+                this.nonArchivedProjects = [];
+                this.archivedProjects = [];
             }
         },
 
         filterProjects() {
             if (!this.searchQuery.trim()) {
-                this.filteredProjects = [...this.allProjects];
+                this.nonArchivedProjects = this.allProjects.filter(p => p.status !== 'Archived');
+                this.archivedProjects = this.allProjects.filter(p => p.status === 'Archived');
                 return;
             }
 
             const query = this.searchQuery.toLowerCase();
-            this.filteredProjects = this.allProjects.filter(project =>
+            const filtered = this.allProjects.filter(project =>
                 project.name.toLowerCase().includes(query) ||
                 project.client_name.toLowerCase().includes(query) ||
                 project.display_name.toLowerCase().includes(query)
             );
+            this.nonArchivedProjects = filtered.filter(p => p.status !== 'Archived');
+            this.archivedProjects = filtered.filter(p => p.status === 'Archived');
         },
 
         async logTouch(projectId) {

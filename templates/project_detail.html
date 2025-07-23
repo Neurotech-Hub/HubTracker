@@ -178,18 +178,18 @@
             </div>
             {% endif %}
             
-            <!-- Recent Activity -->
-            {% if recent_logs %}
+            <!-- All Activity -->
+            {% if all_logs %}
             <div class="row">
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
                             <h5 class="mb-0">
-                                <i class="bi bi-activity me-2"></i>Recent Activity
+                                <i class="bi bi-activity me-2"></i>All Activity
                             </h5>
                         </div>
                         <div class="card-body">
-                            {% for log in recent_logs %}
+                            {% for log in all_logs %}
                             <div class="d-flex align-items-center mb-2">
                                 {% if log.is_touch %}
                                 <i class="bi bi-finger-index text-success me-2"></i>

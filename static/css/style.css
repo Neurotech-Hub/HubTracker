@@ -3142,3 +3142,28 @@ textarea:focus::placeholder {
         pointer-events: none;
     }
 }
+
+/* Status dot styles for log entry modal */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+.status-dot.status-Active {
+    background-color: #198754;
+}
+
+.status-dot.status-Awaiting {
+    background-color: #ffc107;
+}
+
+.status-dot.status-Paused {
+    background-color: #0dcaf0;
+}
+
+.status-dot.status-Archived {
+    background-color: #6c757d;
+}
