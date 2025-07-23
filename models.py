@@ -26,6 +26,7 @@ class Equipment(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(255), nullable=True)
     manual = db.Column(db.String(255), nullable=True)  # URL to manual
+    is_schedulable = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
     
@@ -360,4 +361,77 @@ class ActivityLog(db.Model):
             extra_data=extra_data
         )
         db.session.add(log)
-        return log 
+        return log
+
+# Equipment Scheduling Models
+
+class SchedulingSettings(db.Model):
+    __tablename__ = 'scheduling_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    max_booking_duration_hours = db.Column(db.Float, default=4.0, nullable=False)
+    min_booking_notice_hours = db.Column(db.Float, default=4.0, nullable=False)
+    booking_advance_limit_days = db.Column(db.Integer, default=7, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+    
+    def __repr__(self):
+        return f'<SchedulingSettings max_duration={self.max_booking_duration_hours}h, min_notice={self.min_booking_notice_hours}h, advance_limit={self.booking_advance_limit_days}d>'
+
+class EquipmentOperatingHours(db.Model):
+    __tablename__ = 'equipment_operating_hours'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    day_of_week = db.Column(db.Integer, nullable=False)  # 0=Monday, 6=Sunday
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+    
+    # Ensure one operating hours record per day
+    __table_args__ = (db.UniqueConstraint('day_of_week', name='unique_day_hours'),)
+    
+    def __repr__(self):
+        return f'<EquipmentOperatingHours day={self.day_of_week} {self.start_time}-{self.end_time}>'
+
+class EquipmentBlockedDate(db.Model):
+    __tablename__ = 'equipment_blocked_dates'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    blocked_date = db.Column(db.Date, nullable=False)
+    reason = db.Column(db.String(255), nullable=True)
+    is_annual_recurring = db.Column(db.Boolean, default=False, nullable=False)  # For holidays that recur yearly
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+    
+    def __repr__(self):
+        return f'<EquipmentBlockedDate {self.blocked_date} - {self.reason}>'
+
+class EquipmentAppointment(db.Model):
+    __tablename__ = 'equipment_appointments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    equipment_id = db.Column(db.Integer, db.ForeignKey('equipment.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    start_time = db.Column(db.DateTime(timezone=True), nullable=False)
+    end_time = db.Column(db.DateTime(timezone=True), nullable=False)
+    purpose = db.Column(db.String(255), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), default='approved', nullable=False)  # pending, approved, cancelled
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+    
+    # Relationships
+    equipment = db.relationship('Equipment', backref='appointments')
+    user = db.relationship('User', backref='equipment_appointments', lazy='joined')
+    
+    def __repr__(self):
+        return f'<EquipmentAppointment {self.equipment.name if self.equipment else "Unknown"} - {self.user.full_name if self.user else "Unknown"} {self.start_time}>'
+    
+    @property
+    def duration_hours(self):
+        """Calculate duration in hours"""
+        if self.start_time and self.end_time:
+            delta = self.end_time - self.start_time
+            return delta.total_seconds() / 3600
+        return 0 

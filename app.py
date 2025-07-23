@@ -42,7 +42,7 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Import models and db
-from models import db, User, Client, Membership, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, MembershipSupplement, Equipment, UserPreferences, ActivityLog
+from models import db, User, Client, Membership, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, MembershipSupplement, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment
 
 # Initialize extensions
 db.init_app(app)
@@ -2856,11 +2856,53 @@ def admin():
         flash('Access denied. Administrator privileges required.', 'error')
         return redirect(url_for('dashboard'))
     
-    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
+    users = User.query.order_by(User.first_name.asc()).all()
     equipment_list = Equipment.query.order_by(Equipment.name.asc()).all()
     project_count = Project.query.count()
     
-    return render_template('admin.html', users=users, equipment_list=equipment_list, project_count=project_count)
+    # Get scheduling settings (create default if doesn't exist)
+    scheduling_settings = SchedulingSettings.query.first()
+    if not scheduling_settings:
+        scheduling_settings = SchedulingSettings()
+        db.session.add(scheduling_settings)
+        db.session.commit()
+    
+    # Get upcoming appointments (next 30 days)
+    from datetime import datetime, timedelta
+    start_date = datetime.now()
+    end_date = start_date + timedelta(days=30)
+    upcoming_appointments = EquipmentAppointment.query.filter(
+        EquipmentAppointment.start_time >= start_date,
+        EquipmentAppointment.start_time <= end_date
+    ).order_by(EquipmentAppointment.start_time.asc()).all()
+    
+    # Get global blocked dates (future only)
+    from datetime import date
+    today = date.today()
+    blocked_dates = EquipmentBlockedDate.query.filter(
+        EquipmentBlockedDate.blocked_date >= today
+    ).order_by(EquipmentBlockedDate.blocked_date.asc()).all()
+    
+    # Get global operating hours
+    operating_hours = EquipmentOperatingHours.query.order_by(EquipmentOperatingHours.day_of_week.asc()).all()
+    
+    # Convert operating hours to JavaScript-friendly format
+    operating_hours_js = {}
+    for hours in operating_hours:
+        operating_hours_js[hours.day_of_week] = {
+            'start_time': hours.start_time.strftime('%H:%M'),
+            'end_time': hours.end_time.strftime('%H:%M')
+        }
+    
+    return render_template('admin.html', 
+                         users=users, 
+                         equipment_list=equipment_list, 
+                         project_count=project_count,
+                         scheduling_settings=scheduling_settings,
+                         upcoming_appointments=upcoming_appointments,
+                         blocked_dates=blocked_dates,
+                         operating_hours=operating_hours,
+                         operating_hours_js=operating_hours_js)
 
 @app.route('/import_labs_projects', methods=['POST'])
 def import_labs_projects():
@@ -2947,7 +2989,8 @@ def add_equipment():
     equipment = Equipment(
         name=name,
         description=description if description else None,
-        manual=manual if manual else None
+        manual=manual if manual else None,
+        is_schedulable=request.form.get('is_schedulable') == 'on'
     )
     
     db.session.add(equipment)
@@ -2974,6 +3017,7 @@ def edit_equipment(equipment_id):
     equipment.name = name
     equipment.description = description if description else None
     equipment.manual = manual if manual else None
+    equipment.is_schedulable = request.form.get('is_schedulable') == 'on'
     
     db.session.commit()
     flash('Equipment updated successfully', 'success')
@@ -3340,6 +3384,265 @@ def get_projects_for_logging():
             'status': project.status
         })
     return {'projects': projects}
+
+# Equipment Scheduling Routes
+
+@app.route('/admin/scheduling_settings', methods=['POST'])
+def update_scheduling_settings():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        max_duration = float(request.form.get('max_booking_duration_hours', 4.0))
+        min_notice = float(request.form.get('min_booking_notice_hours', 4.0))
+        advance_limit = int(request.form.get('booking_advance_limit_days', 7))
+        
+        settings = SchedulingSettings.query.first()
+        if not settings:
+            settings = SchedulingSettings()
+            db.session.add(settings)
+        
+        settings.max_booking_duration_hours = max_duration
+        settings.min_booking_notice_hours = min_notice
+        settings.booking_advance_limit_days = advance_limit
+        
+        db.session.commit()
+        flash('Scheduling settings updated successfully', 'success')
+        
+    except ValueError:
+        flash('Invalid input values', 'error')
+    except Exception as e:
+        flash(f'Error updating settings: {str(e)}', 'error')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/operating_hours', methods=['POST'])
+def update_operating_hours():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('admin'))
+    
+    try:
+        # Clear existing operating hours
+        EquipmentOperatingHours.query.delete()
+        
+        # Add new operating hours
+        for day in range(7):  # 0=Monday, 6=Sunday
+            start_time_str = request.form.get(f'start_time_{day}')
+            end_time_str = request.form.get(f'end_time_{day}')
+            
+            if start_time_str and end_time_str:
+                from datetime import time
+                start_time = time.fromisoformat(start_time_str)
+                end_time = time.fromisoformat(end_time_str)
+                
+                operating_hours = EquipmentOperatingHours(
+                    day_of_week=day,
+                    start_time=start_time,
+                    end_time=end_time
+                )
+                db.session.add(operating_hours)
+        
+        db.session.commit()
+        flash('Operating hours updated successfully', 'success')
+        
+    except Exception as e:
+        flash(f'Error updating operating hours: {str(e)}', 'error')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/blocked_dates', methods=['POST'])
+def add_blocked_date():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('admin'))
+    
+    try:
+        blocked_date_str = request.form.get('blocked_date')
+        reason = request.form.get('reason', '').strip()
+        is_annual_recurring = request.form.get('is_annual_recurring') == 'on'
+        
+        if not blocked_date_str:
+            flash('Blocked date is required', 'error')
+            return redirect(url_for('admin'))
+        
+        from datetime import datetime
+        blocked_date = datetime.strptime(blocked_date_str, '%Y-%m-%d').date()
+        
+        # Check if date already exists
+        existing = EquipmentBlockedDate.query.filter_by(blocked_date=blocked_date).first()
+        
+        if existing:
+            flash('This date is already blocked', 'error')
+            return redirect(url_for('admin'))
+        
+        blocked_date_record = EquipmentBlockedDate(
+            blocked_date=blocked_date,
+            reason=reason,
+            is_annual_recurring=is_annual_recurring
+        )
+        
+        db.session.add(blocked_date_record)
+        db.session.commit()
+        
+        flash('Blocked date added successfully', 'success')
+        
+    except ValueError:
+        flash('Invalid date format', 'error')
+    except Exception as e:
+        flash(f'Error adding blocked date: {str(e)}', 'error')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/blocked_date/<int:blocked_date_id>/delete', methods=['POST'])
+def delete_blocked_date(blocked_date_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('admin'))
+    
+    blocked_date = EquipmentBlockedDate.query.get_or_404(blocked_date_id)
+    
+    try:
+        db.session.delete(blocked_date)
+        db.session.commit()
+        flash('Blocked date removed successfully', 'success')
+        
+    except Exception as e:
+        flash(f'Error removing blocked date: {str(e)}', 'error')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/appointments/add', methods=['POST'])
+def add_appointment():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('admin'))
+    
+    try:
+        equipment_id = request.form.get('equipment_id')
+        user_id = request.form.get('user_id')
+        appointment_date = request.form.get('appointment_date')
+        start_time_str = request.form.get('start_time')
+        end_time_str = request.form.get('end_time')
+        purpose = request.form.get('purpose', '').strip()
+        notes = request.form.get('notes', '').strip()
+        
+        if not all([equipment_id, user_id, appointment_date, start_time_str, end_time_str]):
+            flash('All required fields must be filled', 'error')
+            return redirect(url_for('admin'))
+        
+        # Convert string IDs to integers
+        try:
+            equipment_id = int(equipment_id)
+            user_id = int(user_id)
+        except ValueError:
+            flash('Invalid equipment or user ID', 'error')
+            return redirect(url_for('admin'))
+        
+        from datetime import datetime
+        # Combine date and time strings
+        start_datetime_str = f"{appointment_date}T{start_time_str}:00"
+        end_datetime_str = f"{appointment_date}T{end_time_str}:00"
+        
+        start_time = datetime.fromisoformat(start_datetime_str)
+        end_time = datetime.fromisoformat(end_datetime_str)
+        
+        # Check if equipment is schedulable
+        equipment = Equipment.query.get_or_404(equipment_id)
+        if not equipment.is_schedulable:
+            flash('This equipment is not available for scheduling', 'error')
+            return redirect(url_for('admin'))
+        
+        # Check for conflicts
+        conflicting_appointment = EquipmentAppointment.query.filter(
+            EquipmentAppointment.equipment_id == equipment_id,
+            EquipmentAppointment.status.in_(['approved', 'pending']),
+            db.or_(
+                db.and_(EquipmentAppointment.start_time <= start_time, EquipmentAppointment.end_time > start_time),
+                db.and_(EquipmentAppointment.start_time < end_time, EquipmentAppointment.end_time >= end_time),
+                db.and_(EquipmentAppointment.start_time >= start_time, EquipmentAppointment.end_time <= end_time)
+            )
+        ).first()
+        
+        if conflicting_appointment:
+            flash('This time slot conflicts with an existing appointment', 'error')
+            return redirect(url_for('admin'))
+        
+        # For admins, only check operating hours (no duration limits)
+        # Get operating hours for the day of the week
+        day_of_week = start_time.weekday()  # 0=Monday, 6=Sunday
+        operating_hours = EquipmentOperatingHours.query.filter_by(day_of_week=day_of_week).first()
+        
+        if operating_hours:
+            # Check if appointment is within operating hours
+            start_time_only = start_time.time()
+            end_time_only = end_time.time()
+            
+            if start_time_only < operating_hours.start_time or end_time_only > operating_hours.end_time:
+                flash(f'Appointment must be within operating hours ({operating_hours.start_time.strftime("%H:%M")} - {operating_hours.end_time.strftime("%H:%M")})', 'error')
+                return redirect(url_for('admin'))
+        else:
+            # No operating hours set for this day
+            flash('No operating hours set for this day', 'error')
+            return redirect(url_for('admin'))
+        
+        appointment = EquipmentAppointment(
+            equipment_id=equipment_id,
+            user_id=user_id,
+            start_time=start_time,
+            end_time=end_time,
+            purpose=purpose,
+            notes=notes,
+            status='approved'  # Admin-created appointments start as approved
+        )
+        
+        db.session.add(appointment)
+        db.session.commit()
+        
+        flash('Appointment created successfully', 'success')
+        
+    except ValueError:
+        flash('Invalid date/time format', 'error')
+    except Exception as e:
+        flash(f'Error creating appointment: {str(e)}', 'error')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/appointment/<int:appointment_id>/status', methods=['POST'])
+def update_appointment_status(appointment_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('admin'))
+    
+    appointment = EquipmentAppointment.query.get_or_404(appointment_id)
+    new_status = request.form.get('status')
+    
+    if new_status not in ['pending', 'approved', 'cancelled']:
+        flash('Invalid status', 'error')
+        return redirect(url_for('admin'))
+    
+    try:
+        old_status = appointment.status
+        appointment.status = new_status
+        db.session.commit()
+        
+        # Log the activity
+        ActivityLog.log_activity(
+            user_id=session['user_id'],
+            activity_type='appointment_status_changed',
+            entity_type='equipment_appointment',
+            entity_id=appointment_id,
+            old_value={'status': old_status},
+            new_value={'status': new_status}
+        )
+        
+        flash(f'Appointment status updated to {new_status}', 'success')
+        
+    except Exception as e:
+        flash(f'Error updating appointment status: {str(e)}', 'error')
+    
+    return redirect(url_for('admin'))
 
 if __name__ == '__main__':
     with app.app_context():
