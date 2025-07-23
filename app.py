@@ -3783,6 +3783,10 @@ def get_available_slots():
         return jsonify({'error': 'Equipment ID and date are required'})
     
     try:
+        # Get current time in America/Chicago timezone
+        central = pytz.timezone('America/Chicago')
+        now = datetime.now(central)
+        
         # Parse date
         selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         
@@ -3815,7 +3819,9 @@ def get_available_slots():
         # If start_time is provided, return possible end times
         if start_time:
             start_dt = datetime.strptime(f"{date_str} {start_time}", '%Y-%m-%d %H:%M')
+            start_dt = central.localize(start_dt)
             end_dt = datetime.combine(selected_date, operating_hours.end_time)
+            end_dt = central.localize(end_dt)
             max_end_dt = start_dt + timedelta(hours=settings.max_booking_duration_hours)
             
             # Use the earlier of max duration or operating hours end
@@ -3847,28 +3853,42 @@ def get_available_slots():
         
         # Otherwise, return available start times
         slots = []
-        current_datetime = datetime.combine(selected_date, operating_hours.start_time)
-        end_datetime = datetime.combine(selected_date, operating_hours.end_time)
+        current_dt = datetime.combine(selected_date, operating_hours.start_time)
+        current_dt = central.localize(current_dt)
+        end_dt = datetime.combine(selected_date, operating_hours.end_time)
+        end_dt = central.localize(end_dt)
+        
+        # If today, start from current time rounded up to next 30-minute increment
+        if selected_date == now.date() and now > current_dt:
+            current_dt = now.replace(second=0, microsecond=0)
+            minutes = current_dt.minute
+            if minutes % 30 != 0:
+                minutes = ((minutes // 30) + 1) * 30
+                if minutes == 60:
+                    current_dt = current_dt + timedelta(hours=1)
+                    current_dt = current_dt.replace(minute=0)
+                else:
+                    current_dt = current_dt.replace(minute=minutes)
         
         # Don't allow start times that would exceed max duration before end of operating hours
-        latest_start = end_datetime - timedelta(minutes=30)  # Minimum 30 min duration
+        latest_start = end_dt - timedelta(minutes=30)  # Minimum 30 min duration
         
-        while current_datetime <= latest_start:
+        while current_dt <= latest_start:
             # Check if slot conflicts with existing appointments
             is_available = True
             for appointment in existing_appointments:
-                if (current_datetime < appointment.end_time and 
-                    current_datetime + timedelta(minutes=30) > appointment.start_time):
+                if (current_dt < appointment.end_time and 
+                    current_dt + timedelta(minutes=30) > appointment.start_time):
                     is_available = False
                     break
             
             if is_available:
                 slots.append({
-                    'start_time': current_datetime.strftime('%H:%M'),
-                    'formatted': current_datetime.strftime('%I:%M %p')
+                    'start_time': current_dt.strftime('%H:%M'),
+                    'formatted': current_dt.strftime('%I:%M %p')
                 })
             
-            current_datetime += timedelta(minutes=30)
+            current_dt += timedelta(minutes=30)
         
         return jsonify({
             'slots': slots,
@@ -3903,28 +3923,64 @@ def get_available_dates():
         ).all()
         blocked_date_set = {bd.blocked_date for bd in blocked_dates}
         
+        # Get current time in America/Chicago timezone
+        central = pytz.timezone('America/Chicago')
+        now = datetime.now(central)
+        current_date = now.date()
+        
         # Generate available dates
         available_dates = []
-        current_date = today
+        check_date = current_date
         
         for i in range(settings.booking_advance_limit_days + 1):
             # Check if date is blocked
-            if current_date in blocked_date_set:
-                current_date += timedelta(days=1)
+            if check_date in blocked_date_set:
+                check_date += timedelta(days=1)
                 continue
             
             # Check if we have operating hours for this day
-            day_of_week = current_date.weekday()
+            day_of_week = check_date.weekday()
             operating_hours = EquipmentOperatingHours.query.filter_by(day_of_week=day_of_week).first()
             
             if operating_hours:
+                # For today, check if there's still enough time left in operating hours
+                if check_date == current_date:
+                    # Convert operating hours end time to datetime
+                    end_time = datetime.combine(check_date, operating_hours.end_time)
+                    end_time = central.localize(end_time)
+                    
+                    # Need at least 30 minutes before end of operating hours
+                    if (end_time - now).total_seconds() < 1800:  # 30 minutes in seconds
+                        check_date += timedelta(days=1)
+                        continue
+                    
+                    # If current time is past operating hours start time,
+                    # check if there's at least one 30-minute slot available
+                    start_time = datetime.combine(check_date, operating_hours.start_time)
+                    start_time = central.localize(start_time)
+                    if now > start_time:
+                        # Round up to next 30-minute increment
+                        minutes = now.minute
+                        if minutes % 30 != 0:
+                            minutes = ((minutes // 30) + 1) * 30
+                            if minutes == 60:
+                                now = now + timedelta(hours=1)
+                                now = now.replace(minute=0)
+                            else:
+                                now = now.replace(minute=minutes)
+                        
+                        # If rounded time is past end time minus 30 minutes, skip this day
+                        if (end_time - now).total_seconds() < 1800:
+                            check_date += timedelta(days=1)
+                            continue
+                
                 available_dates.append({
-                    'date': current_date.strftime('%Y-%m-%d'),
-                    'day_name': current_date.strftime('%A'),
-                    'formatted': current_date.strftime('%A, %B %d, %Y')
+                    'date': check_date.strftime('%Y-%m-%d'),
+                    'day_name': check_date.strftime('%A'),
+                    'formatted': check_date.strftime('%A, %B %d, %Y')
                 })
             
-            current_date += timedelta(days=1)
+            check_date += timedelta(days=1)
         
         return jsonify({'dates': available_dates})
         
