@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 from flask_migrate import Migrate
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 import os
 import markdown
@@ -18,6 +18,13 @@ except ImportError:
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Configure session to last for a very long time (1 year)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 # Configure database URI - use instance directory for SQLite
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
@@ -432,6 +439,7 @@ def login():
             session['user_id'] = user.id
             session['user_name'] = user.full_name
             session['role'] = user.role
+            session.permanent = True  # Make session permanent for extended lifetime
             flash('Welcome! Your admin account has been created.', 'success')
             return redirect(url_for('dashboard'))
         
@@ -469,6 +477,7 @@ def login():
         session['user_id'] = user.id
         session['user_name'] = user.full_name
         session['role'] = user.role
+        session.permanent = True  # Make session permanent for extended lifetime
         return redirect(url_for('dashboard'))
     
     return render_template('login.html')
@@ -2849,8 +2858,9 @@ def admin():
     
     users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     equipment_list = Equipment.query.order_by(Equipment.name.asc()).all()
+    project_count = Project.query.count()
     
-    return render_template('admin.html', users=users, equipment_list=equipment_list)
+    return render_template('admin.html', users=users, equipment_list=equipment_list, project_count=project_count)
 
 @app.route('/import_labs_projects', methods=['POST'])
 def import_labs_projects():
