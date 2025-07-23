@@ -176,12 +176,51 @@ def currency_filter(value):
     except (ValueError, TypeError):
         return '$0.00'
 
+@app.template_filter('time_until')
+def time_until(dt):
+    """Calculate time until a datetime in Chicago timezone"""
+    if not dt:
+        return ''
+    
+    import pytz
+    from datetime import datetime
+    
+    # Ensure both datetimes are timezone-aware and in Chicago time
+    chicago_tz = pytz.timezone('America/Chicago')
+    now = datetime.now(chicago_tz)
+    
+    # If dt is naive, assume it's in Chicago time
+    if dt.tzinfo is None:
+        dt = chicago_tz.localize(dt)
+    # If dt is in a different timezone, convert to Chicago time
+    elif dt.tzinfo != chicago_tz:
+        dt = dt.astimezone(chicago_tz)
+    
+    time_diff = dt - now
+    hours_until = time_diff.total_seconds() / 3600
+    
+    if hours_until < 0:
+        hours = int(-hours_until)
+        return f"Started {hours} hour{'s' if hours != 1 else ''} ago"
+    elif hours_until < 1:
+        minutes = int(hours_until * 60)
+        return f"In {minutes} minute{'s' if minutes != 1 else ''}"
+    elif hours_until < 24:
+        hours = int(hours_until)
+        return f"In {hours} hour{'s' if hours != 1 else ''}"
+    elif hours_until < 48:
+        return "Tomorrow"
+    else:
+        days = int(hours_until / 24)
+        return f"In {days} day{'s' if days != 1 else ''}"
+
 # Add global functions to Jinja2 environment
 app.jinja_env.globals.update(min=min)
 app.jinja_env.filters['markdown'] = markdown_filter
 app.jinja_env.filters['render_tags'] = render_tags
 app.jinja_env.filters['time_ago'] = time_ago
 app.jinja_env.filters['currency'] = currency_filter
+app.jinja_env.filters['time_until'] = time_until
 
 @app.route('/')
 def index():
@@ -640,7 +679,7 @@ def dashboard():
     # Get active projects for kanban board
     active_projects = Project.query.filter_by(status='Active').order_by(Project.name.asc()).all()
     awaiting_projects = Project.query.filter_by(status='Awaiting').order_by(Project.name.asc()).all()
-    completed_projects = Project.query.filter_by(status='Completed').order_by(Project.name.asc()).all()
+    paused_projects = Project.query.filter_by(status='Paused').order_by(Project.name.asc()).all()
     
     # Get current day of week for greeting
     day_of_week = now.strftime('%A')
@@ -652,11 +691,11 @@ def dashboard():
                          all_activities=all_activities,
                          day_of_week=day_of_week,
                          upcoming_appointments=upcoming_appointments,
-                         now=now,  # Add current time for countdown calculation
+                         now=now,  # Pass the localized current time
                          # Kanban data
                          active_projects=active_projects,
                          awaiting_projects=awaiting_projects,
-                         completed_projects=completed_projects)
+                         paused_projects=paused_projects)
 
 @app.route('/logout')
 def logout():

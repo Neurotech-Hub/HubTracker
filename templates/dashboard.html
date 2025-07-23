@@ -50,6 +50,7 @@
                     <thead class="table-light">
                         <tr>
                             <th class="border-0">Upcoming Bookings</th>
+                            <th class="border-0 text-center">Countdown</th>
                             <th class="border-0 text-end">When</th>
                             <th class="border-0 text-end" style="width: 100px">Duration</th>
                             <th class="border-0" style="width: 40px"></th>
@@ -58,8 +59,7 @@
                     <tbody>
                         {% for appointment in upcoming_appointments %}
                         {% set duration = (appointment.end_time - appointment.start_time).total_seconds() / 3600 %}
-                        {% set time_until = appointment.start_time - now %}
-                        {% set hours_until = time_until.total_seconds() / 3600 %}
+                        {% set is_started = appointment.start_time <= now %}
                         <tr>
                             <td class="py-1">
                                 <div class="d-flex align-items-center">
@@ -76,21 +76,18 @@
                                     </div>
                                 </div>
                             </td>
+                            <td class="text-center py-1">
+                                {% if is_started %}
+                                <div class="in-session-badge">In Session</div>
+                                {% else %}
+                                <div id="countdown-{{ appointment.id }}" class="countdown-display"></div>
+                                {% endif %}
+                            </td>
                             <td class="text-end py-1">
                                 <div class="d-flex flex-column align-items-end">
                                     <div style="font-size: 0.875rem;">{{ appointment.start_time.strftime('%b %d, %I:%M %p') }}</div>
                                     <small class="text-muted" style="font-size: 0.75rem;">
-                                        {% if hours_until < 0 %}
-                                            Started {{ (-hours_until)|round|int }} hour{{ 's' if (-hours_until)|round|int != 1 }} ago
-                                        {% elif hours_until < 1 %}
-                                            In {{ (hours_until * 60)|round|int }} minutes
-                                        {% elif hours_until < 24 %}
-                                            In {{ hours_until|round|int }} hour{{ 's' if hours_until|round|int != 1 }}
-                                        {% elif hours_until < 48 %}
-                                            Tomorrow
-                                        {% else %}
-                                            In {{ (hours_until / 24)|round|int }} days
-                                        {% endif %}
+                                        {{ appointment.start_time|time_until }}
                                     </small>
                                 </div>
                             </td>
@@ -216,16 +213,16 @@
                     </div>
                 </div>
 
-                <!-- Completed Column -->
+                <!-- Paused Column -->
                 <div class="col-lg-4">
                     <div class="kanban-column">
                         <div class="kanban-column-header bg-info">
                             <h6 class="mb-0 text-white fw-medium">
-                                <i class="bi bi-check-circle me-1"></i>Completed
-                                <span class="badge bg-light text-info ms-1">{{ completed_projects|length }}</span>
+                                <i class="bi bi-pause-circle me-1"></i>Paused
+                                <span class="badge bg-light text-info ms-1">{{ paused_projects|length }}</span>
                             </h6>
                         </div>
-                        <div class="kanban-column-body" id="completed-column" data-status="Completed">
+                        <div class="kanban-column-body" id="paused-column" data-status="Paused">
                             <!-- Loading State -->
                             <div x-show="!loaded" class="skeleton-loading">
                                 <div class="skeleton-task">
@@ -236,7 +233,7 @@
                                 </div>
                             </div>
                             <!-- Actual Content - Individual cards with Alpine directives -->
-                            {% for project in completed_projects %}
+                            {% for project in paused_projects %}
                             <div class="kanban-card" data-project-id="{{ project.id }}" x-cloak x-show="loaded">
                                 <div class="kanban-card-header">
                                     <div class="fw-medium mb-1">{{ project.name }}</div>
@@ -345,12 +342,56 @@
 <!-- Include SortableJS -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
+<!-- Add FlipDown CSS and JS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flipdown.css') }}">
+<script src="{{ url_for('static', filename='js/flipdown.js') }}"></script>
+
+<!-- Replace FlipDown with easytimer.js -->
+<script src="{{ url_for('static', filename='js/easytimer.min.js') }}"></script>
+
 <script>
+function initializeCountdown(elementId, targetDate) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    const timer = new easytimer.Timer();
+    const now = new Date();
+    const target = new Date(targetDate);
+    
+    // If the appointment has already started
+    if (target < now) {
+        element.innerHTML = '';
+        return;
+    }
+
+    // Calculate initial values
+    const diff = target - now;
+    const secondsRemaining = Math.floor(diff / 1000);
+
+    timer.start({
+        countdown: true,
+        startValues: {seconds: secondsRemaining},
+        callback: function(timer) {
+            const hours = timer.getTimeValues().hours + (timer.getTimeValues().days * 24);
+            const minutes = timer.getTimeValues().minutes;
+            const seconds = timer.getTimeValues().seconds;
+            
+            element.innerHTML = `
+                <span class="countdown-digit">${hours.toString().padStart(2, '0')}</span>
+                <span class="countdown-separator">:</span>
+                <span class="countdown-digit">${minutes.toString().padStart(2, '0')}</span>
+                <span class="countdown-separator">:</span>
+                <span class="countdown-digit">${seconds.toString().padStart(2, '0')}</span>
+            `;
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Simple delay to let Alpine.js render the content, then initialize Kanban
+    // Initialize Kanban
     setTimeout(function() {
         // Initialize sortable for each column
-        const columns = ['active-column', 'awaiting-column', 'completed-column', 'archived-column'];
+        const columns = ['active-column', 'awaiting-column', 'paused-column', 'archived-column'];
         
         columns.forEach(columnId => {
             const element = document.getElementById(columnId);
@@ -437,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const columns = {
             'active-column': 'Active',
             'awaiting-column': 'Awaiting', 
-            'completed-column': 'Completed'
+            'paused-column': 'Paused'
         };
         
         Object.entries(columns).forEach(([columnId, status]) => {
@@ -494,6 +535,18 @@ document.addEventListener('DOMContentLoaded', function() {
             openTaskModalWithProject(projectId, projectName);
         }
     });
- });
- </script>
+
+    // Initialize countdowns
+    {% for appointment in upcoming_appointments %}
+    try {
+        initializeCountdown(
+            'countdown-{{ appointment.id }}',
+            "{{ appointment.start_time.isoformat() }}"
+        );
+    } catch (error) {
+        console.error('Error setting up countdown for appointment {{ appointment.id }}:', error);
+    }
+    {% endfor %}
+});
+</script>
 {% endblock %} 
