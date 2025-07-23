@@ -46,8 +46,14 @@
         }
 
         .step-indicator.completed .step-number {
-            background-color: #198754;
-            color: white;
+            background-color: #ffffff;
+            color: #198754;
+            border: 2px solid #198754;
+        }
+
+        .step-indicator.completed .step-label {
+            color: #198754;
+            font-weight: 600;
         }
 
         .step-number {
@@ -155,6 +161,25 @@
 
         .input-group {
             margin-bottom: 1rem;
+        }
+
+        .input-group .form-control-lg {
+            height: calc(3rem + 2px);  /* Match Bootstrap's large input height */
+        }
+
+        .input-group .input-group-text {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-left: 0;
+            height: calc(3rem + 2px);  /* Match the input height */
+        }
+
+        .input-group .form-control {
+            border-right: 0;
         }
 
         .invalid-feedback {
@@ -269,6 +294,9 @@
                                 Continue <i class="bi bi-arrow-right ms-1"></i>
                             </button>
                         </div>
+                    </div>
+                    <div class="help-text">
+                        Need help? Contact <a href="mailto:neurotechhub@wustl.edu">neurotechhub@wustl.edu</a>
                     </div>
                 </div>
 
