@@ -201,7 +201,14 @@ def time_until(dt):
     
     if hours_until < 0:
         hours = int(-hours_until)
-        return f"Started {hours} hour{'s' if hours != 1 else ''} ago"
+        if hours < 1:
+            minutes = int(-time_diff.total_seconds() / 60)
+            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+        elif hours < 24:
+            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        else:
+            days = int(hours / 24)
+            return f"{days} day{'s' if days != 1 else ''} ago"
     elif hours_until < 1:
         minutes = int(hours_until * 60)
         return f"In {minutes} minute{'s' if minutes != 1 else ''}"

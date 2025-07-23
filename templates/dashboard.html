@@ -60,6 +60,7 @@
                         {% for appointment in upcoming_appointments %}
                         {% set duration = (appointment.end_time - appointment.start_time).total_seconds() / 3600 %}
                         {% set is_started = appointment.start_time <= now %}
+                        {% set is_expired = appointment.end_time <= now %}
                         <tr>
                             <td class="py-1">
                                 <div class="d-flex align-items-center">
@@ -77,7 +78,9 @@
                                 </div>
                             </td>
                             <td class="text-center py-1">
-                                {% if is_started %}
+                                {% if is_expired %}
+                                <div class="expired-badge">Expired</div>
+                                {% elif is_started %}
                                 <div class="in-session-badge">In Session</div>
                                 {% else %}
                                 <div id="countdown-{{ appointment.id }}" class="countdown-display"></div>
@@ -350,13 +353,20 @@
 <script src="{{ url_for('static', filename='js/easytimer.min.js') }}"></script>
 
 <script>
-function initializeCountdown(elementId, targetDate) {
+function initializeCountdown(elementId, targetDate, endDate) {
     const element = document.getElementById(elementId);
     if (!element) return;
 
     const timer = new easytimer.Timer();
     const now = new Date();
     const target = new Date(targetDate);
+    const end = new Date(endDate);
+    
+    // If the appointment has ended
+    if (end < now) {
+        element.innerHTML = '';
+        return;
+    }
     
     // If the appointment has already started
     if (target < now) {
@@ -521,7 +531,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-        // Handle project add task buttons
+    // Handle project add task buttons
     document.addEventListener('click', function(e) {
         if (e.target.closest('.project-add-task-btn')) {
             e.preventDefault();
@@ -541,7 +551,8 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         initializeCountdown(
             'countdown-{{ appointment.id }}',
-            "{{ appointment.start_time.isoformat() }}"
+            "{{ appointment.start_time.isoformat() }}",
+            "{{ appointment.end_time.isoformat() }}"
         );
     } catch (error) {
         console.error('Error setting up countdown for appointment {{ appointment.id }}:', error);

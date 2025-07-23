@@ -3214,6 +3214,21 @@ textarea:focus::placeholder {
     min-width: 140px;
 }
 
+.expired-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6c757d;
+    background: #f8f9fa;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    line-height: 1;
+    min-width: 140px;
+}
+
 /* Remove old FlipDown styles */
 .flipdown,
 .flipdown__theme-dark,
