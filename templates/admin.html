@@ -183,7 +183,9 @@
                                 </div>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary">Update Settings</button>
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">Update Settings</button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -335,6 +337,9 @@
                                                 <i class="bi bi-check-circle"></i>
                                             </button>
                                             {% endif %}
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editAppointmentModal{{ appointment.id }}" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateAppointmentStatus({{ appointment.id }}, 'cancelled')" title="Cancel">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -783,6 +788,112 @@
         </div>
     </div>
 </div>
+
+<!-- Edit Appointment Modals -->
+{% for appointment in upcoming_appointments %}
+<div class="modal fade" id="editAppointmentModal{{ appointment.id }}" tabindex="-1" aria-labelledby="editAppointmentModalLabel{{ appointment.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('edit_appointment', appointment_id=appointment.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editAppointmentModalLabel{{ appointment.id }}">Edit Appointment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="appointmentEquipment{{ appointment.id }}" class="form-label">Equipment <span class="text-danger">*</span></label>
+                                <select class="form-select" id="appointmentEquipment{{ appointment.id }}" name="equipment_id" required>
+                                    <option value="">Select equipment...</option>
+                                    {% for equipment in equipment_list %}
+                                        {% if equipment.is_schedulable %}
+                                        <option value="{{ equipment.id }}" {% if equipment.id == appointment.equipment_id %}selected{% endif %}>
+                                            {{ equipment.name }}
+                                        </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="appointmentUser{{ appointment.id }}" class="form-label">User <span class="text-danger">*</span></label>
+                                <select class="form-select" id="appointmentUser{{ appointment.id }}" name="user_id" required>
+                                    <option value="">Select user...</option>
+                                    {% for user in users %}
+                                        <option value="{{ user.id }}" {% if user.id == appointment.user_id %}selected{% endif %}>
+                                            {{ user.full_name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="appointmentDate{{ appointment.id }}" class="form-label">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="appointmentDate{{ appointment.id }}" 
+                                       name="appointment_date" required 
+                                       value="{{ appointment.start_time.strftime('%Y-%m-%d') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="appointmentStartTime{{ appointment.id }}" class="form-label">Start Time <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="appointmentStartTime{{ appointment.id }}" 
+                                       name="start_time" required step="1800"
+                                       value="{{ appointment.start_time.strftime('%H:%M') }}">
+                                <div class="form-text">30-minute increments</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="appointmentEndTime{{ appointment.id }}" class="form-label">End Time <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="appointmentEndTime{{ appointment.id }}" 
+                                       name="end_time" required step="1800"
+                                       value="{{ appointment.end_time.strftime('%H:%M') }}">
+                                <div class="form-text">30-minute increments</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="appointmentPurpose{{ appointment.id }}" class="form-label">Purpose</label>
+                                <input type="text" class="form-control" id="appointmentPurpose{{ appointment.id }}" 
+                                       name="purpose" value="{{ appointment.purpose or '' }}"
+                                       placeholder="What will this appointment be used for?">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="appointmentStatus{{ appointment.id }}" class="form-label">Status <span class="text-danger">*</span></label>
+                                <select class="form-select" id="appointmentStatus{{ appointment.id }}" name="status" required>
+                                    <option value="pending" {% if appointment.status == 'pending' %}selected{% endif %}>Pending</option>
+                                    <option value="approved" {% if appointment.status == 'approved' %}selected{% endif %}>Approved</option>
+                                    <option value="cancelled" {% if appointment.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="appointmentNotes{{ appointment.id }}" class="form-label">Notes</label>
+                        <textarea class="form-control" id="appointmentNotes{{ appointment.id }}" 
+                                  name="notes" rows="2" 
+                                  placeholder="Additional notes...">{{ appointment.notes or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 <script>
 function togglePasswordRequired(selectElement, passwordId, currentRole) {

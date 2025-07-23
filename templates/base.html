@@ -157,6 +157,15 @@
             <div class="user-info">
                 <small class="text-muted d-block">Logged in as</small>
                 <a href="{{ url_for('profile') }}" class="text-white text-decoration-none">{{ session.user_name }}</a>
+                <div class="d-flex align-items-center mt-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="autoRefreshToggle">
+                        <label class="form-check-label text-white" for="autoRefreshToggle">
+                            Auto-refresh
+                            <small class="text-muted ms-1" id="refreshCountdown"></small>
+                        </label>
+                    </div>
+                </div>
             </div>
             {% if session.role == 'admin' %}
             <a href="{{ url_for('admin') }}" class="btn btn-outline-light btn-sm w-100 mt-2 mb-2">
@@ -538,6 +547,66 @@
         });
     </script>
     
+    <!-- Auto-refresh Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggle = document.getElementById('autoRefreshToggle');
+            const countdown = document.getElementById('refreshCountdown');
+            let refreshInterval;
+            let countdownInterval;
+            const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+            
+            // Initialize toggle state from localStorage
+            toggle.checked = localStorage.getItem('autoRefreshEnabled') === 'true';
+            
+            function startAutoRefresh() {
+                let timeLeft = REFRESH_INTERVAL / 1000;
+                
+                // Update countdown immediately
+                updateCountdown(timeLeft);
+                
+                // Set up countdown interval
+                countdownInterval = setInterval(() => {
+                    timeLeft--;
+                    updateCountdown(timeLeft);
+                }, 1000);
+                
+                // Set up page refresh interval
+                refreshInterval = setInterval(() => {
+                    window.location.reload();
+                }, REFRESH_INTERVAL);
+            }
+            
+            function stopAutoRefresh() {
+                clearInterval(refreshInterval);
+                clearInterval(countdownInterval);
+                countdown.textContent = '';
+            }
+            
+            function updateCountdown(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = seconds % 60;
+                countdown.textContent = `(${minutes}:${remainingSeconds.toString().padStart(2, '0')})`;
+            }
+            
+            // Handle toggle changes
+            toggle.addEventListener('change', function() {
+                localStorage.setItem('autoRefreshEnabled', this.checked);
+                
+                if (this.checked) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
+            
+            // Start auto-refresh if enabled
+            if (toggle.checked) {
+                startAutoRefresh();
+            }
+        });
+    </script>
+
     {% block extra_scripts %}{% endblock %}
 </body>
 </html> 

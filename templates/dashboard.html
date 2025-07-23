@@ -41,6 +41,79 @@
         </div>
     </div>
 
+    {% if upcoming_appointments %}
+    <!-- Upcoming Equipment Appointments -->
+    <div class="row mb-4 fade-in" :class="{ 'loaded': loaded }">
+        <div class="col-12">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0">Upcoming Bookings</th>
+                            <th class="border-0 text-end">When</th>
+                            <th class="border-0 text-end" style="width: 100px">Duration</th>
+                            <th class="border-0" style="width: 40px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appointment in upcoming_appointments %}
+                        {% set duration = (appointment.end_time - appointment.start_time).total_seconds() / 3600 %}
+                        {% set time_until = appointment.start_time - now %}
+                        {% set hours_until = time_until.total_seconds() / 3600 %}
+                        <tr>
+                            <td class="py-1">
+                                <div class="d-flex align-items-center">
+                                    <div>
+                                        <div class="d-flex align-items-center">
+                                            <strong>{{ appointment.equipment.name }}</strong>
+                                            {% if appointment.status == 'approved' %}
+                                            <i class="bi bi-check-circle-fill text-success ms-1" style="font-size: 0.75rem;" title="Approved"></i>
+                                            {% endif %}
+                                        </div>
+                                        {% if appointment.user %}
+                                        <small class="text-muted" style="font-size: 0.75rem;">{{ appointment.user.full_name }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-end py-1">
+                                <div class="d-flex flex-column align-items-end">
+                                    <div style="font-size: 0.875rem;">{{ appointment.start_time.strftime('%b %d, %I:%M %p') }}</div>
+                                    <small class="text-muted" style="font-size: 0.75rem;">
+                                        {% if hours_until < 0 %}
+                                            Started {{ (-hours_until)|round|int }} hour{{ 's' if (-hours_until)|round|int != 1 }} ago
+                                        {% elif hours_until < 1 %}
+                                            In {{ (hours_until * 60)|round|int }} minutes
+                                        {% elif hours_until < 24 %}
+                                            In {{ hours_until|round|int }} hour{{ 's' if hours_until|round|int != 1 }}
+                                        {% elif hours_until < 48 %}
+                                            Tomorrow
+                                        {% else %}
+                                            In {{ (hours_until / 24)|round|int }} days
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </td>
+                            <td class="text-end py-1">
+                                <small class="text-muted" style="font-size: 0.875rem;">
+                                    {{ "%.1f"|format(duration) }}h
+                                </small>
+                            </td>
+                            <td class="text-end py-1">
+                                <a href="{{ url_for('appointment_detail', appointment_id=appointment.id) }}" 
+                                   class="btn btn-sm btn-link text-muted p-0" title="View Details">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Kanban Board -->
     <div class="row mb-4 task-section" :class="{ 'loaded': loaded }">
         <div class="col-12">
@@ -143,16 +216,16 @@
                     </div>
                 </div>
 
-                <!-- Paused Column -->
+                <!-- Completed Column -->
                 <div class="col-lg-4">
                     <div class="kanban-column">
                         <div class="kanban-column-header bg-info">
                             <h6 class="mb-0 text-white fw-medium">
-                                <i class="bi bi-stop-circle me-1"></i>Paused
-                                <span class="badge bg-light text-info ms-1">{{ paused_projects|length }}</span>
+                                <i class="bi bi-check-circle me-1"></i>Completed
+                                <span class="badge bg-light text-info ms-1">{{ completed_projects|length }}</span>
                             </h6>
                         </div>
-                        <div class="kanban-column-body" id="paused-column" data-status="Paused">
+                        <div class="kanban-column-body" id="completed-column" data-status="Completed">
                             <!-- Loading State -->
                             <div x-show="!loaded" class="skeleton-loading">
                                 <div class="skeleton-task">
@@ -163,7 +236,7 @@
                                 </div>
                             </div>
                             <!-- Actual Content - Individual cards with Alpine directives -->
-                            {% for project in paused_projects %}
+                            {% for project in completed_projects %}
                             <div class="kanban-card" data-project-id="{{ project.id }}" x-cloak x-show="loaded">
                                 <div class="kanban-card-header">
                                     <div class="fw-medium mb-1">{{ project.name }}</div>
@@ -277,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Simple delay to let Alpine.js render the content, then initialize Kanban
     setTimeout(function() {
         // Initialize sortable for each column
-        const columns = ['active-column', 'awaiting-column', 'paused-column', 'archived-column'];
+        const columns = ['active-column', 'awaiting-column', 'completed-column', 'archived-column'];
         
         columns.forEach(columnId => {
             const element = document.getElementById(columnId);
@@ -364,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const columns = {
             'active-column': 'Active',
             'awaiting-column': 'Awaiting', 
-            'paused-column': 'Paused'
+            'completed-column': 'Completed'
         };
         
         Object.entries(columns).forEach(([columnId, status]) => {

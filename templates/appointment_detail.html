@@ -1,94 +1,132 @@
-{% extends "base.html" %}
-
-{% block title %}Appointment Details - Hub Tracker{% endblock %}
-
-{% block content %}
-<div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <!-- Header -->
-            <div class="text-center mb-5">
-                <h1 class="display-4 mb-3">Appointment Details</h1>
-                <p class="lead text-muted">Your equipment booking confirmation</p>
-            </div>
-
-            <!-- Appointment Card -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">Appointment #{{ appointment.id }}</h4>
-                        <span class="badge {% if appointment.status == 'approved' %}bg-success{% elif appointment.status == 'pending' %}bg-warning{% else %}bg-danger{% endif %} fs-6">
-                            {{ appointment.status.title() }}
-                        </span>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointment Details - Hub Tracker</title>
+    
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 20px 0;
+        }
+        
+        .form-container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .row.g-2 {
+            margin-left: -0.5rem;
+            margin-right: -0.5rem;
+        }
+        
+        .row.g-2 > .col-6 {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        
+        .add-calendar {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #0d6efd;
+            text-decoration: none;
+            margin: 1rem 0;
+        }
+        
+        .add-calendar:hover {
+            color: #0a58ca;
+        }
+        
+        .add-calendar i {
+            font-size: 1.1rem;
+        }
+        
+        @media (max-width: 575px) {
+            .row.g-2 {
+                margin-left: -0.25rem;
+                margin-right: -0.25rem;
+            }
+            
+            .row.g-2 > .col-6 {
+                padding-left: 0.25rem;
+                padding-right: 0.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <!-- Header -->
+                <div class="text-center mb-5">
+                    <h1 class="display-4 mb-2">Appointment Details</h1>
+                    <div class="text-{{ 'success' if appointment.status == 'approved' else 'warning' if appointment.status == 'pending' else 'danger' }}">
+                        <i class="bi bi-{{ 'check-circle' if appointment.status == 'approved' else 'clock' if appointment.status == 'pending' else 'x-circle' }}"></i>
+                        {{ appointment.status|title }}
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5 class="text-primary mb-3">Equipment Information</h5>
-                            <p><strong>Equipment:</strong> {{ appointment.equipment.name }}</p>
-                            {% if appointment.equipment.description %}
-                            <p><strong>Description:</strong> {{ appointment.equipment.description }}</p>
-                            {% endif %}
-                            {% if appointment.equipment.manual %}
-                            <p><strong>Manual:</strong> <a href="{{ appointment.equipment.manual }}" target="_blank">View Manual</a></p>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6">
-                            <h5 class="text-primary mb-3">Appointment Details</h5>
-                            <p><strong>Date:</strong> {{ appointment.start_time.strftime('%A, %B %d, %Y') }}</p>
-                            <p><strong>Time:</strong> {{ appointment.start_time.strftime('%I:%M %p') }} - {{ appointment.end_time.strftime('%I:%M %p') }}</p>
-                            <p><strong>Duration:</strong> {{ "%.1f"|format(appointment.duration_hours) }} hours</p>
-                            <p><strong>User:</strong> {{ appointment.user.full_name }}</p>
-                        </div>
-                    </div>
-                    
-                    {% if appointment.purpose %}
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <h5 class="text-primary mb-2">Purpose</h5>
-                            <p class="mb-0">{{ appointment.purpose }}</p>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    {% if appointment.notes %}
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <h5 class="text-primary mb-2">Notes</h5>
-                            <div class="bg-light p-3 rounded">
-                                <pre class="mb-0">{{ appointment.notes }}</pre>
+
+                <!-- Appointment Card -->
+                <div class="card">
+                    <div class="card-body">
+                        <div class="form-container">
+                            <div class="row">
+                                <div class="col-md-6 mb-4">
+                                    <h5>Appointment Details</h5>
+                                    <p><strong>Date:</strong> {{ appointment.start_time.strftime('%A, %B %d, %Y') }}</p>
+                                    <p><strong>Time:</strong> {{ appointment.start_time.strftime('%I:%M %p') }} - {{ appointment.end_time.strftime('%I:%M %p') }}</p>
+                                    {% if appointment.purpose %}
+                                    <p><strong>Purpose:</strong> {{ appointment.purpose }}</p>
+                                    {% else %}
+                                    <p><strong>Purpose:</strong> Not specified</p>
+                                    {% endif %}
+                                    <a href="{{ url_for('appointment_calendar', appointment_id=appointment.id) }}" class="add-calendar">
+                                        <i class="bi bi-plus"></i> Add to Calendar
+                                    </a>
+                                </div>
+                                
+                                <div class="col-md-6 mb-4">
+                                    <h5>Equipment Information</h5>
+                                    <p><strong>Name:</strong> {{ appointment.equipment.name }}</p>
+                                    <p><strong>Description:</strong> {{ appointment.equipment.description or 'No description available' }}</p>
+                                    {% if appointment.equipment.manual %}
+                                    <p><strong>Manual:</strong> <a href="{{ appointment.equipment.manual }}" target="_blank">View Manual</a></p>
+                                    {% endif %}
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <div class="alert alert-info">
-                                <h6><i class="bi bi-info-circle"></i> Important Reminders</h6>
-                                <ul class="mb-0">
-                                    <li>Please arrive on time for your appointment</li>
-                                    <li>Review the <a href="https://neurotechhub.wustl.edu/lab/lab-manual/" target="_blank">Lab Manual</a> before using equipment</li>
-                                    <li>Follow all safety protocols while in the lab</li>
-                                    <li>Clean up your workspace after use</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <a href="{{ url_for('schedule') }}" class="btn btn-outline-primary">
-                                <i class="bi bi-plus-circle me-2"></i>Book Another Appointment
-                            </a>
-                        </div>
-                        <div>
+
                             {% if appointment.status != 'cancelled' %}
-                            <button type="button" class="btn btn-outline-danger" onclick="cancelAppointment()">
-                                <i class="bi bi-x-circle me-2"></i>Cancel Appointment
-                            </button>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary btn-lg w-100">Book Another</a>
+                                </div>
+                                <div class="col-6">
+                                    <button type="button" class="btn btn-danger btn-lg w-100" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                                        Cancel Booking
+                                    </button>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="text-center">
+                                <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary btn-lg">Book Another Time</a>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -96,68 +134,84 @@
             </div>
         </div>
     </div>
-</div>
 
-<!-- Cancel Confirmation Modal -->
-<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="cancelModalLabel">Cancel Appointment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to cancel this appointment?</p>
-                <p class="text-muted">This action cannot be undone.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Appointment</button>
-                <button type="button" class="btn btn-danger" id="confirmCancelBtn">
-                    <span class="spinner-border spinner-border-sm d-none" id="cancelSpinner"></span>
-                    Cancel Appointment
-                </button>
+    <!-- Cancel Modal -->
+    {% if appointment.status != 'cancelled' %}
+    <div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancelModalLabel">Cancel Appointment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to cancel this appointment?</p>
+                    <p class="text-danger">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Keep Appointment</button>
+                    <button type="button" class="btn btn-danger" onclick="cancelAppointment()">Cancel Appointment</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+    {% endif %}
 
-<script>
-function cancelAppointment() {
-    const modal = new bootstrap.Modal(document.getElementById('cancelModal'));
-    modal.show();
-}
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    {% if appointment.status != 'cancelled' %}
+    <script>
+    function cancelAppointment() {
+        fetch('/api/cancel_appointment/{{ appointment.id }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Error cancelling appointment: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    }
+    </script>
+    {% endif %}
 
-document.getElementById('confirmCancelBtn').addEventListener('click', function() {
-    const btn = this;
-    const spinner = document.getElementById('cancelSpinner');
-    
-    btn.disabled = true;
-    spinner.classList.remove('d-none');
-    
-    fetch('/api/cancel_appointment/{{ appointment.id }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Reload page to show cancelled status
-            window.location.reload();
-        } else {
-            alert('Error cancelling appointment: ' + data.error);
-            btn.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('An error occurred. Please try again.');
-        btn.disabled = false;
-    })
-    .finally(() => {
-        spinner.classList.add('d-none');
+    {% if appointment.status == 'approved' %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fire confetti from the center
+        confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+        });
+
+        // Fire confetti from both sides
+        setTimeout(() => {
+            confetti({
+                particleCount: 50,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 }
+            });
+            confetti({
+                particleCount: 50,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 }
+            });
+        }, 250);
     });
-});
-</script>
-{% endblock %} 
+    </script>
+    {% endif %}
+</body>
+</html> 

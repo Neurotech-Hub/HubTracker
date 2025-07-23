@@ -125,34 +125,39 @@ sudo systemctl enable postgresql
 
 #### Manual Setup
 
-1. **Create Database User**
+1. **Create Database User and Setup Database**
    ```bash
-   # Connect to PostgreSQL as superuser
+   # Connect to PostgreSQL
+   # On macOS:
+   psql postgres
+   # On Linux:
    sudo -u postgres psql
 
-   # Create user (replace 'your_password' with a secure password)
-   CREATE USER hubtracker_user WITH PASSWORD 'your_password';
+   # Create user with password (replace 'your_password' with a secure password)
+   CREATE USER hubtracker_user WITH PASSWORD 'your_password' CREATEDB;
+
+   # Create database with proper ownership
+   CREATE DATABASE hubtracker_dev OWNER hubtracker_user;
 
    # Grant necessary privileges
-   GRANT CREATEDB ON DATABASE postgres TO hubtracker_user;
+   GRANT ALL PRIVILEGES ON DATABASE hubtracker_dev TO hubtracker_user;
+   
+   # Set default privileges for future tables
+   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO hubtracker_user;
 
    # Exit
    \q
    ```
 
-2. **Create Database**
+   If you need to reset the database at any point:
    ```bash
-   # Connect as the new user
-   psql -U hubtracker_user -h localhost
-
-   # Create database
-   CREATE DATABASE hubtracker_dev;
-
-   # Exit
-   \q
+   psql postgres -c "DROP DATABASE IF EXISTS hubtracker_dev;"
+   psql postgres -c "CREATE DATABASE hubtracker_dev OWNER hubtracker_user;"
+   psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE hubtracker_dev TO hubtracker_user;"
+   psql postgres -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO hubtracker_user;"
    ```
 
-3. **Create Environment File**
+2. **Create Environment File**
    Create a `.env` file in your project root:
    ```env
    FLASK_ENV=development
@@ -160,12 +165,14 @@ sudo systemctl enable postgresql
    DATABASE_URL=postgresql+psycopg://hubtracker_user:your_password@localhost:5432/hubtracker_dev
    ```
 
-4. **Install Dependencies and Run**
+3. **Install Dependencies and Initialize Database**
    ```bash
    pip install -r requirements.txt
-   flask db upgrade
+   flask db upgrade  # This will create all database tables
    python app.py
    ```
+
+Note: On macOS, if you get connection errors, try removing the `-h localhost` flag when connecting with psql. If you get permission errors during migrations, make sure you've granted all the necessary privileges as shown in step 1.
 
 ### Database Migration Workflow
 
@@ -343,12 +350,12 @@ heroku run flask db upgrade  # Initialize database
 
 ### Environment Variables
 
-| Variable       | Description                | Default                    | Required             |
-| -------------- | -------------------------- | -------------------------- | -------------------- |
-| `FLASK_ENV`    | Environment mode           | `development`              | No                   |
-| `SECRET_KEY`   | Flask secret key           | Random                     | **Yes (Production)** |
-| `DATABASE_URL` | PostgreSQL connection string | None                     | **Yes**              |
-| `PORT`         | Server port                | `5000`                     | No                   |
+| Variable       | Description                  | Default       | Required             |
+| -------------- | ---------------------------- | ------------- | -------------------- |
+| `FLASK_ENV`    | Environment mode             | `development` | No                   |
+| `SECRET_KEY`   | Flask secret key             | Random        | **Yes (Production)** |
+| `DATABASE_URL` | PostgreSQL connection string | None          | **Yes**              |
+| `PORT`         | Server port                  | `5000`        | No                   |
 
 ### Database Migration
 

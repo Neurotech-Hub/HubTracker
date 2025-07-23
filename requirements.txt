@@ -7,3 +7,4 @@ markdown==3.5.2
 psycopg==3.2.9
 python-dotenv==1.0.0
 openpyxl==3.1.2 
+icalendar==5.0.7 

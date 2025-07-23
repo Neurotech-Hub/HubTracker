@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 from flask_migrate import Migrate
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import pytz
 import os
 import markdown
@@ -8,6 +8,8 @@ from sqlalchemy import func, desc, text
 import re
 from markupsafe import Markup
 import json
+from icalendar import Calendar, Event
+from io import BytesIO
 
 # Load environment variables from .env file
 try:
@@ -507,10 +509,54 @@ def dashboard():
         (Task.is_complete == False)
     ).order_by(Task.created_at.desc()).all()
     
-    # Recent Activity (limit 10 items)
-    from datetime import timedelta
+    # Serialize tasks for JSON
+    tasks_for_me = [serialize_task(task) for task in tasks_for_me_query]
+    tasks_i_created = [serialize_task(task) for task in tasks_i_created_query]
     
-    # Get recent activity from ActivityLog
+    # Get upcoming equipment appointments
+    from datetime import datetime, timedelta
+    import pytz
+    
+    # Use Central Time since that's what the appointments are in
+    central = pytz.timezone('America/Chicago')
+    now = datetime.now(central)
+    
+    # Get start of today in Central time
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Debug: Print query parameters
+    print(f"\nDEBUG Dashboard Appointments Query:")
+    print(f"Current time: {now}")
+    print(f"Today start: {today_start}")
+    
+    # First get all appointments to check what exists
+    all_appointments = EquipmentAppointment.query.all()
+    print(f"\nDEBUG All Appointments ({len(all_appointments)}):")
+    for appt in all_appointments:
+        print(f"ID: {appt.id}, Equipment: {appt.equipment_id}, "
+              f"Start: {appt.start_time}, Status: {appt.status}")
+    
+    # Now run the filtered query - for admins, show all appointments
+    upcoming_appointments_query = EquipmentAppointment.query.filter(
+        EquipmentAppointment.start_time >= today_start,  # Show all of today's appointments
+        EquipmentAppointment.status.in_(['pending', 'approved'])
+    )
+    
+    # Only filter by user if not an admin
+    if session.get('role') != 'admin':
+        upcoming_appointments_query = upcoming_appointments_query.filter(
+            EquipmentAppointment.user_id == session['user_id']
+        )
+    
+    upcoming_appointments = upcoming_appointments_query.order_by(
+        EquipmentAppointment.start_time.asc()
+    ).limit(5).all()
+    
+    print(f"\nDEBUG Filtered Appointments ({len(upcoming_appointments)}):")
+    for appt in upcoming_appointments:
+        print(f"ID: {appt.id}, Start: {appt.start_time}, Status: {appt.status}")
+    
+    # Recent Activity (limit 10 items)
     recent_activities = []
     try:
         # Check if ActivityLog table exists by trying to query it
@@ -519,8 +565,6 @@ def dashboard():
         print(f"Warning: ActivityLog table not available: {e}")
         # Set empty list to prevent further errors
         recent_activities = []
-    
-
     
     # Process activities for display - combine all into single list for proper ordering
     all_activities = []
@@ -590,72 +634,29 @@ def dashboard():
                     'data': activity,
                     'created_at': activity.created_at
                 })
-        
-        # Sort by creation time (most recent first) and limit to 10
-        all_activities.sort(key=lambda x: x['created_at'], reverse=True)
-        all_activities = all_activities[:10]
     except Exception as e:
         print(f"Warning: Error processing activities: {e}")
-        all_activities = []
     
-
+    # Get active projects for kanban board
+    active_projects = Project.query.filter_by(status='Active').order_by(Project.name.asc()).all()
+    awaiting_projects = Project.query.filter_by(status='Awaiting').order_by(Project.name.asc()).all()
+    completed_projects = Project.query.filter_by(status='Completed').order_by(Project.name.asc()).all()
     
-    # Serialize tasks with related data
-    tasks_for_me = [serialize_task(task) for task in tasks_for_me_query]
-    tasks_i_created = [serialize_task(task) for task in tasks_i_created_query]
+    # Get current day of week for greeting
+    day_of_week = now.strftime('%A')
     
-    # Get day of week for personalized messages
-    import datetime
-    day_of_week = datetime.datetime.now().strftime('%A')
-    
-    # Get Kanban data for projects (exclude default project)
-    active_projects = Project.query.filter(
-        Project.status == 'Active',
-        Project.is_default == False
-    ).order_by(Project.updated_at.desc()).all()
-    
-    awaiting_projects = Project.query.filter(
-        Project.status == 'Awaiting',
-        Project.is_default == False
-    ).order_by(Project.updated_at.desc()).all()
-    
-    paused_projects = Project.query.filter(
-        Project.status == 'Paused',
-        Project.is_default == False
-    ).order_by(Project.updated_at.desc()).all()
-    
-    archived_projects = Project.query.filter(
-        Project.status == 'Archived',
-        Project.is_default == False
-    ).order_by(Project.updated_at.desc()).all()
-    
-    # If no Awaiting/Paused projects exist yet, also check Prospective projects for Awaiting column
-    if not awaiting_projects:
-        awaiting_projects = Project.query.filter(
-            Project.status == 'Prospective',
-            Project.is_default == False
-        ).order_by(Project.updated_at.desc()).all()
-    
-    # Get data for action buttons (creating new items)
-    clients = Client.query.order_by(Client.name.asc()).all()
-    memberships = Membership.query.all()
-    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
-    
-    return render_template('dashboard.html', 
+    return render_template('dashboard.html',
                          user=user,
-                         tasks_for_me=tasks_for_me, 
+                         tasks_for_me=tasks_for_me,
                          tasks_i_created=tasks_i_created,
                          all_activities=all_activities,
                          day_of_week=day_of_week,
+                         upcoming_appointments=upcoming_appointments,
+                         now=now,  # Add current time for countdown calculation
                          # Kanban data
                          active_projects=active_projects,
                          awaiting_projects=awaiting_projects,
-                         paused_projects=paused_projects,
-                         archived_projects=archived_projects,
-                         # Modal data
-                         clients=clients,
-                         memberships=memberships,
-                         users=users)
+                         completed_projects=completed_projects)
 
 @app.route('/logout')
 def logout():
@@ -2869,12 +2870,36 @@ def admin():
     
     # Get upcoming appointments (next 30 days)
     from datetime import datetime, timedelta
-    start_date = datetime.now()
+    import pytz
+    
+    # Use Central Time since that's what the appointments are in
+    central = pytz.timezone('America/Chicago')
+    now = datetime.now(central)
+    start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_date = start_date + timedelta(days=30)
+    
+    # Debug: Print query parameters
+    print(f"\nDEBUG Admin Appointments Query:")
+    print(f"Start date: {start_date}")
+    print(f"End date: {end_date}")
+    
+    # First get all appointments to check what exists
+    all_appointments = EquipmentAppointment.query.all()
+    print(f"\nDEBUG All Appointments ({len(all_appointments)}):")
+    for appt in all_appointments:
+        print(f"ID: {appt.id}, User: {appt.user_id}, Equipment: {appt.equipment_id}, "
+              f"Start: {appt.start_time}, Status: {appt.status}")
+    
+    # Now run the filtered query
     upcoming_appointments = EquipmentAppointment.query.filter(
         EquipmentAppointment.start_time >= start_date,
-        EquipmentAppointment.start_time <= end_date
+        EquipmentAppointment.start_time <= end_date,
+        EquipmentAppointment.status.in_(['pending', 'approved'])
     ).order_by(EquipmentAppointment.start_time.asc()).all()
+    
+    print(f"\nDEBUG Filtered Appointments ({len(upcoming_appointments)}):")
+    for appt in upcoming_appointments:
+        print(f"ID: {appt.id}, Start: {appt.start_time}, Status: {appt.status}")
     
     # Get global blocked dates (future only)
     from datetime import date
@@ -3655,11 +3680,57 @@ def appointment_detail(appointment_id):
     appointment = EquipmentAppointment.query.get_or_404(appointment_id)
     return render_template('appointment_detail.html', appointment=appointment)
 
+@app.route('/schedule/<int:appointment_id>/calendar')
+def appointment_calendar(appointment_id):
+    """Generate and return an iCal file for the appointment"""
+    appointment = EquipmentAppointment.query.get_or_404(appointment_id)
+    
+    # Create calendar
+    cal = Calendar()
+    cal.add('prodid', '-//Hub Tracker//Equipment Booking//EN')
+    cal.add('version', '2.0')
+    
+    # Create event
+    event = Event()
+    event.add('summary', f'Equipment Booking: {appointment.equipment.name}')
+    event.add('dtstart', appointment.start_time)
+    event.add('dtend', appointment.end_time)
+    event.add('dtstamp', appointment.created_at)
+    
+    # Add description with equipment details and purpose
+    description = f"Equipment: {appointment.equipment.name}\n"
+    if appointment.equipment.description:
+        description += f"Details: {appointment.equipment.description}\n"
+    if appointment.purpose:
+        description += f"\nPurpose: {appointment.purpose}"
+    event.add('description', description)
+    
+    # Add location if equipment has a manual URL (could be used to link to manual)
+    if appointment.equipment.manual:
+        event.add('url', appointment.equipment.manual)
+    
+    cal.add_component(event)
+    
+    # Save to bytes
+    ical_data = cal.to_ical()
+    
+    # Create response
+    response = send_file(
+        BytesIO(ical_data),
+        mimetype='text/calendar',
+        as_attachment=True,
+        download_name=f'equipment-booking-{appointment.id}.ics'
+    )
+    
+    return response
+
 @app.route('/api/validate_email', methods=['POST'])
 def validate_email():
     """Validate user email and return user info if found"""
     data = request.get_json()
     email = data.get('email', '').strip().lower()
+    
+    print(f"[DEBUG] Validating email: {email}")
     
     if not email:
         return jsonify({'valid': False, 'message': 'Email is required'})
@@ -3667,20 +3738,27 @@ def validate_email():
     user = User.query.filter_by(email=email).first()
     
     if not user:
+        print(f"[DEBUG] No user found for email: {email}")
         return jsonify({'valid': False, 'message': 'Email not found. Please contact an administrator.'})
     
-    # Get user's equipment
-    equipment_list = []
-    for equipment in user.equipment:
-        if equipment.is_schedulable:
-            equipment_list.append({
-                'id': equipment.id,
-                'name': equipment.name,
-                'description': equipment.description or '',
-                'manual': equipment.manual or ''
-            })
+    print(f"[DEBUG] Found user: {user.id} - {user.full_name}")
     
-    return jsonify({
+    # Get all user's equipment regardless of schedulable status
+    equipment_list = []
+    for equipment in user.equipment.all():
+        equipment_data = {
+            'id': equipment.id,
+            'name': equipment.name,
+            'description': equipment.description or '',
+            'manual': equipment.manual or '',
+            'is_schedulable': equipment.is_schedulable,
+            'contact_email': 'gaidica@wustl.edu'  # Added contact email
+        }
+        equipment_list.append(equipment_data)
+    
+    print(f"[DEBUG] Found {len(equipment_list)} equipment items for user")
+    
+    response_data = {
         'valid': True,
         'user': {
             'id': user.id,
@@ -3688,7 +3766,10 @@ def validate_email():
             'email': user.email
         },
         'equipment': equipment_list
-    })
+    }
+    
+    print(f"[DEBUG] Sending response: {response_data}")
+    return jsonify(response_data)
 
 @app.route('/api/available_slots', methods=['POST'])
 def get_available_slots():
@@ -3696,6 +3777,7 @@ def get_available_slots():
     data = request.get_json()
     equipment_id = data.get('equipment_id')
     date_str = data.get('date')
+    start_time = data.get('start_time')  # If provided, return possible end times
     
     if not equipment_id or not date_str:
         return jsonify({'error': 'Equipment ID and date are required'})
@@ -3706,6 +3788,11 @@ def get_available_slots():
         
         # Get equipment
         equipment = Equipment.query.get_or_404(equipment_id)
+        
+        # Get scheduling settings
+        settings = SchedulingSettings.query.first()
+        if not settings:
+            return jsonify({'error': 'Scheduling settings not configured'})
         
         # Get operating hours for this day
         day_of_week = selected_date.weekday()  # Monday=0, Sunday=6
@@ -3724,33 +3811,69 @@ def get_available_slots():
             EquipmentAppointment.start_time < end_of_day,
             EquipmentAppointment.status != 'cancelled'
         ).all()
-        
-        # Generate time slots
-        slots = []
-        current_time = operating_hours.start_time
-        end_time = operating_hours.end_time
-        
-        while current_time < end_time:
-            slot_start = datetime.combine(selected_date, current_time)
-            slot_end = slot_start + timedelta(hours=1)  # Default 1-hour slots
+
+        # If start_time is provided, return possible end times
+        if start_time:
+            start_dt = datetime.strptime(f"{date_str} {start_time}", '%Y-%m-%d %H:%M')
+            end_dt = datetime.combine(selected_date, operating_hours.end_time)
+            max_end_dt = start_dt + timedelta(hours=settings.max_booking_duration_hours)
             
+            # Use the earlier of max duration or operating hours end
+            end_dt = min(end_dt, max_end_dt)
+            
+            slots = []
+            current_dt = start_dt + timedelta(minutes=30)  # Start with minimum duration (30 min)
+            
+            while current_dt <= end_dt:
+                # Check if slot conflicts with existing appointments
+                is_available = True
+                for appointment in existing_appointments:
+                    if (start_dt < appointment.end_time and current_dt > appointment.start_time):
+                        is_available = False
+                        break
+                
+                if is_available:
+                    slots.append({
+                        'end_time': current_dt.strftime('%H:%M'),
+                        'formatted': f"Until {current_dt.strftime('%I:%M %p')}"
+                    })
+                
+                current_dt += timedelta(minutes=30)
+            
+            return jsonify({
+                'slots': slots,
+                'type': 'end_times'
+            })
+        
+        # Otherwise, return available start times
+        slots = []
+        current_datetime = datetime.combine(selected_date, operating_hours.start_time)
+        end_datetime = datetime.combine(selected_date, operating_hours.end_time)
+        
+        # Don't allow start times that would exceed max duration before end of operating hours
+        latest_start = end_datetime - timedelta(minutes=30)  # Minimum 30 min duration
+        
+        while current_datetime <= latest_start:
             # Check if slot conflicts with existing appointments
             is_available = True
             for appointment in existing_appointments:
-                if (slot_start < appointment.end_time and slot_end > appointment.start_time):
+                if (current_datetime < appointment.end_time and 
+                    current_datetime + timedelta(minutes=30) > appointment.start_time):
                     is_available = False
                     break
             
             if is_available:
                 slots.append({
-                    'start_time': current_time.strftime('%H:%M'),
-                    'end_time': (current_time + timedelta(hours=1)).strftime('%H:%M'),
-                    'formatted': f"{current_time.strftime('%I:%M %p')} - {(current_time + timedelta(hours=1)).strftime('%I:%M %p')}"
+                    'start_time': current_datetime.strftime('%H:%M'),
+                    'formatted': current_datetime.strftime('%I:%M %p')
                 })
             
-            current_time += timedelta(minutes=30)
+            current_datetime += timedelta(minutes=30)
         
-        return jsonify({'slots': slots})
+        return jsonify({
+            'slots': slots,
+            'type': 'start_times'
+        })
         
     except Exception as e:
         return jsonify({'error': str(e)})
@@ -3829,16 +3952,12 @@ def create_public_appointment():
         start_datetime = datetime.combine(appointment_date, start_time)
         end_datetime = datetime.combine(appointment_date, end_time)
         
-        # Calculate duration
-        duration = (end_datetime - start_datetime).total_seconds() / 3600
-        
         # Create appointment
         appointment = EquipmentAppointment(
             equipment_id=data['equipment_id'],
             user_id=data['user_id'],
             start_time=start_datetime,
             end_time=end_datetime,
-            duration_hours=duration,
             purpose=data.get('purpose', ''),
             notes=data.get('notes', ''),
             status='approved'  # Auto-approve for public bookings
@@ -3869,6 +3988,58 @@ def cancel_public_appointment(appointment_id):
     db.session.commit()
     
     return jsonify({'success': True, 'message': 'Appointment cancelled successfully'})
+
+@app.route('/admin/appointment/<int:appointment_id>/edit', methods=['POST'])
+def edit_appointment(appointment_id):
+    """Edit an existing appointment"""
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    appointment = EquipmentAppointment.query.get_or_404(appointment_id)
+    
+    # Get form data
+    equipment_id = request.form.get('equipment_id')
+    user_id = request.form.get('user_id')
+    appointment_date = request.form.get('appointment_date')
+    start_time = request.form.get('start_time')
+    end_time = request.form.get('end_time')
+    purpose = request.form.get('purpose')
+    notes = request.form.get('notes')
+    status = request.form.get('status')
+    
+    if not all([equipment_id, user_id, appointment_date, start_time, end_time, status]):
+        flash('All required fields must be filled out.', 'error')
+        return redirect(url_for('admin'))
+    
+    try:
+        # Parse date and times
+        date_obj = datetime.strptime(appointment_date, '%Y-%m-%d').date()
+        start_dt = datetime.combine(date_obj, datetime.strptime(start_time, '%H:%M').time())
+        end_dt = datetime.combine(date_obj, datetime.strptime(end_time, '%H:%M').time())
+        
+        # Add timezone info (Central Time)
+        central = pytz.timezone('America/Chicago')
+        start_dt = central.localize(start_dt)
+        end_dt = central.localize(end_dt)
+        
+        # Update appointment
+        appointment.equipment_id = equipment_id
+        appointment.user_id = user_id
+        appointment.start_time = start_dt
+        appointment.end_time = end_dt
+        appointment.purpose = purpose
+        appointment.notes = notes
+        appointment.status = status
+        
+        db.session.commit()
+        flash('Appointment updated successfully.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating appointment: {str(e)}', 'error')
+    
+    return redirect(url_for('admin'))
 
 if __name__ == '__main__':
     with app.app_context():
