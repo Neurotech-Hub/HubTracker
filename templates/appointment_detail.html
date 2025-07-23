@@ -18,55 +18,133 @@
     <!-- Canvas Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
+    {% if appointment.status == 'approved' %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Firing confetti for approved appointment!');
+        // Fire confetti from the center
+        confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+        });
+
+        // Fire confetti from both sides
+        setTimeout(() => {
+            confetti({
+                particleCount: 50,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 }
+            });
+            confetti({
+                particleCount: 50,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 }
+            });
+        }, 250);
+    });
+    </script>
+    {% endif %}
+    
     <style>
         body {
             background-color: #f8f9fa;
             padding: 20px 0;
         }
         
-        .form-container {
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto;
+        .card {
+            margin-bottom: 1rem;
         }
         
+        .card-body {
+            padding: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .card-body {
+                padding: 1.5rem;
+            }
+        }
+        
+        /* Button Groups */
         .row.g-2 {
-            margin-left: -0.5rem;
-            margin-right: -0.5rem;
+            margin: 0 -0.5rem;
         }
-        
+
         .row.g-2 > .col-6 {
-            padding-left: 0.5rem;
-            padding-right: 0.5rem;
+            padding: 0 0.5rem;
         }
-        
-        .add-calendar {
+
+        /* Help Text */
+        .help-text {
+            margin-top: 1rem;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.875rem;
+        }
+
+        /* Summary Sections */
+        .summary-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .summary-section h5 {
+            margin-bottom: 1rem;
+        }
+
+        /* Status Badge */
+        .status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-badge i {
+            margin-right: 0.375rem;
+            font-size: 1rem;
+        }
+
+        .status-badge.approved {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .status-badge.pending {
+            background-color: #fff3cd;
+            color: #664d03;
+        }
+
+        .status-badge.cancelled {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+
+        /* Calendar Link */
+        .calendar-link {
+            display: inline-flex;
+            align-items: center;
             color: #0d6efd;
             text-decoration: none;
             margin: 1rem 0;
+            font-size: 0.9rem;
         }
-        
-        .add-calendar:hover {
+
+        .calendar-link:hover {
             color: #0a58ca;
+            text-decoration: underline;
         }
-        
-        .add-calendar i {
-            font-size: 1.1rem;
-        }
-        
-        @media (max-width: 575px) {
-            .row.g-2 {
-                margin-left: -0.25rem;
-                margin-right: -0.25rem;
-            }
-            
-            .row.g-2 > .col-6 {
-                padding-left: 0.25rem;
-                padding-right: 0.25rem;
-            }
+
+        .calendar-link i {
+            margin-right: 0.375rem;
         }
     </style>
 </head>
@@ -75,9 +153,9 @@
         <div class="row justify-content-center">
             <div class="col-lg-8">
                 <!-- Header -->
-                <div class="text-center mb-5">
-                    <h1 class="display-4 mb-2">Appointment Details</h1>
-                    <div class="text-{{ 'success' if appointment.status == 'approved' else 'warning' if appointment.status == 'pending' else 'danger' }}">
+                <div class="text-center mb-4">
+                    <h1 class="display-4">Appointment Details</h1>
+                    <div class="status-badge {{ appointment.status }}" title="Status">
                         <i class="bi bi-{{ 'check-circle' if appointment.status == 'approved' else 'clock' if appointment.status == 'pending' else 'x-circle' }}"></i>
                         {{ appointment.status|title }}
                     </div>
@@ -86,50 +164,54 @@
                 <!-- Appointment Card -->
                 <div class="card">
                     <div class="card-body">
-                        <div class="form-container">
-                            <div class="row">
-                                <div class="col-md-6 mb-4">
-                                    <h5>Appointment Details</h5>
-                                    <p><strong>Date:</strong> {{ appointment.start_time.strftime('%A, %B %d, %Y') }}</p>
-                                    <p><strong>Time:</strong> {{ appointment.start_time.strftime('%I:%M %p') }} - {{ appointment.end_time.strftime('%I:%M %p') }}</p>
-                                    {% if appointment.purpose %}
-                                    <p><strong>Purpose:</strong> {{ appointment.purpose }}</p>
-                                    {% else %}
-                                    <p><strong>Purpose:</strong> Not specified</p>
-                                    {% endif %}
-                                    <a href="{{ url_for('appointment_calendar', appointment_id=appointment.id) }}" class="add-calendar">
-                                        <i class="bi bi-plus"></i> Add to Calendar
-                                    </a>
-                                </div>
-                                
-                                <div class="col-md-6 mb-4">
-                                    <h5>Equipment Information</h5>
-                                    <p><strong>Name:</strong> {{ appointment.equipment.name }}</p>
-                                    <p><strong>Description:</strong> {{ appointment.equipment.description or 'No description available' }}</p>
-                                    {% if appointment.equipment.manual %}
-                                    <p><strong>Manual:</strong> <a href="{{ appointment.equipment.manual }}" target="_blank">View Manual</a></p>
-                                    {% endif %}
-                                </div>
+                        <div class="row">
+                            <div class="col-md-6 summary-section">
+                                <h5>Appointment Details</h5>
+                                <p><strong>Date:</strong> {{ appointment.start_time.strftime('%A, %B %d, %Y') }}</p>
+                                <p><strong>Time:</strong> {{ appointment.start_time.strftime('%I:%M %p') }} - {{ appointment.end_time.strftime('%I:%M %p') }}</p>
+                                {% if appointment.purpose %}
+                                <p><strong>Purpose:</strong> {{ appointment.purpose }}</p>
+                                {% endif %}
+                                <a href="{{ url_for('appointment_calendar', appointment_id=appointment.id) }}" class="calendar-link">
+                                    <i class="bi bi-calendar-plus"></i> Add to Calendar
+                                </a>
                             </div>
-
-                            {% if appointment.status != 'cancelled' %}
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary btn-lg w-100">Book Another</a>
-                                </div>
-                                <div class="col-6">
-                                    <button type="button" class="btn btn-danger btn-lg w-100" data-bs-toggle="modal" data-bs-target="#cancelModal">
-                                        Cancel Booking
-                                    </button>
-                                </div>
+                            
+                            <div class="col-md-6 summary-section">
+                                <h5>Equipment Information</h5>
+                                <p><strong>Name:</strong> {{ appointment.equipment.name }}</p>
+                                <p><strong>Description:</strong> {{ appointment.equipment.description or 'No description available' }}</p>
+                                {% if appointment.equipment.manual %}
+                                <p><strong>Manual:</strong> <a href="{{ appointment.equipment.manual }}" target="_blank">View Manual</a></p>
+                                {% endif %}
                             </div>
-                            {% else %}
-                            <div class="text-center">
-                                <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary btn-lg">Book Another Time</a>
-                            </div>
-                            {% endif %}
                         </div>
+
+                        {% if appointment.status != 'cancelled' %}
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary btn-lg w-100">
+                                    <i class="bi bi-plus-lg me-1"></i> Book Another
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-danger btn-lg w-100" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                                    <i class="bi bi-x-lg me-1"></i> Cancel Booking
+                                </button>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center">
+                            <a href="{{ url_for('schedule') }}" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-plus-lg me-1"></i> Book Another Time
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
+                </div>
+
+                <div class="help-text">
+                    Need help? Contact <a href="mailto:neurotechhub@wustl.edu">neurotechhub@wustl.edu</a>
                 </div>
             </div>
         </div>
@@ -182,35 +264,6 @@
             alert('An error occurred. Please try again.');
         });
     }
-    </script>
-    {% endif %}
-
-    {% if appointment.status == 'approved' %}
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Fire confetti from the center
-        confetti({
-            particleCount: 100,
-            spread: 70,
-            origin: { y: 0.6 }
-        });
-
-        // Fire confetti from both sides
-        setTimeout(() => {
-            confetti({
-                particleCount: 50,
-                angle: 60,
-                spread: 55,
-                origin: { x: 0 }
-            });
-            confetti({
-                particleCount: 50,
-                angle: 120,
-                spread: 55,
-                origin: { x: 1 }
-            });
-        }, 250);
-    });
     </script>
     {% endif %}
 </body>

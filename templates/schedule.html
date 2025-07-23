@@ -20,6 +20,20 @@
             background-color: #f8f9fa;
             padding: 20px 0;
         }
+
+        .card {
+            margin-bottom: 1rem;
+        }
+        
+        .card-body {
+            padding: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .card-body {
+                padding: 1.5rem;
+            }
+        }
         
         .step-indicator {
             position: relative;
@@ -69,7 +83,7 @@
         .equipment-card {
             cursor: pointer;
             transition: all 0.3s ease;
-            border: 2px solid transparent;
+            border: 1px solid #dee2e6;
             margin-bottom: 1rem;
         }
 
@@ -77,6 +91,7 @@
             border-color: #0d6efd;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background-color: #f8f9ff;
         }
 
         .equipment-card.selected {
@@ -92,7 +107,8 @@
         .equipment-card.disabled:hover {
             transform: none;
             box-shadow: none;
-            border-color: transparent;
+            border-color: #dee2e6;
+            background-color: transparent;
         }
 
         .equipment-card .card-body {
@@ -132,43 +148,67 @@
             animation: fadeIn 0.5s ease-in;
         }
 
-        /* Form styling */
-        .form-container {
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto;
+        /* Form Elements */
+        .form-control-lg, .form-select-lg {
+            margin-bottom: 1rem;
         }
 
-        .form-container .btn {
-            width: 100%;
-            padding: 0.75rem;
+        .input-group {
+            margin-bottom: 1rem;
         }
 
-        .form-container .input-group {
-            width: 100%;
+        .invalid-feedback {
+            margin-top: -0.75rem;
+            margin-bottom: 1rem;
         }
 
-        /* Update action buttons styling */
+        /* Button Groups */
         .row.g-2 {
-            margin-left: -0.5rem;
-            margin-right: -0.5rem;
+            margin: 0 -0.5rem;
         }
 
         .row.g-2 > .col-6 {
-            padding-left: 0.5rem;
-            padding-right: 0.5rem;
+            padding: 0 0.5rem;
         }
 
-        @media (max-width: 575px) {
-            .row.g-2 {
-                margin-left: -0.25rem;
-                margin-right: -0.25rem;
-            }
+        /* Help Text */
+        .help-text {
+            margin-top: 1rem;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.875rem;
+        }
 
-            .row.g-2 > .col-6 {
-                padding-left: 0.25rem;
-                padding-right: 0.25rem;
-            }
+        /* Alert Styles */
+        .alert {
+            margin-bottom: 1.5rem;
+        }
+
+        .alert:last-child {
+            margin-bottom: 0;
+        }
+
+        .alert-heading {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .alert-heading i {
+            margin-right: 0.5rem;
+        }
+
+        /* Summary Sections */
+        .summary-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .summary-section h5 {
+            margin-bottom: 1rem;
         }
     </style>
 </head>
@@ -177,8 +217,8 @@
         <div class="row justify-content-center">
             <div class="col-lg-8">
                 <!-- Header -->
-                <div class="text-center mb-5" id="pageHeader">
-                    <h1 class="display-4 mb-3">Schedule Equipment</h1>
+                <div class="text-center mb-4" id="pageHeader">
+                    <h1 class="display-4">Schedule Equipment</h1>
                 </div>
 
                 <!-- Progress Bar -->
@@ -218,20 +258,16 @@
                 <div class="step-content" id="step1">
                     <div class="card">
                         <div class="card-body">
-                            <div class="form-container">
-                                <div class="mb-3">
-                                    <div class="input-group">
-                                        <input type="text" class="form-control form-control-lg" id="userEmail" 
-                                               placeholder="WUSTL Key" required autofocus>
-                                        <span class="input-group-text">@wustl.edu</span>
-                                    </div>
-                                    <div class="invalid-feedback" id="emailError"></div>
-                                </div>
-                                <button type="button" class="btn btn-primary btn-lg" id="validateEmailBtn">
-                                    <span class="spinner-border spinner-border-sm d-none" id="emailSpinner"></span>
-                                    Continue
-                                </button>
+                            <div class="input-group">
+                                <input type="text" class="form-control form-control-lg" id="userEmail" 
+                                       placeholder="WUSTL Key" required autofocus>
+                                <span class="input-group-text">@wustl.edu</span>
                             </div>
+                            <div class="invalid-feedback" id="emailError"></div>
+                            <button type="button" class="btn btn-primary btn-lg w-100" id="validateEmailBtn">
+                                <span class="spinner-border spinner-border-sm d-none" id="emailSpinner"></span>
+                                Continue <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -240,17 +276,23 @@
                 <div class="step-content d-none" id="step2">
                     <div class="card">
                         <div class="card-body">
-                            <h3 class="card-title mb-4">Select Equipment</h3>
-                            <p class="text-muted mb-4">Choose the equipment you'd like to schedule.</p>
+                            <h3 class="card-title mb-4">Equipment Access</h3>
                             
                             <div id="equipmentList" class="row">
                                 <!-- Equipment cards will be populated here -->
                             </div>
                             
-                            <div class="text-center mt-4">
-                                <button type="button" class="btn btn-secondary" onclick="previousStep()">Back</button>
+                            <div class="row g-2 mt-4">
+                                <div class="col-6">
+                                    <button type="button" class="btn btn-outline-secondary btn-lg w-100" onclick="previousStep()">
+                                        <i class="bi bi-arrow-left me-1"></i> Back
+                                    </button>
+                                </div>
                             </div>
                         </div>
+                    </div>
+                    <div class="help-text">
+                        Need help? Contact <a href="mailto:neurotechhub@wustl.edu">neurotechhub@wustl.edu</a>
                     </div>
                 </div>
 
@@ -258,33 +300,28 @@
                 <div class="step-content d-none" id="step3">
                     <div class="card">
                         <div class="card-body">
-                            <div class="form-container">
-                                <div class="mb-3">
-                                    <select class="form-select form-select-lg" id="appointmentDate" required>
-                                        <option value="">Select date...</option>
-                                    </select>
+                            <select class="form-select form-select-lg" id="appointmentDate" required>
+                                <option value="">Select date...</option>
+                            </select>
+                            <select class="form-select form-select-lg" id="appointmentStartTime" required>
+                                <option value="">Select start time...</option>
+                            </select>
+                            <select class="form-select form-select-lg" id="appointmentEndTime" required>
+                                <option value="">Select end time...</option>
+                            </select>
+                            <input type="text" class="form-control form-control-lg" id="appointmentPurpose" 
+                                   placeholder="What will you be working on? (Optional)">
+                            
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <button type="button" class="btn btn-outline-secondary btn-lg w-100" onclick="previousStep()">
+                                        <i class="bi bi-arrow-left me-1"></i> Back
+                                    </button>
                                 </div>
-                                <div class="mb-3">
-                                    <select class="form-select form-select-lg" id="appointmentStartTime" required>
-                                        <option value="">Select start time...</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <select class="form-select form-select-lg" id="appointmentEndTime" required>
-                                        <option value="">Select end time...</option>
-                                    </select>
-                                </div>
-                                <div class="mb-4">
-                                    <input type="text" class="form-control form-control-lg" id="appointmentPurpose" 
-                                           placeholder="What will you be working on? (Optional)">
-                                </div>
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <button type="button" class="btn btn-outline-secondary btn-lg w-100" onclick="previousStep()">Back</button>
-                                    </div>
-                                    <div class="col-6">
-                                        <button type="button" class="btn btn-primary btn-lg w-100" id="continueToConfirmBtn">Continue</button>
-                                    </div>
+                                <div class="col-6">
+                                    <button type="button" class="btn btn-primary btn-lg w-100" id="continueToConfirmBtn">
+                                        Continue <i class="bi bi-arrow-right ms-1"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -295,14 +332,14 @@
                 <div class="step-content d-none" id="step4">
                     <div class="card">
                         <div class="card-body">
-                            <div class="row mb-4">
-                                <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-6 summary-section">
                                     <h5>Appointment Details</h5>
                                     <div id="appointmentSummary">
                                         <!-- Summary will be populated here -->
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-6 summary-section">
                                     <h5>Equipment Information</h5>
                                     <div id="equipmentSummary">
                                         <!-- Equipment info will be populated here -->
@@ -311,7 +348,10 @@
                             </div>
                             
                             <div class="alert alert-warning">
-                                <h6><i class="bi bi-exclamation-triangle"></i> Important Acknowledgement</h6>
+                                <h6 class="alert-heading">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    Important Acknowledgement
+                                </h6>
                                 <ul class="mb-2">
                                     <li>Read the <a href="https://neurotechhub.wustl.edu/lab/lab-manual/" target="_blank">Lab Manual</a></li>
                                     <li>Understand how to operate the equipment safely</li>
@@ -327,12 +367,14 @@
                             
                             <div class="row g-2">
                                 <div class="col-6">
-                                    <button type="button" class="btn btn-outline-secondary btn-lg w-100" onclick="previousStep()">Back</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-lg w-100" onclick="previousStep()">
+                                        <i class="bi bi-arrow-left me-1"></i> Back
+                                    </button>
                                 </div>
                                 <div class="col-6">
                                     <button type="button" class="btn btn-success btn-lg w-100" id="confirmAppointmentBtn" disabled>
                                         <span class="spinner-border spinner-border-sm d-none" id="confirmSpinner"></span>
-                                        Confirm
+                                        Confirm <i class="bi bi-check-lg ms-1"></i>
                                     </button>
                                 </div>
                             </div>
@@ -449,7 +491,13 @@
             container.innerHTML = '';
             
             if (!equipmentList || equipmentList.length === 0) {
-                container.innerHTML = '<div class="col-12 text-center"><p class="text-muted">No equipment available. Please contact an administrator.</p></div>';
+                container.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>No Equipment Access</h6>
+                            <p class="mb-0">You don't currently have access to schedule any equipment. Please contact an administrator to request access.</p>
+                        </div>
+                    </div>`;
                 return;
             }
             
