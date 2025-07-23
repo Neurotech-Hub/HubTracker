@@ -540,7 +540,7 @@
                 if (!equipment.is_schedulable) {
                     const unavailableMsg = document.createElement('div');
                     unavailableMsg.className = 'alert alert-warning mt-2 mb-0';
-                    unavailableMsg.innerHTML = `Unable to use this equipment. <a href="mailto:${equipment.contact_email}">Contact us</a> for details.`;
+                    unavailableMsg.innerHTML = `Equipment offline. <a href="mailto:neurotechhub@wustl.edu">Contact us</a>.`;
                     cardBody.appendChild(unavailableMsg);
                 }
                 
