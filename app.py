@@ -3644,6 +3644,232 @@ def update_appointment_status(appointment_id):
     
     return redirect(url_for('admin'))
 
+@app.route('/schedule')
+def schedule():
+    """Public scheduling interface - step-by-step appointment booking"""
+    return render_template('schedule.html')
+
+@app.route('/schedule/<int:appointment_id>')
+def appointment_detail(appointment_id):
+    """Show appointment details and allow cancellation"""
+    appointment = EquipmentAppointment.query.get_or_404(appointment_id)
+    return render_template('appointment_detail.html', appointment=appointment)
+
+@app.route('/api/validate_email', methods=['POST'])
+def validate_email():
+    """Validate user email and return user info if found"""
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+    
+    if not email:
+        return jsonify({'valid': False, 'message': 'Email is required'})
+    
+    user = User.query.filter_by(email=email).first()
+    
+    if not user:
+        return jsonify({'valid': False, 'message': 'Email not found. Please contact an administrator.'})
+    
+    # Get user's equipment
+    equipment_list = []
+    for equipment in user.equipment:
+        if equipment.is_schedulable:
+            equipment_list.append({
+                'id': equipment.id,
+                'name': equipment.name,
+                'description': equipment.description or '',
+                'manual': equipment.manual or ''
+            })
+    
+    return jsonify({
+        'valid': True,
+        'user': {
+            'id': user.id,
+            'name': user.full_name,
+            'email': user.email
+        },
+        'equipment': equipment_list
+    })
+
+@app.route('/api/available_slots', methods=['POST'])
+def get_available_slots():
+    """Get available time slots for a specific equipment and date"""
+    data = request.get_json()
+    equipment_id = data.get('equipment_id')
+    date_str = data.get('date')
+    
+    if not equipment_id or not date_str:
+        return jsonify({'error': 'Equipment ID and date are required'})
+    
+    try:
+        # Parse date
+        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        # Get equipment
+        equipment = Equipment.query.get_or_404(equipment_id)
+        
+        # Get operating hours for this day
+        day_of_week = selected_date.weekday()  # Monday=0, Sunday=6
+        operating_hours = EquipmentOperatingHours.query.filter_by(day_of_week=day_of_week).first()
+        
+        if not operating_hours:
+            return jsonify({'slots': [], 'message': 'Closed on this day'})
+        
+        # Get existing appointments for this equipment and date
+        start_of_day = datetime.combine(selected_date, datetime.min.time())
+        end_of_day = datetime.combine(selected_date, datetime.max.time())
+        
+        existing_appointments = EquipmentAppointment.query.filter(
+            EquipmentAppointment.equipment_id == equipment_id,
+            EquipmentAppointment.start_time >= start_of_day,
+            EquipmentAppointment.start_time < end_of_day,
+            EquipmentAppointment.status != 'cancelled'
+        ).all()
+        
+        # Generate time slots
+        slots = []
+        current_time = operating_hours.start_time
+        end_time = operating_hours.end_time
+        
+        while current_time < end_time:
+            slot_start = datetime.combine(selected_date, current_time)
+            slot_end = slot_start + timedelta(hours=1)  # Default 1-hour slots
+            
+            # Check if slot conflicts with existing appointments
+            is_available = True
+            for appointment in existing_appointments:
+                if (slot_start < appointment.end_time and slot_end > appointment.start_time):
+                    is_available = False
+                    break
+            
+            if is_available:
+                slots.append({
+                    'start_time': current_time.strftime('%H:%M'),
+                    'end_time': (current_time + timedelta(hours=1)).strftime('%H:%M'),
+                    'formatted': f"{current_time.strftime('%I:%M %p')} - {(current_time + timedelta(hours=1)).strftime('%I:%M %p')}"
+                })
+            
+            current_time += timedelta(minutes=30)
+        
+        return jsonify({'slots': slots})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/api/available_dates', methods=['POST'])
+def get_available_dates():
+    """Get available dates for a specific equipment"""
+    data = request.get_json()
+    equipment_id = data.get('equipment_id')
+    
+    if not equipment_id:
+        return jsonify({'error': 'Equipment ID is required'})
+    
+    try:
+        # Get scheduling settings
+        settings = SchedulingSettings.query.first()
+        if not settings:
+            return jsonify({'error': 'Scheduling settings not configured'})
+        
+        # Get equipment
+        equipment = Equipment.query.get_or_404(equipment_id)
+        
+        # Get blocked dates
+        today = date.today()
+        blocked_dates = EquipmentBlockedDate.query.filter(
+            EquipmentBlockedDate.blocked_date >= today
+        ).all()
+        blocked_date_set = {bd.blocked_date for bd in blocked_dates}
+        
+        # Generate available dates
+        available_dates = []
+        current_date = today
+        
+        for i in range(settings.booking_advance_limit_days + 1):
+            # Check if date is blocked
+            if current_date in blocked_date_set:
+                current_date += timedelta(days=1)
+                continue
+            
+            # Check if we have operating hours for this day
+            day_of_week = current_date.weekday()
+            operating_hours = EquipmentOperatingHours.query.filter_by(day_of_week=day_of_week).first()
+            
+            if operating_hours:
+                available_dates.append({
+                    'date': current_date.strftime('%Y-%m-%d'),
+                    'day_name': current_date.strftime('%A'),
+                    'formatted': current_date.strftime('%A, %B %d, %Y')
+                })
+            
+            current_date += timedelta(days=1)
+        
+        return jsonify({'dates': available_dates})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/api/create_appointment', methods=['POST'])
+def create_public_appointment():
+    """Create appointment from public interface"""
+    data = request.get_json()
+    
+    try:
+        # Validate required fields
+        required_fields = ['user_id', 'equipment_id', 'date', 'start_time', 'end_time']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        
+        # Parse date and times
+        appointment_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+        start_time = datetime.strptime(data['start_time'], '%H:%M').time()
+        end_time = datetime.strptime(data['end_time'], '%H:%M').time()
+        
+        # Create appointment datetime
+        start_datetime = datetime.combine(appointment_date, start_time)
+        end_datetime = datetime.combine(appointment_date, end_time)
+        
+        # Calculate duration
+        duration = (end_datetime - start_datetime).total_seconds() / 3600
+        
+        # Create appointment
+        appointment = EquipmentAppointment(
+            equipment_id=data['equipment_id'],
+            user_id=data['user_id'],
+            start_time=start_datetime,
+            end_time=end_datetime,
+            duration_hours=duration,
+            purpose=data.get('purpose', ''),
+            notes=data.get('notes', ''),
+            status='approved'  # Auto-approve for public bookings
+        )
+        
+        db.session.add(appointment)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'appointment_id': appointment.id,
+            'redirect_url': url_for('appointment_detail', appointment_id=appointment.id)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cancel_appointment/<int:appointment_id>', methods=['POST'])
+def cancel_public_appointment(appointment_id):
+    """Cancel appointment from public interface"""
+    appointment = EquipmentAppointment.query.get_or_404(appointment_id)
+    
+    if appointment.status == 'cancelled':
+        return jsonify({'error': 'Appointment is already cancelled'}), 400
+    
+    appointment.status = 'cancelled'
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Appointment cancelled successfully'})
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

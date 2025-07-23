@@ -1,0 +1,581 @@
+{% extends "base.html" %}
+
+{% block title %}Schedule Equipment - Hub Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <h1 class="display-4 mb-3">Schedule Equipment</h1>
+                <p class="lead text-muted">Book your time with Neurotech Hub equipment</p>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress mb-4" style="height: 8px;">
+                <div class="progress-bar" role="progressbar" style="width: 20%;" id="progressBar"></div>
+            </div>
+
+            <!-- Step Indicators -->
+            <div class="row mb-4">
+                <div class="col-3 text-center">
+                    <div class="step-indicator active" id="step1-indicator">
+                        <div class="step-number">1</div>
+                        <div class="step-label">Email</div>
+                    </div>
+                </div>
+                <div class="col-3 text-center">
+                    <div class="step-indicator" id="step2-indicator">
+                        <div class="step-number">2</div>
+                        <div class="step-label">Equipment</div>
+                    </div>
+                </div>
+                <div class="col-3 text-center">
+                    <div class="step-indicator" id="step3-indicator">
+                        <div class="step-number">3</div>
+                        <div class="step-label">Time</div>
+                    </div>
+                </div>
+                <div class="col-3 text-center">
+                    <div class="step-indicator" id="step4-indicator">
+                        <div class="step-number">4</div>
+                        <div class="step-label">Confirm</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 1: Email Validation -->
+            <div class="step-content" id="step1">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="card-title mb-4">Enter Your Email</h3>
+                        <p class="text-muted mb-4">Please enter the email address associated with your Neurotech Hub account.</p>
+                        
+                        <div class="row justify-content-center">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <input type="email" class="form-control form-control-lg" id="userEmail" 
+                                           placeholder="your.email@wustl.edu" required>
+                                    <div class="invalid-feedback" id="emailError"></div>
+                                </div>
+                                <button type="button" class="btn btn-primary btn-lg" id="validateEmailBtn">
+                                    <span class="spinner-border spinner-border-sm d-none" id="emailSpinner"></span>
+                                    Continue
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Equipment Selection -->
+            <div class="step-content d-none" id="step2">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title mb-4">Select Equipment</h3>
+                        <p class="text-muted mb-4">Choose the equipment you'd like to schedule.</p>
+                        
+                        <div id="equipmentList" class="row">
+                            <!-- Equipment cards will be populated here -->
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <button type="button" class="btn btn-secondary" onclick="previousStep()">Back</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Date and Time Selection -->
+            <div class="step-content d-none" id="step3">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title mb-4">Select Date & Time</h3>
+                        <p class="text-muted mb-4">Choose your preferred date and time slot.</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="appointmentDate" class="form-label">Date</label>
+                                    <select class="form-select" id="appointmentDate" required>
+                                        <option value="">Select date...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="appointmentTime" class="form-label">Time Slot</label>
+                                    <select class="form-select" id="appointmentTime" required>
+                                        <option value="">Select time...</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="appointmentPurpose" class="form-label">Purpose (Optional)</label>
+                            <input type="text" class="form-control" id="appointmentPurpose" 
+                                   placeholder="What will you be working on?">
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <button type="button" class="btn btn-secondary" onclick="previousStep()">Back</button>
+                            <button type="button" class="btn btn-primary" id="continueToConfirmBtn">Continue</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Confirmation -->
+            <div class="step-content d-none" id="step4">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title mb-4">Confirm Your Appointment</h3>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h5>Appointment Details</h5>
+                                <div id="appointmentSummary">
+                                    <!-- Summary will be populated here -->
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Equipment Information</h5>
+                                <div id="equipmentSummary">
+                                    <!-- Equipment info will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <h6><i class="bi bi-exclamation-triangle"></i> Important Acknowledgement</h6>
+                            <p class="mb-2">By proceeding, you acknowledge that you have:</p>
+                            <ul class="mb-2">
+                                <li>Read the <a href="https://neurotechhub.wustl.edu/lab/lab-manual/" target="_blank">Lab Manual</a></li>
+                                <li>Understand how to operate the equipment safely</li>
+                                <li>Assume liability for the equipment and your own safety</li>
+                            </ul>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="acknowledgementCheck" required>
+                                <label class="form-check-label" for="acknowledgementCheck">
+                                    I acknowledge and agree to the above terms
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <button type="button" class="btn btn-secondary" onclick="previousStep()">Back</button>
+                            <button type="button" class="btn btn-success btn-lg" id="confirmAppointmentBtn" disabled>
+                                <span class="spinner-border spinner-border-sm d-none" id="confirmSpinner"></span>
+                                Confirm Appointment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.step-indicator {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.step-indicator.active .step-number {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.step-indicator.completed .step-number {
+    background-color: #198754;
+    color: white;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin: 0 auto 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.step-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.step-indicator.active .step-label {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.step-indicator.completed .step-label {
+    color: #198754;
+    font-weight: 600;
+}
+
+.equipment-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.equipment-card:hover {
+    border-color: #0d6efd;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.equipment-card.selected {
+    border-color: #0d6efd;
+    background-color: #f8f9ff;
+}
+
+.equipment-card .card-body {
+    padding: 1.5rem;
+}
+
+.equipment-card h5 {
+    margin-bottom: 0.5rem;
+    color: #0d6efd;
+}
+
+.equipment-card .description {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.equipment-card .manual-link {
+    font-size: 0.8rem;
+}
+
+.step-content {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<script>
+let currentStep = 1;
+let userData = null;
+let selectedEquipment = null;
+let selectedDate = null;
+let selectedTime = null;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Email validation
+    document.getElementById('validateEmailBtn').addEventListener('click', validateEmail);
+    document.getElementById('userEmail').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') validateEmail();
+    });
+    
+    // Date selection
+    document.getElementById('appointmentDate').addEventListener('change', loadTimeSlots);
+    
+    // Continue to confirmation
+    document.getElementById('continueToConfirmBtn').addEventListener('click', prepareConfirmation);
+    
+    // Confirm appointment
+    document.getElementById('confirmAppointmentBtn').addEventListener('click', confirmAppointment);
+    
+    // Acknowledgement checkbox
+    document.getElementById('acknowledgementCheck').addEventListener('change', function() {
+        document.getElementById('confirmAppointmentBtn').disabled = !this.checked;
+    });
+});
+
+function validateEmail() {
+    const email = document.getElementById('userEmail').value.trim();
+    const btn = document.getElementById('validateEmailBtn');
+    const spinner = document.getElementById('emailSpinner');
+    const errorDiv = document.getElementById('emailError');
+    
+    if (!email) {
+        showEmailError('Please enter your email address');
+        return;
+    }
+    
+    // Show loading
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    errorDiv.textContent = '';
+    
+    fetch('/api/validate_email', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.valid) {
+            userData = data.user;
+            loadEquipment(data.equipment);
+            nextStep();
+        } else {
+            showEmailError(data.message);
+        }
+    })
+    .catch(error => {
+        showEmailError('An error occurred. Please try again.');
+        console.error('Error:', error);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+    });
+}
+
+function showEmailError(message) {
+    const errorDiv = document.getElementById('emailError');
+    const emailInput = document.getElementById('userEmail');
+    
+    errorDiv.textContent = message;
+    emailInput.classList.add('is-invalid');
+    
+    setTimeout(() => {
+        emailInput.classList.remove('is-invalid');
+    }, 3000);
+}
+
+function loadEquipment(equipmentList) {
+    const container = document.getElementById('equipmentList');
+    container.innerHTML = '';
+    
+    equipmentList.forEach(equipment => {
+        const card = document.createElement('div');
+        card.className = 'col-md-6 mb-3';
+        card.innerHTML = `
+            <div class="card equipment-card" onclick="selectEquipment(${equipment.id}, '${equipment.name}', '${equipment.description}', '${equipment.manual}')">
+                <div class="card-body">
+                    <h5>${equipment.name}</h5>
+                    <div class="description">${equipment.description || 'No description available'}</div>
+                    ${equipment.manual ? `<a href="${equipment.manual}" target="_blank" class="manual-link">View Manual</a>` : ''}
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function selectEquipment(id, name, description, manual) {
+    // Remove previous selection
+    document.querySelectorAll('.equipment-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // Select new equipment
+    event.currentTarget.classList.add('selected');
+    
+    selectedEquipment = { id, name, description, manual };
+    
+    // Load available dates
+    loadAvailableDates();
+    
+    nextStep();
+}
+
+function loadAvailableDates() {
+    fetch('/api/available_dates', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ equipment_id: selectedEquipment.id })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const dateSelect = document.getElementById('appointmentDate');
+        dateSelect.innerHTML = '<option value="">Select date...</option>';
+        
+        data.dates.forEach(date => {
+            const option = document.createElement('option');
+            option.value = date.date;
+            option.textContent = date.formatted;
+            dateSelect.appendChild(option);
+        });
+    })
+    .catch(error => {
+        console.error('Error loading dates:', error);
+    });
+}
+
+function loadTimeSlots() {
+    const dateSelect = document.getElementById('appointmentDate');
+    const timeSelect = document.getElementById('appointmentTime');
+    
+    if (!dateSelect.value) {
+        timeSelect.innerHTML = '<option value="">Select time...</option>';
+        return;
+    }
+    
+    fetch('/api/available_slots', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+            equipment_id: selectedEquipment.id,
+            date: dateSelect.value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        timeSelect.innerHTML = '<option value="">Select time...</option>';
+        
+        if (data.slots.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = data.message || 'No available slots';
+            option.disabled = true;
+            timeSelect.appendChild(option);
+        } else {
+            data.slots.forEach(slot => {
+                const option = document.createElement('option');
+                option.value = `${slot.start_time}-${slot.end_time}`;
+                option.textContent = slot.formatted;
+                timeSelect.appendChild(option);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading time slots:', error);
+    });
+}
+
+function prepareConfirmation() {
+    const dateSelect = document.getElementById('appointmentDate');
+    const timeSelect = document.getElementById('appointmentTime');
+    const purposeInput = document.getElementById('appointmentPurpose');
+    
+    if (!dateSelect.value || !timeSelect.value) {
+        alert('Please select both date and time');
+        return;
+    }
+    
+    selectedDate = dateSelect.value;
+    selectedTime = timeSelect.value;
+    
+    // Update appointment summary
+    const [startTime, endTime] = selectedTime.split('-');
+    const date = new Date(selectedDate);
+    const formattedDate = date.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+    
+    document.getElementById('appointmentSummary').innerHTML = `
+        <p><strong>Equipment:</strong> ${selectedEquipment.name}</p>
+        <p><strong>Date:</strong> ${formattedDate}</p>
+        <p><strong>Time:</strong> ${startTime} - ${endTime}</p>
+        <p><strong>Purpose:</strong> ${purposeInput.value || 'Not specified'}</p>
+    `;
+    
+    document.getElementById('equipmentSummary').innerHTML = `
+        <p><strong>Name:</strong> ${selectedEquipment.name}</p>
+        <p><strong>Description:</strong> ${selectedEquipment.description || 'No description'}</p>
+        ${selectedEquipment.manual ? `<p><strong>Manual:</strong> <a href="${selectedEquipment.manual}" target="_blank">View Manual</a></p>` : ''}
+    `;
+    
+    nextStep();
+}
+
+function confirmAppointment() {
+    const btn = document.getElementById('confirmAppointmentBtn');
+    const spinner = document.getElementById('confirmSpinner');
+    const purposeInput = document.getElementById('appointmentPurpose');
+    
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    
+    const [startTime, endTime] = selectedTime.split('-');
+    
+    // Add acknowledgement to notes
+    const acknowledgement = `User acknowledged lab manual and safety requirements on ${new Date().toLocaleString()}`;
+    const notes = purposeInput.value ? `${purposeInput.value}\n\n${acknowledgement}` : acknowledgement;
+    
+    fetch('/api/create_appointment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            user_id: userData.id,
+            equipment_id: selectedEquipment.id,
+            date: selectedDate,
+            start_time: startTime,
+            end_time: endTime,
+            purpose: purposeInput.value || '',
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.redirect_url;
+        } else {
+            alert('Error creating appointment: ' + data.error);
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+        btn.disabled = false;
+    })
+    .finally(() => {
+        spinner.classList.add('d-none');
+    });
+}
+
+function nextStep() {
+    document.getElementById(`step${currentStep}`).classList.add('d-none');
+    currentStep++;
+    document.getElementById(`step${currentStep}`).classList.remove('d-none');
+    updateProgress();
+}
+
+function previousStep() {
+    document.getElementById(`step${currentStep}`).classList.add('d-none');
+    currentStep--;
+    document.getElementById(`step${currentStep}`).classList.remove('d-none');
+    updateProgress();
+}
+
+function updateProgress() {
+    const progress = (currentStep / 4) * 100;
+    document.getElementById('progressBar').style.width = progress + '%';
+    
+    // Update step indicators
+    for (let i = 1; i <= 4; i++) {
+        const indicator = document.getElementById(`step${i}-indicator`);
+        indicator.classList.remove('active', 'completed');
+        
+        if (i < currentStep) {
+            indicator.classList.add('completed');
+        } else if (i === currentStep) {
+            indicator.classList.add('active');
+        }
+    }
+}
+</script>
+{% endblock %} 
