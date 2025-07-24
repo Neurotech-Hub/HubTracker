@@ -58,7 +58,7 @@
                     </thead>
                     <tbody>
                         {% for appointment in upcoming_appointments %}
-                        {% set duration = (appointment.end_time - appointment.start_time).total_seconds() / 3600 %}
+                        {% set duration = (appointment | duration_hours_central) %}
                         {% set is_started = appointment.start_time <= now %}
                         {% set is_expired = appointment.end_time <= now %}
                         <tr class="{% if appointment.status == 'cancelled' %}table-secondary{% endif %}">
@@ -94,7 +94,7 @@
                             </td>
                             <td class="text-end py-1">
                                 <div class="d-flex flex-column align-items-end">
-                                    <div style="font-size: 0.875rem;" class="{% if appointment.status == 'cancelled' %}text-muted{% endif %}">{{ appointment.start_time.strftime('%b %d, %I:%M %p') }}</div>
+                                    <div style="font-size: 0.875rem;" class="{% if appointment.status == 'cancelled' %}text-muted{% endif %}">{{ (appointment.start_time | central_time).strftime('%b %d, %I:%M %p') }}</div>
                                     {% if appointment.status != 'cancelled' %}
                                     <small class="text-muted" style="font-size: 0.75rem;">
                                         {{ appointment.start_time|time_until }}

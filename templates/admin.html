@@ -326,8 +326,8 @@
                                 <tr>
                                     <td>{{ appointment.equipment.name }}</td>
                                     <td>{{ appointment.user.full_name }}</td>
-                                    <td>{{ appointment.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
-                                    <td>{{ "%.1f"|format(appointment.duration_hours) }}h</td>
+                                    <td>{{ (appointment.start_time | central_time).strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>{{ "%.1f"|format(appointment | duration_hours_central) }}h</td>
                                     <td>{{ appointment.purpose or '' }}</td>
                                     <td>
                                         <span class="badge {% if appointment.status == 'approved' %}bg-success{% elif appointment.status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
@@ -838,7 +838,7 @@
                                 <label for="appointmentDate{{ appointment.id }}" class="form-label">Date <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control" id="appointmentDate{{ appointment.id }}" 
                                        name="appointment_date" required 
-                                       value="{{ appointment.start_time.strftime('%Y-%m-%d') }}">
+                                       value="{{ (appointment.start_time | central_time).strftime('%Y-%m-%d') }}">
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -846,7 +846,7 @@
                                 <label for="appointmentStartTime{{ appointment.id }}" class="form-label">Start Time <span class="text-danger">*</span></label>
                                 <input type="time" class="form-control" id="appointmentStartTime{{ appointment.id }}" 
                                        name="start_time" required step="1800"
-                                       value="{{ appointment.start_time.strftime('%H:%M') }}">
+                                       value="{{ (appointment.start_time | central_time).strftime('%H:%M') }}">
                                 <div class="form-text">30-minute increments</div>
                             </div>
                         </div>
@@ -855,7 +855,7 @@
                                 <label for="appointmentEndTime{{ appointment.id }}" class="form-label">End Time <span class="text-danger">*</span></label>
                                 <input type="time" class="form-control" id="appointmentEndTime{{ appointment.id }}" 
                                        name="end_time" required step="1800"
-                                       value="{{ appointment.end_time.strftime('%H:%M') }}">
+                                       value="{{ (appointment.end_time | central_time).strftime('%H:%M') }}">
                                 <div class="form-text">30-minute increments</div>
                             </div>
                         </div>
@@ -912,7 +912,7 @@
                     <div class="alert alert-warning">
                         <strong>Equipment:</strong> {{ appointment.equipment.name }}<br>
                         <strong>User:</strong> {{ appointment.user.full_name }}<br>
-                        <strong>Date & Time:</strong> {{ appointment.start_time.strftime('%Y-%m-%d %H:%M') }} - {{ appointment.end_time.strftime('%H:%M') }}<br>
+                        <strong>Date & Time:</strong> {{ (appointment.start_time | central_time).strftime('%Y-%m-%d %H:%M') }} - {{ (appointment.end_time | central_time).strftime('%H:%M') }}<br>
                         <strong>Status:</strong> {{ appointment.status.title() }}
                     </div>
                     <p class="text-danger"><strong>This action cannot be undone.</strong></p>

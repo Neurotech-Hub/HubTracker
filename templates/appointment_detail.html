@@ -167,8 +167,8 @@
                         <div class="row">
                             <div class="col-md-6 summary-section">
                                 <h5>Appointment Details</h5>
-                                <p><strong>Date:</strong> {{ appointment.start_time.strftime('%A, %B %d, %Y') }}</p>
-                                <p><strong>Time:</strong> {{ appointment.start_time.strftime('%I:%M %p') }} - {{ appointment.end_time.strftime('%I:%M %p') }}</p>
+                                <p><strong>Date:</strong> {{ (appointment.start_time | central_time).strftime('%A, %B %d, %Y') }}</p>
+                                <p><strong>Time:</strong> {{ (appointment.start_time | central_time).strftime('%I:%M %p') }} - {{ (appointment.end_time | central_time).strftime('%I:%M %p') }}</p>
                                 {% if appointment.purpose %}
                                 <p><strong>Purpose:</strong> {{ appointment.purpose }}</p>
                                 {% endif %}

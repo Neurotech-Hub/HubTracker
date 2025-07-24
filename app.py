@@ -344,6 +344,55 @@ def time_until(dt):
         days = int(hours_until / 24)
         return f"In {days} day{'s' if days != 1 else ''}"
 
+@app.template_filter('central_time')
+def central_time(dt):
+    """Convert a datetime to Central Time for display"""
+    if not dt:
+        return ''
+    
+    import pytz
+    
+    # If dt is naive, assume it's in UTC (from database)
+    if dt.tzinfo is None:
+        utc_tz = pytz.timezone('UTC')
+        dt = utc_tz.localize(dt)
+    
+    # Convert to Central Time
+    central_tz = pytz.timezone('America/Chicago')
+    central_dt = dt.astimezone(central_tz)
+    
+    return central_dt
+
+@app.template_filter('duration_hours_central')
+def duration_hours_central(appointment):
+    """Calculate duration in hours using Central Time"""
+    if not appointment.start_time or not appointment.end_time:
+        return 0
+    
+    import pytz
+    
+    # Convert both times to Central Time for calculation
+    central_tz = pytz.timezone('America/Chicago')
+    
+    # If times are naive, assume they're in UTC
+    start_time = appointment.start_time
+    end_time = appointment.end_time
+    
+    if start_time.tzinfo is None:
+        utc_tz = pytz.timezone('UTC')
+        start_time = utc_tz.localize(start_time)
+    if end_time.tzinfo is None:
+        utc_tz = pytz.timezone('UTC')
+        end_time = utc_tz.localize(end_time)
+    
+    # Convert to Central Time
+    start_central = start_time.astimezone(central_tz)
+    end_central = end_time.astimezone(central_tz)
+    
+    # Calculate duration
+    delta = end_central - start_central
+    return delta.total_seconds() / 3600
+
 # Add global functions to Jinja2 environment
 app.jinja_env.globals.update(min=min)
 app.jinja_env.filters['markdown'] = markdown_filter
@@ -351,6 +400,8 @@ app.jinja_env.filters['render_tags'] = render_tags
 app.jinja_env.filters['time_ago'] = time_ago
 app.jinja_env.filters['currency'] = currency_filter
 app.jinja_env.filters['time_until'] = time_until
+app.jinja_env.filters['central_time'] = central_time
+app.jinja_env.filters['duration_hours_central'] = duration_hours_central
 
 @app.route('/')
 def index():
