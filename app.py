@@ -3612,12 +3612,13 @@ def add_appointment():
             return redirect(url_for('admin'))
         
         from datetime import datetime
-        # Combine date and time strings
+        # Combine date and time strings and localize to Chicago timezone
+        central = pytz.timezone('America/Chicago')
         start_datetime_str = f"{appointment_date}T{start_time_str}:00"
         end_datetime_str = f"{appointment_date}T{end_time_str}:00"
         
-        start_time = datetime.fromisoformat(start_datetime_str)
-        end_time = datetime.fromisoformat(end_datetime_str)
+        start_time = central.localize(datetime.fromisoformat(start_datetime_str))
+        end_time = central.localize(datetime.fromisoformat(end_datetime_str))
         
         # Check if equipment is schedulable
         equipment = Equipment.query.get_or_404(equipment_id)
@@ -4050,9 +4051,10 @@ def create_public_appointment():
         start_time = datetime.strptime(data['start_time'], '%H:%M').time()
         end_time = datetime.strptime(data['end_time'], '%H:%M').time()
         
-        # Create appointment datetime
-        start_datetime = datetime.combine(appointment_date, start_time)
-        end_datetime = datetime.combine(appointment_date, end_time)
+        # Create appointment datetime with Chicago timezone
+        central = pytz.timezone('America/Chicago')
+        start_datetime = central.localize(datetime.combine(appointment_date, start_time))
+        end_datetime = central.localize(datetime.combine(appointment_date, end_time))
         
         # Create appointment
         appointment = EquipmentAppointment(
