@@ -686,17 +686,20 @@ def dashboard():
     from datetime import datetime, timedelta
     import pytz
     
-    # Use Central Time since that's what the appointments are in
+    # Use Central Time for display, but UTC for database queries
     central = pytz.timezone('America/Chicago')
-    now = datetime.now(central)
+    now_central = datetime.now(central)
     
-    # Get start of today in Central time
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Convert to UTC for database query (since database stores in UTC)
+    utc = pytz.timezone('UTC')
+    now_utc = now_central.astimezone(utc)
+    today_start_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
     
     # Debug: Print query parameters
     print(f"\nDEBUG Dashboard Appointments Query:")
-    print(f"Current time: {now}")
-    print(f"Today start: {today_start}")
+    print(f"Current time (Central): {now_central}")
+    print(f"Current time (UTC): {now_utc}")
+    print(f"Today start (UTC): {today_start_utc}")
     
     # First get all appointments to check what exists
     all_appointments = EquipmentAppointment.query.all()
@@ -707,7 +710,7 @@ def dashboard():
     
     # Now run the filtered query - for admins, show all appointments including cancelled for today
     upcoming_appointments_query = EquipmentAppointment.query.filter(
-        EquipmentAppointment.start_time >= today_start  # Show all of today's appointments
+        EquipmentAppointment.start_time >= today_start_utc  # Show all of today's appointments
     )
     
     # Only filter by user if not an admin
@@ -811,7 +814,7 @@ def dashboard():
     paused_projects = Project.query.filter_by(status='Paused').order_by(Project.name.asc()).all()
     
     # Get current day of week for greeting
-    day_of_week = now.strftime('%A')
+    day_of_week = now_central.strftime('%A')
     
     return render_template('dashboard.html',
                          user=user,
@@ -820,7 +823,7 @@ def dashboard():
                          all_activities=all_activities,
                          day_of_week=day_of_week,
                          upcoming_appointments=upcoming_appointments,
-                         now=now,  # Pass the localized current time
+                         now=now_central,  # Pass the localized current time
                          # Kanban data
                          active_projects=active_projects,
                          awaiting_projects=awaiting_projects,
@@ -3040,14 +3043,19 @@ def admin():
     from datetime import datetime
     import pytz
     
-    # Use Central Time since that's what the appointments are in
+    # Use Central Time for display, but UTC for database queries
     central = pytz.timezone('America/Chicago')
-    now = datetime.now(central)
-    start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    now_central = datetime.now(central)
+    
+    # Convert to UTC for database query (since database stores in UTC)
+    utc = pytz.timezone('UTC')
+    now_utc = now_central.astimezone(utc)
+    start_date_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
     
     # Debug: Print query parameters
     print(f"\nDEBUG Admin Appointments Query:")
-    print(f"Start date: {start_date}")
+    print(f"Start date (Central): {now_central.replace(hour=0, minute=0, second=0, microsecond=0)}")
+    print(f"Start date (UTC): {start_date_utc}")
     print(f"No end date limit - showing all future appointments")
     
     # First get all appointments to check what exists
@@ -3059,7 +3067,7 @@ def admin():
     
     # Now run the filtered query - show all future appointments including cancelled
     upcoming_appointments = EquipmentAppointment.query.filter(
-        EquipmentAppointment.start_time >= start_date
+        EquipmentAppointment.start_time >= start_date_utc
     ).order_by(EquipmentAppointment.start_time.asc()).all()
     
     print(f"\nDEBUG Filtered Appointments ({len(upcoming_appointments)}):")

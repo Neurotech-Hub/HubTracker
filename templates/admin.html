@@ -738,9 +738,7 @@
                                 <select class="form-select" id="appointmentUser" name="user_id" required>
                                     <option value="">Select user...</option>
                                     {% for user in users %}
-                                        {% if user.role == 'admin' %}
                                         <option value="{{ user.id }}">{{ user.full_name }}</option>
-                                        {% endif %}
                                     {% endfor %}
                                 </select>
                             </div>
