@@ -59,8 +59,10 @@
                     <tbody>
                         {% for appointment in upcoming_appointments %}
                         {% set duration = (appointment | duration_hours_central) %}
-                        {% set is_started = appointment.start_time <= now %}
-                        {% set is_expired = appointment.end_time <= now %}
+                        {% set start_central = appointment.start_time | central_time %}
+                        {% set end_central = appointment.end_time | central_time %}
+                        {% set is_started = start_central <= now %}
+                        {% set is_expired = end_central <= now %}
                         <tr class="{% if appointment.status == 'cancelled' %}table-secondary{% endif %}">
                             <td class="py-1">
                                 <div class="d-flex align-items-center">

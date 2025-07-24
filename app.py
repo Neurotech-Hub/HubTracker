@@ -391,7 +391,17 @@ def duration_hours_central(appointment):
     
     # Calculate duration
     delta = end_central - start_central
-    return delta.total_seconds() / 3600
+    hours = delta.total_seconds() / 3600
+    
+    # Debug output
+    print(f"DEBUG duration_hours_central:")
+    print(f"  Original start: {appointment.start_time}")
+    print(f"  Original end: {appointment.end_time}")
+    print(f"  Start Central: {start_central}")
+    print(f"  End Central: {end_central}")
+    print(f"  Duration hours: {hours}")
+    
+    return hours
 
 # Add global functions to Jinja2 environment
 app.jinja_env.globals.update(min=min)
