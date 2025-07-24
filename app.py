@@ -582,10 +582,9 @@ def dashboard():
         print(f"ID: {appt.id}, Equipment: {appt.equipment_id}, "
               f"Start: {appt.start_time}, Status: {appt.status}")
     
-    # Now run the filtered query - for admins, show all appointments
+    # Now run the filtered query - for admins, show all appointments including cancelled for today
     upcoming_appointments_query = EquipmentAppointment.query.filter(
-        EquipmentAppointment.start_time >= today_start,  # Show all of today's appointments
-        EquipmentAppointment.status.in_(['pending', 'approved'])
+        EquipmentAppointment.start_time >= today_start  # Show all of today's appointments
     )
     
     # Only filter by user if not an admin
@@ -2914,20 +2913,19 @@ def admin():
         db.session.add(scheduling_settings)
         db.session.commit()
     
-    # Get upcoming appointments (next 30 days)
-    from datetime import datetime, timedelta
+    # Get all upcoming appointments (no time limit)
+    from datetime import datetime
     import pytz
     
     # Use Central Time since that's what the appointments are in
     central = pytz.timezone('America/Chicago')
     now = datetime.now(central)
     start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_date = start_date + timedelta(days=30)
     
     # Debug: Print query parameters
     print(f"\nDEBUG Admin Appointments Query:")
     print(f"Start date: {start_date}")
-    print(f"End date: {end_date}")
+    print(f"No end date limit - showing all future appointments")
     
     # First get all appointments to check what exists
     all_appointments = EquipmentAppointment.query.all()
@@ -2936,11 +2934,9 @@ def admin():
         print(f"ID: {appt.id}, User: {appt.user_id}, Equipment: {appt.equipment_id}, "
               f"Start: {appt.start_time}, Status: {appt.status}")
     
-    # Now run the filtered query
+    # Now run the filtered query - show all future appointments including cancelled
     upcoming_appointments = EquipmentAppointment.query.filter(
-        EquipmentAppointment.start_time >= start_date,
-        EquipmentAppointment.start_time <= end_date,
-        EquipmentAppointment.status.in_(['pending', 'approved'])
+        EquipmentAppointment.start_time >= start_date
     ).order_by(EquipmentAppointment.start_time.asc()).all()
     
     print(f"\nDEBUG Filtered Appointments ({len(upcoming_appointments)}):")
@@ -4092,6 +4088,25 @@ def cancel_public_appointment(appointment_id):
     db.session.commit()
     
     return jsonify({'success': True, 'message': 'Appointment cancelled successfully'})
+
+@app.route('/admin/appointment/<int:appointment_id>/delete', methods=['POST'])
+def delete_appointment(appointment_id):
+    """Delete an appointment"""
+    if 'user_id' not in session or session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('admin'))
+    
+    appointment = EquipmentAppointment.query.get_or_404(appointment_id)
+    
+    try:
+        db.session.delete(appointment)
+        db.session.commit()
+        flash('Appointment deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting appointment: {str(e)}', 'error')
+    
+    return redirect(url_for('admin'))
 
 @app.route('/admin/appointment/<int:appointment_id>/edit', methods=['POST'])
 def edit_appointment(appointment_id):

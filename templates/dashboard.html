@@ -61,14 +61,18 @@
                         {% set duration = (appointment.end_time - appointment.start_time).total_seconds() / 3600 %}
                         {% set is_started = appointment.start_time <= now %}
                         {% set is_expired = appointment.end_time <= now %}
-                        <tr>
+                        <tr class="{% if appointment.status == 'cancelled' %}table-secondary{% endif %}">
                             <td class="py-1">
                                 <div class="d-flex align-items-center">
                                     <div>
                                         <div class="d-flex align-items-center">
-                                            <strong>{{ appointment.equipment.name }}</strong>
+                                            <strong class="{% if appointment.status == 'cancelled' %}text-muted{% endif %}">{{ appointment.equipment.name }}</strong>
                                             {% if appointment.status == 'approved' %}
                                             <i class="bi bi-check-circle-fill text-success ms-1" style="font-size: 0.75rem;" title="Approved"></i>
+                                            {% elif appointment.status == 'pending' %}
+                                            <i class="bi bi-clock-fill text-warning ms-1" style="font-size: 0.75rem;" title="Pending"></i>
+                                            {% elif appointment.status == 'cancelled' %}
+                                            <i class="bi bi-x-circle-fill text-danger ms-1" style="font-size: 0.75rem;" title="Cancelled"></i>
                                             {% endif %}
                                         </div>
                                         {% if appointment.user %}
@@ -78,7 +82,9 @@
                                 </div>
                             </td>
                             <td class="text-center py-1">
-                                {% if is_expired %}
+                                {% if appointment.status == 'cancelled' %}
+                                <div class="cancelled-badge">Cancelled</div>
+                                {% elif is_expired %}
                                 <div class="expired-badge">Expired</div>
                                 {% elif is_started %}
                                 <div class="in-session-badge">In Session</div>
@@ -88,10 +94,12 @@
                             </td>
                             <td class="text-end py-1">
                                 <div class="d-flex flex-column align-items-end">
-                                    <div style="font-size: 0.875rem;">{{ appointment.start_time.strftime('%b %d, %I:%M %p') }}</div>
+                                    <div style="font-size: 0.875rem;" class="{% if appointment.status == 'cancelled' %}text-muted{% endif %}">{{ appointment.start_time.strftime('%b %d, %I:%M %p') }}</div>
+                                    {% if appointment.status != 'cancelled' %}
                                     <small class="text-muted" style="font-size: 0.75rem;">
                                         {{ appointment.start_time|time_until }}
                                     </small>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td class="text-end py-1">

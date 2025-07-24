@@ -3229,9 +3229,53 @@ textarea:focus::placeholder {
     min-width: 140px;
 }
 
+.cancelled-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #dc3545;
+    background: #f8d7da;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    line-height: 1;
+    min-width: 140px;
+}
+
 /* Remove old FlipDown styles */
 .flipdown,
 .flipdown__theme-dark,
 .flip-countdown .flipdown {
     display: none;
+}
+
+/* Admin table compact styling */
+.admin-table .table-sm td,
+.admin-table .table-sm th {
+    padding: 0.5rem 0.75rem;
+    vertical-align: middle;
+}
+
+.admin-table .btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.admin-table .badge {
+    font-size: 0.75rem;
+}
+
+/* Ensure action columns have enough space */
+.admin-table th[style*="width"] {
+    min-width: 80px;
+}
+
+.admin-table th[style*="width: 120px"] {
+    min-width: 120px;
+}
+
+.admin-table th[style*="width: 140px"] {
+    min-width: 140px;
 }
