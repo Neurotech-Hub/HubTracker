@@ -10,6 +10,7 @@ from markupsafe import Markup
 import json
 from icalendar import Calendar, Event
 from io import BytesIO
+from flask_mail import Mail, Message
 
 # Load environment variables from .env file
 try:
@@ -43,12 +44,134 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{instance_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Email configuration (optional - will be set from environment variables)
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
+
 # Import models and db
 from models import db, User, Client, Membership, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, MembershipSupplement, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment
 
 # Initialize extensions
 db.init_app(app)
 migrate = Migrate(app, db)
+
+# Initialize Flask-Mail
+mail = Mail(app)
+
+def send_appointment_notification(appointment):
+    """Send email notification for new appointment using Flask-Mail"""
+    try:
+        # Check if email is configured
+        if not app.config.get('MAIL_SERVER'):
+            print("Warning: Email not configured, skipping notification")
+            return
+        
+        # Create email content
+        appointment_url = f"https://hubtracker.onrender.com/schedule/{appointment.id}"  # Update with your domain
+        equipment_name = appointment.equipment.name
+        user_name = appointment.user.full_name
+        user_email = appointment.user.email
+        start_time = appointment.start_time.strftime('%B %d, %Y at %I:%M %p')
+        end_time = appointment.end_time.strftime('%I:%M %p')
+        duration = f"{appointment.duration_hours:.1f} hours"
+        purpose = appointment.purpose or "Not specified"
+        
+        # Email subject (more personal, less automated)
+        subject = f"Equipment Booking Confirmation - {equipment_name}"
+        
+        # Email body (HTML) - more personal, less automated
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                    Equipment Booking Confirmation
+                </h2>
+                
+                <p>Hello,</p>
+                
+                <p>A new equipment booking has been scheduled for the Neurotech Hub:</p>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold; width: 120px;">Equipment:</td>
+                            <td style="padding: 8px 0;">{equipment_name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">User:</td>
+                            <td style="padding: 8px 0;">{user_name} ({user_email})</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Date & Time:</td>
+                            <td style="padding: 8px 0;">{start_time} - {end_time}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Duration:</td>
+                            <td style="padding: 8px 0;">{duration}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Purpose:</td>
+                            <td style="padding: 8px 0;">{purpose}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <p><strong>View Details:</strong> <a href="{appointment_url}" style="color: #3498db;">{appointment_url}</a></p>
+                
+                <p>Best regards,<br>
+                Neurotech Hub Team</p>
+                
+                <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                <p style="color: #7f8c8d; font-size: 12px; text-align: center;">
+                    This is an automated notification from the Hub Tracker scheduling system.<br>
+                    Washington University in St. Louis
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Plain text version
+        text_content = f"""
+New Equipment Booking
+
+Equipment: {equipment_name}
+User: {user_name} ({user_email})
+Date & Time: {start_time} - {end_time}
+Duration: {duration}
+Purpose: {purpose}
+
+View Details: {appointment_url}
+
+This is an automated notification from the Hub Tracker scheduling system.
+        """
+        
+        # Create and send email
+        msg = Message(
+            subject=subject,
+            recipients=['gaidica@wustl.edu'],  # Test recipient - change to neurotechhub@wustl.edu for production
+            html=html_content,
+            body=text_content,
+            sender=app.config.get('MAIL_DEFAULT_SENDER', 'neurotechhub+notifications@gmail.com'),
+            extra_headers={
+                'X-Mailer': 'Hub Tracker Scheduling System',
+                'X-Priority': '3',
+                'X-MSMail-Priority': 'Normal',
+                'Importance': 'Normal'
+            }
+        )
+        
+        mail.send(msg)
+        print("Email notification sent successfully")
+        
+    except Exception as e:
+        print(f"Error sending email notification: {e}")
+        # Don't raise the exception - don't break appointment creation
 
 # Template context processors
 @app.context_processor
@@ -3773,18 +3896,14 @@ def validate_email():
     data = request.get_json()
     email = data.get('email', '').strip().lower()
     
-    print(f"[DEBUG] Validating email: {email}")
-    
     if not email:
         return jsonify({'valid': False, 'message': 'Email is required'})
     
     user = User.query.filter_by(email=email).first()
     
     if not user:
-        print(f"[DEBUG] No user found for email: {email}")
         return jsonify({'valid': False, 'message': 'Email not found. Please contact an administrator.'})
-    
-    print(f"[DEBUG] Found user: {user.id} - {user.full_name}")
+
     
     # Get all user's equipment regardless of schedulable status
     equipment_list = []
@@ -3799,8 +3918,6 @@ def validate_email():
         }
         equipment_list.append(equipment_data)
     
-    print(f"[DEBUG] Found {len(equipment_list)} equipment items for user")
-    
     response_data = {
         'valid': True,
         'user': {
@@ -3811,7 +3928,6 @@ def validate_email():
         'equipment': equipment_list
     }
     
-    print(f"[DEBUG] Sending response: {response_data}")
     return jsonify(response_data)
 
 @app.route('/api/available_slots', methods=['POST'])
@@ -4066,6 +4182,13 @@ def create_public_appointment():
         db.session.add(appointment)
         db.session.commit()
         
+        # Send email notification only for public appointments (not admin-created)
+        try:
+            send_appointment_notification(appointment)
+        except Exception as e:
+            print(f"Warning: Failed to send email notification: {e}")
+            # Don't fail the appointment creation if email fails
+        
         return jsonify({
             'success': True,
             'appointment_id': appointment.id,
@@ -4075,6 +4198,52 @@ def create_public_appointment():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@app.route('/test-email')
+def test_email():
+    """Test route for email functionality"""
+    try:
+        # Create a test email
+        msg = Message(
+            subject='Hub Tracker Email Test',
+            recipients=['gaidica@wustl.edu'],
+            html='''
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                        Hub Tracker Email Test
+                    </h2>
+                    
+                    <p>Hello,</p>
+                    
+                    <p>This is a test email from the Hub Tracker scheduling system.</p>
+                    
+                    <p>Best regards,<br>
+                    Neurotech Hub Team</p>
+                    
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                    <p style="color: #7f8c8d; font-size: 12px; text-align: center;">
+                        Washington University in St. Louis
+                    </p>
+                </div>
+            </body>
+            </html>
+            ''',
+            body='This is a test email from the Hub Tracker scheduling system.',
+            sender=app.config.get('MAIL_DEFAULT_SENDER', 'neurotechhub+notifications@gmail.com'),
+            extra_headers={
+                'X-Mailer': 'Hub Tracker Scheduling System',
+                'X-Priority': '3',
+                'X-MSMail-Priority': 'Normal',
+                'Importance': 'Normal'
+            }
+        )
+        
+        mail.send(msg)
+        return jsonify({'success': True, 'message': 'Test email sent successfully!'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/cancel_appointment/<int:appointment_id>', methods=['POST'])
 def cancel_public_appointment(appointment_id):
