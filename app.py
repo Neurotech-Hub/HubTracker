@@ -154,10 +154,10 @@ This is an automated notification from the Hub Tracker scheduling system.
         # Create and send email
         msg = Message(
             subject=subject,
-            recipients=['gaidica@wustl.edu'],  # Test recipient - change to neurotechhub@wustl.edu for production
+            recipients=['neurotechhub@wustl.edu'],  # Test recipient - change to neurotechhub@wustl.edu for production
             html=html_content,
             body=text_content,
-            sender=app.config.get('MAIL_DEFAULT_SENDER', 'neurotechhub+notifications@gmail.com'),
+            sender=app.config.get('MAIL_DEFAULT_SENDER', 'neurotechhub.notifications@gmail.com'),
             extra_headers={
                 'X-Mailer': 'Hub Tracker Scheduling System',
                 'X-Priority': '3',
@@ -3983,7 +3983,7 @@ def validate_email():
             'description': equipment.description or '',
             'manual': equipment.manual or '',
             'is_schedulable': equipment.is_schedulable,
-            'contact_email': 'gaidica@wustl.edu'  # Added contact email
+            'contact_email': 'neurotechhub@wustl.edu'  # Added contact email
         }
         equipment_list.append(equipment_data)
     
@@ -4267,52 +4267,6 @@ def create_public_appointment():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-
-@app.route('/test-email')
-def test_email():
-    """Test route for email functionality"""
-    try:
-        # Create a test email
-        msg = Message(
-            subject='Hub Tracker Email Test',
-            recipients=['gaidica@wustl.edu'],
-            html='''
-            <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-                        Hub Tracker Email Test
-                    </h2>
-                    
-                    <p>Hello,</p>
-                    
-                    <p>This is a test email from the Hub Tracker scheduling system.</p>
-                    
-                    <p>Best regards,<br>
-                    Neurotech Hub Team</p>
-                    
-                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                    <p style="color: #7f8c8d; font-size: 12px; text-align: center;">
-                        Washington University in St. Louis
-                    </p>
-                </div>
-            </body>
-            </html>
-            ''',
-            body='This is a test email from the Hub Tracker scheduling system.',
-            sender=app.config.get('MAIL_DEFAULT_SENDER', 'neurotechhub+notifications@gmail.com'),
-            extra_headers={
-                'X-Mailer': 'Hub Tracker Scheduling System',
-                'X-Priority': '3',
-                'X-MSMail-Priority': 'Normal',
-                'Importance': 'Normal'
-            }
-        )
-        
-        mail.send(msg)
-        return jsonify({'success': True, 'message': 'Test email sent successfully!'})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/cancel_appointment/<int:appointment_id>', methods=['POST'])
 def cancel_public_appointment(appointment_id):
