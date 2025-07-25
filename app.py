@@ -2958,7 +2958,161 @@ def profile():
         return redirect(url_for('login'))
     
     user = User.query.get_or_404(session['user_id'])
-    return render_template('profile.html', user=user)
+    
+    # Get current date and time periods
+    from datetime import datetime, timedelta
+    import pytz
+    
+    central = pytz.timezone('America/Chicago')
+    now = datetime.now(central)
+    
+    # Calculate time periods
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+    
+    # This week: Monday to Sunday
+    days_since_monday = now.weekday()
+    week_start = today_start - timedelta(days=days_since_monday)
+    week_end = week_start + timedelta(days=7)
+    
+    # This month: 1st of current month to now
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Convert to UTC for database queries
+    today_start_utc = today_start.astimezone(pytz.UTC)
+    today_end_utc = today_end.astimezone(pytz.UTC)
+    week_start_utc = week_start.astimezone(pytz.UTC)
+    week_end_utc = week_end.astimezone(pytz.UTC)
+    month_start_utc = month_start.astimezone(pytz.UTC)
+    now_utc = now.astimezone(pytz.UTC)
+    
+    # Calculate analytics for each time period
+    analytics_data = {}
+    
+    for period_name, start_utc, end_utc in [
+        ('today', today_start_utc, today_end_utc),
+        ('this_week', week_start_utc, week_end_utc),
+        ('this_month', month_start_utc, now_utc)
+    ]:
+        # Hours logged
+        hours_logged = db.session.query(db.func.coalesce(db.func.sum(Log.hours), 0)).filter(
+            Log.user_id == user.id,
+            Log.created_at >= start_utc,
+            Log.created_at < end_utc,
+            Log.hours.isnot(None)
+        ).scalar() or 0
+        
+        # Tasks created
+        tasks_created = Task.query.filter(
+            Task.created_by == user.id,
+            Task.created_at >= start_utc,
+            Task.created_at < end_utc
+        ).count()
+        
+        # Tasks completed
+        tasks_completed = Task.query.filter(
+            Task.completed_by_user_id == user.id,
+            Task.completed_on >= start_utc,
+            Task.completed_on < end_utc
+        ).count()
+        
+        # Projects worked on (unique projects from logs and tasks)
+        # Get project IDs from logs
+        log_project_ids = db.session.query(Log.project_id).filter(
+            Log.user_id == user.id,
+            Log.created_at >= start_utc,
+            Log.created_at < end_utc,
+            Log.project_id.isnot(None)
+        ).distinct().all()
+        
+        # Get project IDs from tasks
+        task_project_ids = db.session.query(Task.project_id).filter(
+            db.or_(
+                db.and_(Task.created_by == user.id, Task.created_at >= start_utc, Task.created_at < end_utc),
+                db.and_(Task.completed_by_user_id == user.id, Task.completed_on >= start_utc, Task.completed_on < end_utc)
+            ),
+            Task.project_id.isnot(None)
+        ).distinct().all()
+        
+        # Combine and count unique project IDs
+        all_project_ids = set()
+        for row in log_project_ids:
+            if row[0] is not None:
+                all_project_ids.add(row[0])
+        for row in task_project_ids:
+            if row[0] is not None:
+                all_project_ids.add(row[0])
+        
+        projects_worked_on = len(all_project_ids)
+        
+        analytics_data[period_name] = {
+            'hours_logged': hours_logged,
+            'tasks_created': tasks_created,
+            'tasks_completed': tasks_completed,
+            'projects_worked_on': projects_worked_on
+        }
+    
+    # Calculate statistical averages
+    # Find user's earliest log entry
+    earliest_log = Log.query.filter(Log.user_id == user.id).order_by(Log.created_at.asc()).first()
+    
+    if earliest_log:
+        earliest_date = earliest_log.created_at.astimezone(central)
+        # Find the first full week from the earliest date
+        days_since_monday = earliest_date.weekday()
+        first_week_start = earliest_date.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
+        
+        # Calculate total hours and weeks since first full week
+        total_hours = db.session.query(db.func.coalesce(db.func.sum(Log.hours), 0)).filter(
+            Log.user_id == user.id,
+            Log.hours.isnot(None)
+        ).scalar() or 0
+        
+        weeks_since_start = max(1, (now - first_week_start).days / 7)
+        days_since_start = max(1, (now - first_week_start).days)
+        
+        avg_hours_per_day = total_hours / days_since_start
+        avg_hours_per_week = total_hours / weeks_since_start
+        
+        # Calculate standard deviation for daily hours
+        # Get all log entries for the user
+        all_logs = Log.query.filter(
+            Log.user_id == user.id,
+            Log.hours.isnot(None)
+        ).all()
+        
+        # Group by date in Python (since we can't do timezone conversion in SQL)
+        daily_hours = {}
+        for log in all_logs:
+            # Convert UTC to Central time
+            log_date_central = log.created_at.astimezone(central).date()
+            if log_date_central not in daily_hours:
+                daily_hours[log_date_central] = 0
+            daily_hours[log_date_central] += log.hours or 0
+        
+        daily_hours_list = list(daily_hours.values())
+        
+        if daily_hours_list:
+            import statistics
+            std_dev_daily = statistics.stdev(daily_hours_list) if len(daily_hours_list) > 1 else 0
+            std_dev_weekly = std_dev_daily * 7  # Approximate weekly std dev
+        else:
+            std_dev_daily = 0
+            std_dev_weekly = 0
+    else:
+        avg_hours_per_day = 0
+        avg_hours_per_week = 0
+        std_dev_daily = 0
+        std_dev_weekly = 0
+    
+    stats = {
+        'avg_hours_per_day': avg_hours_per_day,
+        'avg_hours_per_week': avg_hours_per_week,
+        'std_dev_daily': std_dev_daily,
+        'std_dev_weekly': std_dev_weekly
+    }
+    
+    return render_template('profile.html', user=user, analytics=analytics_data, stats=stats)
 
 @app.route('/edit_profile', methods=['POST'])
 def edit_profile():
