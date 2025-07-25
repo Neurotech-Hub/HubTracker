@@ -154,7 +154,7 @@ This is an automated notification from the Hub Tracker scheduling system.
         # Create and send email
         msg = Message(
             subject=subject,
-            recipients=['neurotechhub@wustl.edu'],  # Test recipient - change to neurotechhub@wustl.edu for production
+            recipients=[os.environ.get('CONTACT_EMAIL', 'neurotechhub@wustl.edu')],  # Test recipient - change to neurotechhub@wustl.edu for production
             html=html_content,
             body=text_content,
             sender=app.config.get('MAIL_DEFAULT_SENDER', 'neurotechhub.notifications@gmail.com'),
@@ -3983,7 +3983,7 @@ def validate_email():
             'description': equipment.description or '',
             'manual': equipment.manual or '',
             'is_schedulable': equipment.is_schedulable,
-            'contact_email': 'neurotechhub@wustl.edu'  # Added contact email
+            'contact_email': os.environ.get('CONTACT_EMAIL', 'neurotechhub@wustl.edu')  # Added contact email from env var
         }
         equipment_list.append(equipment_data)
     
