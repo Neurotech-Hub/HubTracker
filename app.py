@@ -3061,7 +3061,7 @@ def profile():
             'projects_worked_on': projects_worked_on
         }
     
-    # Calculate statistical averages
+    # Calculate statistical averages (business days only - Monday-Friday)
     # Find user's earliest log entry
     earliest_log = Log.query.filter(Log.user_id == user.id).order_by(Log.created_at.asc()).first()
     
@@ -3071,40 +3071,61 @@ def profile():
         days_since_monday = earliest_date.weekday()
         first_week_start = earliest_date.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
         
-        # Calculate total hours and weeks since first full week
+        # Calculate total hours
         total_hours = db.session.query(db.func.coalesce(db.func.sum(Log.hours), 0)).filter(
             Log.user_id == user.id,
             Log.hours.isnot(None)
         ).scalar() or 0
         
-        weeks_since_start = max(1, (now - first_week_start).days / 7)
-        days_since_start = max(1, (now - first_week_start).days)
-        
-        avg_hours_per_day = total_hours / days_since_start
-        avg_hours_per_week = total_hours / weeks_since_start
-        
-        # Calculate standard deviation for daily hours
-        # Get all log entries for the user
+        # Get all log entries for the user to calculate business days
         all_logs = Log.query.filter(
             Log.user_id == user.id,
             Log.hours.isnot(None)
         ).all()
         
-        # Group by date in Python (since we can't do timezone conversion in SQL)
+        # Group by date in Python and filter for business days only
         daily_hours = {}
+        business_days_count = 0
+        
         for log in all_logs:
             # Convert UTC to Central time
-            log_date_central = log.created_at.astimezone(central).date()
-            if log_date_central not in daily_hours:
-                daily_hours[log_date_central] = 0
-            daily_hours[log_date_central] += log.hours or 0
+            log_date_central = log.created_at.astimezone(central)
+            log_date = log_date_central.date()
+            
+            # Only count business days (Monday=0, Friday=4)
+            if log_date_central.weekday() < 5:  # Monday-Friday
+                if log_date not in daily_hours:
+                    daily_hours[log_date] = 0
+                    business_days_count += 1
+                daily_hours[log_date] += log.hours or 0
         
-        daily_hours_list = list(daily_hours.values())
+        # Calculate business weeks (Monday-Friday only)
+        # Count weeks from first business day to now
+        first_business_day = None
+        for log in all_logs:
+            log_date_central = log.created_at.astimezone(central)
+            if log_date_central.weekday() < 5:  # Monday-Friday
+                if first_business_day is None or log_date_central.date() < first_business_day:
+                    first_business_day = log_date_central.date()
+        
+        if first_business_day:
+            # Calculate business weeks (Monday-Friday only)
+            business_weeks = max(1, (now.date() - first_business_day).days / 5)  # 5 business days per week
+            business_days_total = max(1, business_days_count)
+            
+            avg_hours_per_day = total_hours / business_days_total
+            avg_hours_per_week = total_hours / business_weeks
+        else:
+            avg_hours_per_day = 0
+            avg_hours_per_week = 0
+        
+        # Calculate standard deviation for daily hours (business days only)
+        daily_hours_list = [hours for hours in daily_hours.values() if hours > 0]
         
         if daily_hours_list:
             import statistics
             std_dev_daily = statistics.stdev(daily_hours_list) if len(daily_hours_list) > 1 else 0
-            std_dev_weekly = std_dev_daily * 7  # Approximate weekly std dev
+            std_dev_weekly = std_dev_daily * 5  # 5 business days per week
         else:
             std_dev_daily = 0
             std_dev_weekly = 0
