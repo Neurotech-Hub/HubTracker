@@ -878,10 +878,10 @@ def dashboard():
     except Exception as e:
         print(f"Warning: Error processing activities: {e}")
     
-    # Get active projects for kanban board
-    active_projects = Project.query.filter_by(status='Active').order_by(Project.name.asc()).all()
-    awaiting_projects = Project.query.filter_by(status='Awaiting').order_by(Project.name.asc()).all()
-    paused_projects = Project.query.filter_by(status='Paused').order_by(Project.name.asc()).all()
+    # Get active projects for kanban board (exclude default project)
+    active_projects = Project.query.filter(Project.status == 'Active', Project.is_default == False).order_by(Project.name.asc()).all()
+    awaiting_projects = Project.query.filter(Project.status == 'Awaiting', Project.is_default == False).order_by(Project.name.asc()).all()
+    paused_projects = Project.query.filter(Project.status == 'Paused', Project.is_default == False).order_by(Project.name.asc()).all()
     
     # Get current day of week for greeting
     day_of_week = now_central.strftime('%A')
