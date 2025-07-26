@@ -75,9 +75,18 @@ def send_appointment_notification(appointment):
         equipment_name = appointment.equipment.name
         user_name = appointment.user.full_name
         user_email = appointment.user.email
-        start_time = appointment.start_time.strftime('%B %d, %Y at %I:%M %p')
-        end_time = appointment.end_time.strftime('%I:%M %p')
-        duration = f"{appointment.duration_hours:.1f} hours"
+        
+        # Convert times to Central Time for email display
+        central = pytz.timezone('America/Chicago')
+        start_time_central = appointment.start_time.astimezone(central)
+        end_time_central = appointment.end_time.astimezone(central)
+        
+        start_time = start_time_central.strftime('%B %d, %Y at %I:%M %p')
+        end_time = end_time_central.strftime('%I:%M %p')
+        
+        # Calculate duration in Central Time
+        duration_hours = (end_time_central - start_time_central).total_seconds() / 3600
+        duration = f"{duration_hours:.1f} hours"
         purpose = appointment.purpose or "Not specified"
         
         # Email subject (more personal, less automated)
