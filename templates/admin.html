@@ -1209,8 +1209,8 @@ function updateEndTimeOptions() {
             currentMinute = 0;
         }
         
-        // Stop at end of operating hours
-        if (currentHour > endHour || (currentHour === endHour && currentMinute >= endMinute)) {
+        // Stop at end of operating hours (allow appointments that end exactly at closing time)
+        if (currentHour > endHour || (currentHour === endHour && currentMinute > endMinute)) {
             break;
         }
         
