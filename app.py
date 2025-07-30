@@ -3061,15 +3061,12 @@ def profile():
             'projects_worked_on': projects_worked_on
         }
     
-    # Calculate statistical averages (business days only - Monday-Friday)
+    # Calculate statistical averages for business days and weekends
     # Find user's earliest log entry
     earliest_log = Log.query.filter(Log.user_id == user.id).order_by(Log.created_at.asc()).first()
     
     if earliest_log:
         earliest_date = earliest_log.created_at.astimezone(central)
-        # Find the first full week from the earliest date
-        days_since_monday = earliest_date.weekday()
-        first_week_start = earliest_date.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
         
         # Calculate total hours
         total_hours = db.session.query(db.func.coalesce(db.func.sum(Log.hours), 0)).filter(
@@ -3077,67 +3074,72 @@ def profile():
             Log.hours.isnot(None)
         ).scalar() or 0
         
-        # Get all log entries for the user to calculate business days
+        # Get all log entries for the user
         all_logs = Log.query.filter(
             Log.user_id == user.id,
             Log.hours.isnot(None)
         ).all()
         
-        # Group by date in Python and filter for business days only
-        daily_hours = {}
+        # Group by date and separate business days from weekends
+        business_daily_hours = {}
+        weekend_daily_hours = {}
         business_days_count = 0
+        weekend_days_count = 0
         
         for log in all_logs:
             # Convert UTC to Central time
             log_date_central = log.created_at.astimezone(central)
             log_date = log_date_central.date()
+            weekday = log_date_central.weekday()  # Monday=0, Sunday=6
             
-            # Only count business days (Monday=0, Friday=4)
-            if log_date_central.weekday() < 5:  # Monday-Friday
-                if log_date not in daily_hours:
-                    daily_hours[log_date] = 0
+            if weekday < 5:  # Monday-Friday (business days)
+                if log_date not in business_daily_hours:
+                    business_daily_hours[log_date] = 0
                     business_days_count += 1
-                daily_hours[log_date] += log.hours or 0
+                business_daily_hours[log_date] += log.hours or 0
+            else:  # Saturday-Sunday (weekends)
+                if log_date not in weekend_daily_hours:
+                    weekend_daily_hours[log_date] = 0
+                    weekend_days_count += 1
+                weekend_daily_hours[log_date] += log.hours or 0
         
-        # Calculate business weeks (Monday-Friday only)
-        # Count weeks from first business day to now
-        first_business_day = None
-        for log in all_logs:
-            log_date_central = log.created_at.astimezone(central)
-            if log_date_central.weekday() < 5:  # Monday-Friday
-                if first_business_day is None or log_date_central.date() < first_business_day:
-                    first_business_day = log_date_central.date()
+        # Calculate business day averages
+        business_hours_total = sum(business_daily_hours.values())
+        avg_hours_per_day = business_hours_total / max(1, business_days_count)
         
-        if first_business_day:
-            # Calculate business weeks (Monday-Friday only)
-            business_weeks = max(1, (now.date() - first_business_day).days / 5)  # 5 business days per week
-            business_days_total = max(1, business_days_count)
-            
-            avg_hours_per_day = total_hours / business_days_total
-            avg_hours_per_week = total_hours / business_weeks
-        else:
-            avg_hours_per_day = 0
-            avg_hours_per_week = 0
+        # Calculate weekend day averages
+        weekend_hours_total = sum(weekend_daily_hours.values())
+        avg_hours_weekend_day = weekend_hours_total / max(1, weekend_days_count)
         
-        # Calculate standard deviation for daily hours (business days only)
-        daily_hours_list = [hours for hours in daily_hours.values() if hours > 0]
+        # Calculate weekly averages
+        # Count actual weeks from earliest log to now
+        weeks_since_start = max(1, (now.date() - earliest_date.date()).days / 7)
+        avg_hours_per_week = total_hours / weeks_since_start
         
-        if daily_hours_list:
-            import statistics
-            std_dev_daily = statistics.stdev(daily_hours_list) if len(daily_hours_list) > 1 else 0
-            std_dev_weekly = std_dev_daily * 5  # 5 business days per week
-        else:
-            std_dev_daily = 0
-            std_dev_weekly = 0
+        # Calculate weekend weekly average (weekends only)
+        weekend_weeks = max(1, weeks_since_start)  # Same time period
+        avg_hours_weekend_week = weekend_hours_total / weekend_weeks
+        
+        # Calculate standard deviations
+        business_hours_list = [hours for hours in business_daily_hours.values() if hours > 0]
+        weekend_hours_list = [hours for hours in weekend_daily_hours.values() if hours > 0]
+        
+        import statistics
+        std_dev_daily = statistics.stdev(business_hours_list) if len(business_hours_list) > 1 else 0
+        std_dev_weekly = std_dev_daily * 5  # 5 business days per week
     else:
         avg_hours_per_day = 0
+        avg_hours_weekend_day = 0
         avg_hours_per_week = 0
+        avg_hours_weekend_week = 0
         std_dev_daily = 0
         std_dev_weekly = 0
     
     stats = {
         'avg_hours_per_day': avg_hours_per_day,
+        'avg_hours_weekend_day': avg_hours_weekend_day,
         'avg_hours_per_week': avg_hours_per_week,
+        'avg_hours_weekend_week': avg_hours_weekend_week,
         'std_dev_daily': std_dev_daily,
         'std_dev_weekly': std_dev_weekly
     }
