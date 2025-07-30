@@ -2783,10 +2783,10 @@ def add_touch_log():
     if not project_id:
         return {'success': False, 'error': 'Project ID required'}, 400
     
-    # Verify project exists (allow any non-archived project)
-    project = Project.query.filter(Project.id == int(project_id), Project.status != 'Archived').first()
+    # Verify project exists (allow any project including archived)
+    project = Project.query.filter(Project.id == int(project_id)).first()
     if not project:
-        return {'success': False, 'error': 'Project not found or archived'}, 404
+        return {'success': False, 'error': 'Project not found'}, 404
     
     # Create touch log
     log = Log(
@@ -2833,10 +2833,10 @@ def add_time_log():
         flash('Notes are required for time logs', 'error')
         return redirect(request.referrer or url_for('dashboard'))
     
-    # Verify project exists (allow any non-archived project)
-    project = Project.query.filter(Project.id == int(project_id), Project.status != 'Archived').first()
+    # Verify project exists (allow any project including archived)
+    project = Project.query.filter(Project.id == int(project_id)).first()
     if not project:
-        flash('Project not found or archived', 'error')
+        flash('Project not found', 'error')
         return redirect(request.referrer or url_for('dashboard'))
     
     # Parse custom datetime if provided
