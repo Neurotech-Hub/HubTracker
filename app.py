@@ -883,6 +883,10 @@ def dashboard():
     awaiting_projects = Project.query.filter(Project.status == 'Awaiting', Project.is_default == False).order_by(Project.name.asc()).all()
     paused_projects = Project.query.filter(Project.status == 'Paused', Project.is_default == False).order_by(Project.name.asc()).all()
     
+    # Get clients and users for project forms
+    clients = Client.query.order_by(Client.name.asc()).all()
+    users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
+    
     # Get current day of week for greeting
     day_of_week = now_central.strftime('%A')
     
@@ -897,7 +901,10 @@ def dashboard():
                          # Kanban data
                          active_projects=active_projects,
                          awaiting_projects=awaiting_projects,
-                         paused_projects=paused_projects)
+                         paused_projects=paused_projects,
+                         # Form data
+                         clients=clients,
+                         users=users)
 
 @app.route('/logout')
 def logout():
