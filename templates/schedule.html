@@ -757,7 +757,8 @@
             selectedTime = `${startTimeSelect.value}-${endTimeSelect.value}`;
             
             // Update appointment summary
-            const date = new Date(selectedDate);
+            const [year, month, day] = selectedDate.split('-').map(Number);
+            const date = new Date(year, month - 1, day); // month is 0-indexed
             const formattedDate = date.toLocaleDateString('en-US', { 
                 weekday: 'long', 
                 year: 'numeric', 
