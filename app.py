@@ -163,7 +163,7 @@ This is an automated notification from the Hub Tracker scheduling system.
         # Create and send email
         msg = Message(
             subject=subject,
-            recipients=[os.environ.get('CONTACT_EMAIL', 'neurotechhub@wustl.edu')],  # Test recipient - change to neurotechhub@wustl.edu for production
+            recipients=[os.environ.get('CONTACT_EMAIL', 'neurotechhub@wustl.edu')],
             html=html_content,
             body=text_content,
             sender=app.config.get('MAIL_DEFAULT_SENDER', 'neurotechhub.notifications@gmail.com'),
