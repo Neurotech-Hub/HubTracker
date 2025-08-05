@@ -225,21 +225,21 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td class="period-label">This Month</td>
+                                <td class="period-label">Last 30 Days</td>
                                 <td class="text-center">
-                                    <div class="metric-value">{{ "%.1f"|format(analytics.this_month.hours_logged) }}</div>
+                                    <div class="metric-value">{{ "%.1f"|format(analytics.last_30_days.hours_logged) }}</div>
                                     <div class="metric-label">hours</div>
                                 </td>
                                 <td class="text-center">
-                                    <div class="metric-value">{{ analytics.this_month.tasks_created }}</div>
+                                    <div class="metric-value">{{ analytics.last_30_days.tasks_created }}</div>
                                     <div class="metric-label">tasks</div>
                                 </td>
                                 <td class="text-center">
-                                    <div class="metric-value">{{ analytics.this_month.tasks_completed }}</div>
+                                    <div class="metric-value">{{ analytics.last_30_days.tasks_completed }}</div>
                                     <div class="metric-label">tasks</div>
                                 </td>
                                 <td class="text-center">
-                                    <div class="metric-value">{{ analytics.this_month.projects_worked_on }}</div>
+                                    <div class="metric-value">{{ analytics.last_30_days.projects_worked_on }}</div>
                                     <div class="metric-label">projects</div>
                                 </td>
                             </tr>
@@ -254,7 +254,7 @@
     <div class="row mb-4">
         <div class="col-12">
             <h5 class="mb-3">
-                <i class="bi bi-calculator me-2"></i>Day Averages
+                <i class="bi bi-calculator me-2"></i>Day Averages (last 30 days)
             </h5>
             <div class="stats-grid">
                 <div class="stat-item">

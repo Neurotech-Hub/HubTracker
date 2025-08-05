@@ -2093,13 +2093,15 @@ def client_detail(client_id):
     # Get memberships for dropdown
     memberships = Membership.query.all()
     users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
+    clients = Client.query.order_by(Client.name.asc()).all()
     
     return render_template('client_detail.html', 
                          client=client, 
                          projects=projects, 
                          tasks=serialized_tasks,
                          memberships=memberships,
-                         users=users)
+                         users=users,
+                         clients=clients)
 
 @app.route('/add_client', methods=['POST'])
 def add_client():
@@ -2991,15 +2993,16 @@ def profile():
     week_start = today_start - timedelta(days=days_since_monday)
     week_end = week_start + timedelta(days=7)
     
-    # This month: 1st of current month to now
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # Last 30 days: 30 days ago to now
+    thirty_days_ago = now - timedelta(days=30)
+    thirty_days_start = thirty_days_ago.replace(hour=0, minute=0, second=0, microsecond=0)
     
     # Convert to UTC for database queries
     today_start_utc = today_start.astimezone(pytz.UTC)
     today_end_utc = today_end.astimezone(pytz.UTC)
     week_start_utc = week_start.astimezone(pytz.UTC)
     week_end_utc = week_end.astimezone(pytz.UTC)
-    month_start_utc = month_start.astimezone(pytz.UTC)
+    thirty_days_start_utc = thirty_days_start.astimezone(pytz.UTC)
     now_utc = now.astimezone(pytz.UTC)
     
     # Calculate analytics for each time period
@@ -3008,7 +3011,7 @@ def profile():
     for period_name, start_utc, end_utc in [
         ('today', today_start_utc, today_end_utc),
         ('this_week', week_start_utc, week_end_utc),
-        ('this_month', month_start_utc, now_utc)
+        ('last_30_days', thirty_days_start_utc, now_utc)
     ]:
         # Hours logged
         hours_logged = db.session.query(db.func.coalesce(db.func.sum(Log.hours), 0)).filter(
@@ -3068,79 +3071,69 @@ def profile():
             'projects_worked_on': projects_worked_on
         }
     
-    # Calculate statistical averages for business days and weekends
-    # Find user's earliest log entry
-    earliest_log = Log.query.filter(Log.user_id == user.id).order_by(Log.created_at.asc()).first()
+    # Calculate statistical averages for business days and weekends (last 30 days only)
+    # Get logs from the last 30 days only
+    thirty_days_ago_utc = thirty_days_start_utc
     
-    if earliest_log:
-        earliest_date = earliest_log.created_at.astimezone(central)
+    # Calculate total hours for last 30 days
+    total_hours = db.session.query(db.func.coalesce(db.func.sum(Log.hours), 0)).filter(
+        Log.user_id == user.id,
+        Log.hours.isnot(None),
+        Log.created_at >= thirty_days_ago_utc
+    ).scalar() or 0
+    
+    # Get all log entries for the user from last 30 days
+    all_logs = Log.query.filter(
+        Log.user_id == user.id,
+        Log.hours.isnot(None),
+        Log.created_at >= thirty_days_ago_utc
+    ).all()
+    
+    # Group by date and separate business days from weekends
+    business_daily_hours = {}
+    weekend_daily_hours = {}
+    business_days_count = 0
+    weekend_days_count = 0
+    
+    for log in all_logs:
+        # Convert UTC to Central time
+        log_date_central = log.created_at.astimezone(central)
+        log_date = log_date_central.date()
+        weekday = log_date_central.weekday()  # Monday=0, Sunday=6
         
-        # Calculate total hours
-        total_hours = db.session.query(db.func.coalesce(db.func.sum(Log.hours), 0)).filter(
-            Log.user_id == user.id,
-            Log.hours.isnot(None)
-        ).scalar() or 0
-        
-        # Get all log entries for the user
-        all_logs = Log.query.filter(
-            Log.user_id == user.id,
-            Log.hours.isnot(None)
-        ).all()
-        
-        # Group by date and separate business days from weekends
-        business_daily_hours = {}
-        weekend_daily_hours = {}
-        business_days_count = 0
-        weekend_days_count = 0
-        
-        for log in all_logs:
-            # Convert UTC to Central time
-            log_date_central = log.created_at.astimezone(central)
-            log_date = log_date_central.date()
-            weekday = log_date_central.weekday()  # Monday=0, Sunday=6
-            
-            if weekday < 5:  # Monday-Friday (business days)
-                if log_date not in business_daily_hours:
-                    business_daily_hours[log_date] = 0
-                    business_days_count += 1
-                business_daily_hours[log_date] += log.hours or 0
-            else:  # Saturday-Sunday (weekends)
-                if log_date not in weekend_daily_hours:
-                    weekend_daily_hours[log_date] = 0
-                    weekend_days_count += 1
-                weekend_daily_hours[log_date] += log.hours or 0
-        
-        # Calculate business day averages
-        business_hours_total = sum(business_daily_hours.values())
-        avg_hours_per_day = business_hours_total / max(1, business_days_count)
-        
-        # Calculate weekend day averages
-        weekend_hours_total = sum(weekend_daily_hours.values())
-        avg_hours_weekend_day = weekend_hours_total / max(1, weekend_days_count)
-        
-        # Calculate weekly averages
-        # Count actual weeks from earliest log to now
-        weeks_since_start = max(1, (now.date() - earliest_date.date()).days / 7)
-        avg_hours_per_week = total_hours / weeks_since_start
-        
-        # Calculate weekend weekly average (weekends only)
-        weekend_weeks = max(1, weeks_since_start)  # Same time period
-        avg_hours_weekend_week = weekend_hours_total / weekend_weeks
-        
-        # Calculate standard deviations
-        business_hours_list = [hours for hours in business_daily_hours.values() if hours > 0]
-        weekend_hours_list = [hours for hours in weekend_daily_hours.values() if hours > 0]
-        
-        import statistics
-        std_dev_daily = statistics.stdev(business_hours_list) if len(business_hours_list) > 1 else 0
-        std_dev_weekly = std_dev_daily * 5  # 5 business days per week
-    else:
-        avg_hours_per_day = 0
-        avg_hours_weekend_day = 0
-        avg_hours_per_week = 0
-        avg_hours_weekend_week = 0
-        std_dev_daily = 0
-        std_dev_weekly = 0
+        if weekday < 5:  # Monday-Friday (business days)
+            if log_date not in business_daily_hours:
+                business_daily_hours[log_date] = 0
+                business_days_count += 1
+            business_daily_hours[log_date] += log.hours or 0
+        else:  # Saturday-Sunday (weekends)
+            if log_date not in weekend_daily_hours:
+                weekend_daily_hours[log_date] = 0
+                weekend_days_count += 1
+            weekend_daily_hours[log_date] += log.hours or 0
+    
+    # Calculate business day averages
+    business_hours_total = sum(business_daily_hours.values())
+    avg_hours_per_day = business_hours_total / max(1, business_days_count)
+    
+    # Calculate weekend day averages
+    weekend_hours_total = sum(weekend_daily_hours.values())
+    avg_hours_weekend_day = weekend_hours_total / max(1, weekend_days_count)
+    
+    # Calculate weekly averages (for last 30 days = ~4.3 weeks)
+    weeks_in_30_days = 30 / 7
+    avg_hours_per_week = total_hours / max(1, weeks_in_30_days)
+    
+    # Calculate weekend weekly average (weekends only)
+    avg_hours_weekend_week = weekend_hours_total / max(1, weeks_in_30_days)
+    
+    # Calculate standard deviations
+    business_hours_list = [hours for hours in business_daily_hours.values() if hours > 0]
+    weekend_hours_list = [hours for hours in weekend_daily_hours.values() if hours > 0]
+    
+    import statistics
+    std_dev_daily = statistics.stdev(business_hours_list) if len(business_hours_list) > 1 else 0
+    std_dev_weekly = std_dev_daily * 5  # 5 business days per week
     
     stats = {
         'avg_hours_per_day': avg_hours_per_day,
