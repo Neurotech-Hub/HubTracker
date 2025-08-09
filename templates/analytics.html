@@ -472,13 +472,47 @@ document.addEventListener('DOMContentLoaded', function() {
     // Data from backend
     const completionData = {{ completion_data | tojson }};
     
-    const labels = completionData.map(d => {
+    // Debug logging to see what data we're getting
+    console.log('=== DEBUG: Chart Data ===');
+    console.log('Raw completion data:', completionData);
+    console.log('Raw completion data type:', typeof completionData);
+    console.log('Raw completion data length:', completionData.length);
+    
+    // Reverse the data so most recent date is on the right
+    const reversedData = [...completionData].reverse();
+    
+    const labels = reversedData.map(d => {
         const date = new Date(d.date);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     });
     
-    const allHoursData = completionData.map(d => d.all_hours);
-    const myHoursData = completionData.map(d => d.my_hours);
+    const allHoursData = reversedData.map(d => {
+        const hours = parseFloat(d.all_hours) || 0;
+        console.log(`Processing all_hours for ${d.date}: ${d.all_hours} -> ${hours}`);
+        return hours;
+    });
+    const myHoursData = reversedData.map(d => {
+        const hours = parseFloat(d.my_hours) || 0;
+        console.log(`Processing my_hours for ${d.date}: ${d.my_hours} -> ${hours}`);
+        return hours;
+    });
+    
+    // Debug logging for August 6th specifically
+    const aug6Data = reversedData.find(d => d.date === '2025-08-06');
+    if (aug6Data) {
+        console.log('=== DEBUG: August 6th Chart Data ===');
+        console.log('August 6th data:', aug6Data);
+        console.log('August 6th my_hours:', aug6Data.my_hours);
+        console.log('August 6th my_hours type:', typeof aug6Data.my_hours);
+        console.log('August 6th my_hours parsed:', parseFloat(aug6Data.my_hours));
+    } else {
+        console.log('=== DEBUG: August 6th not found in reversed data ===');
+        console.log('Available dates:', reversedData.map(d => d.date));
+    }
+    
+    console.log('Final labels:', labels);
+    console.log('Final allHoursData:', allHoursData);
+    console.log('Final myHoursData:', myHoursData);
     
     new Chart(ctx, {
         type: 'line',

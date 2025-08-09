@@ -2632,6 +2632,16 @@ def analytics():
             'my_hours': round(my_hours, 1)
         })
     
+    # Debug logging for the final completion_data
+    print(f"\n=== DEBUG: Final Completion Data ===")
+    print(f"Total entries: {len(completion_data)}")
+    aug6_entry = next((entry for entry in completion_data if entry['date'] == '2025-08-06'), None)
+    if aug6_entry:
+        print(f"August 6th entry: {aug6_entry}")
+    else:
+        print("August 6th entry not found!")
+        print("Available dates:", [entry['date'] for entry in completion_data])
+    
     # Helper function to calculate total logged time for a project
     def calculate_project_logged_time(project_id, start_date):
         """Calculate total logged time for a project including touch logs (30 min each)"""
