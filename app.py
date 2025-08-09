@@ -2496,6 +2496,12 @@ def analytics():
     current_time_utc = current_time_chicago.astimezone(utc_tz)
     thirty_days_ago_utc = current_time_utc - timedelta(days=30)
     
+    # Debug logging
+    print(f"\n=== DEBUG: Analytics Timezone Info ===")
+    print(f"Current time Chicago: {current_time_chicago}")
+    print(f"Current time UTC: {current_time_utc}")
+    print(f"Thirty days ago UTC: {thirty_days_ago_utc}")
+    
     # Get basic stats for the top metrics
     total_members = Membership.query.filter_by(status='Active').count()
     total_projects = Project.query.count()
@@ -2510,7 +2516,9 @@ def analytics():
     completion_data = []
     for i in range(30):
         # Calculate date in Chicago timezone for display
-        date_chicago = current_time_chicago - timedelta(days=29-i)
+        # We want to go back from today (i=0) to 29 days ago (i=29)
+        # So for i=0, we want today, for i=29, we want 29 days ago
+        date_chicago = current_time_chicago - timedelta(days=i)
         date_start_chicago = date_chicago.replace(hour=0, minute=0, second=0, microsecond=0)
         date_end_chicago = date_start_chicago + timedelta(days=1)
         
@@ -2524,6 +2532,16 @@ def analytics():
             date_end_utc = chicago_tz.localize(date_end_chicago).astimezone(utc_tz)
         else:
             date_end_utc = date_end_chicago.astimezone(utc_tz)
+        
+        # Debug logging for August 6th specifically
+        debug_date = date_start_chicago.strftime('%Y-%m-%d')
+        if debug_date == '2025-08-06':
+            print(f"\n=== DEBUG: August 6th Hours Calculation ===")
+            print(f"Date Chicago: {date_start_chicago} to {date_end_chicago}")
+            print(f"Date UTC: {date_start_utc} to {date_end_utc}")
+            print(f"Days from current: {i}")
+            print(f"Current time Chicago: {current_time_chicago}")
+            print(f"Calculated date Chicago: {date_chicago}")
         
         # All users completions for this day
         all_completions = Task.query.filter(
@@ -2575,6 +2593,36 @@ def analytics():
         
         my_touch_hours = my_touch_count * 0.5
         my_hours = float(my_detailed_hours) + my_touch_hours
+        
+        # Debug logging for August 6th specifically
+        if debug_date == '2025-08-06':
+            print(f"All detailed hours: {all_detailed_hours}")
+            print(f"All touch count: {all_touch_count}")
+            print(f"All touch hours: {all_touch_hours}")
+            print(f"All hours total: {all_hours}")
+            print(f"My detailed hours: {my_detailed_hours}")
+            print(f"My touch count: {my_touch_count}")
+            print(f"My touch hours: {my_touch_hours}")
+            print(f"My hours total: {my_hours}")
+            
+            # Let's also check what logs exist for this user on this date
+            user_logs = Log.query.filter(
+                Log.created_at >= date_start_utc,
+                Log.created_at < date_end_utc,
+                Log.user_id == session['user_id']
+            ).all()
+            print(f"Found {len(user_logs)} logs for user {session['user_id']} on {debug_date}:")
+            for log in user_logs:
+                print(f"  - Log ID: {log.id}, Hours: {log.hours}, Created: {log.created_at}, Is Touch: {log.is_touch}")
+                
+            # Let's also check all logs for this date range to see what's in the database
+            all_logs = Log.query.filter(
+                Log.created_at >= date_start_utc,
+                Log.created_at < date_end_utc
+            ).all()
+            print(f"Found {len(all_logs)} total logs on {debug_date}:")
+            for log in all_logs:
+                print(f"  - Log ID: {log.id}, User: {log.user_id}, Hours: {log.hours}, Created: {log.created_at}, Is Touch: {log.is_touch}")
         
         completion_data.append({
             'date': date_start_chicago.strftime('%Y-%m-%d'),
@@ -2673,7 +2721,9 @@ def analytics():
     else:
         for i in range(30):
             # Calculate date in Chicago timezone for display
-            date_chicago = current_time_chicago - timedelta(days=29-i)
+            # We want to go back from today (i=0) to 29 days ago (i=29)
+            # So for i=0, we want today, for i=29, we want 29 days ago
+            date_chicago = current_time_chicago - timedelta(days=i)
             date_start_chicago = date_chicago.replace(hour=0, minute=0, second=0, microsecond=0)
             date_end_chicago = date_start_chicago + timedelta(days=1)
             
