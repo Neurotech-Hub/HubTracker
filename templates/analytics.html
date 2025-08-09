@@ -481,34 +481,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reverse the data so most recent date is on the right
     const reversedData = [...completionData].reverse();
     
-    const labels = reversedData.map(d => {
+    // Process labels and data together to ensure alignment
+    const labels = [];
+    const allHoursData = [];
+    const myHoursData = [];
+    
+    reversedData.forEach((d, index) => {
         const date = new Date(d.date);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const allHours = parseFloat(d.all_hours) || 0;
+        const myHours = parseFloat(d.my_hours) || 0;
+        
+        labels.push(label);
+        allHoursData.push(allHours);
+        myHoursData.push(myHours);
+        
+        // Debug logging for August 6th specifically
+        if (d.date === '2025-08-06') {
+            console.log(`=== DEBUG: August 6th at index ${index} ===`);
+            console.log('August 6th data:', d);
+            console.log('August 6th label:', label);
+            console.log('August 6th all_hours:', allHours);
+            console.log('August 6th my_hours:', myHours);
+        }
     });
-    
-    const allHoursData = reversedData.map(d => {
-        const hours = parseFloat(d.all_hours) || 0;
-        console.log(`Processing all_hours for ${d.date}: ${d.all_hours} -> ${hours}`);
-        return hours;
-    });
-    const myHoursData = reversedData.map(d => {
-        const hours = parseFloat(d.my_hours) || 0;
-        console.log(`Processing my_hours for ${d.date}: ${d.my_hours} -> ${hours}`);
-        return hours;
-    });
-    
-    // Debug logging for August 6th specifically
-    const aug6Data = reversedData.find(d => d.date === '2025-08-06');
-    if (aug6Data) {
-        console.log('=== DEBUG: August 6th Chart Data ===');
-        console.log('August 6th data:', aug6Data);
-        console.log('August 6th my_hours:', aug6Data.my_hours);
-        console.log('August 6th my_hours type:', typeof aug6Data.my_hours);
-        console.log('August 6th my_hours parsed:', parseFloat(aug6Data.my_hours));
-    } else {
-        console.log('=== DEBUG: August 6th not found in reversed data ===');
-        console.log('Available dates:', reversedData.map(d => d.date));
-    }
     
     console.log('Final labels:', labels);
     console.log('Final allHoursData:', allHoursData);
