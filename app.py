@@ -2485,9 +2485,16 @@ def analytics():
     
     from datetime import timedelta
     from sqlalchemy import func, desc
+    import pytz
     
-    # Last 30 days filter
-    thirty_days_ago = get_current_time() - timedelta(days=30)
+    # Last 30 days filter - get current time in Chicago timezone
+    chicago_tz = pytz.timezone('America/Chicago')
+    utc_tz = pytz.timezone('UTC')
+    current_time_chicago = get_current_time()
+    
+    # Convert to UTC for database queries
+    current_time_utc = current_time_chicago.astimezone(utc_tz)
+    thirty_days_ago_utc = current_time_utc - timedelta(days=30)
     
     # Get basic stats for the top metrics
     total_members = Membership.query.filter_by(status='Active').count()
@@ -2497,41 +2504,46 @@ def analytics():
 
     
     # Get task completion data for last 30 days (including today)
-    twenty_nine_days_ago = get_current_time() - timedelta(days=29)
+    twenty_nine_days_ago_utc = current_time_utc - timedelta(days=29)
     
     # Generate date series for last 30 days (including today)
     completion_data = []
     for i in range(30):
-        date = twenty_nine_days_ago + timedelta(days=i)
-        date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
-        date_end = date_start + timedelta(days=1)
+        # Calculate date in Chicago timezone for display
+        date_chicago = current_time_chicago - timedelta(days=29-i)
+        date_start_chicago = date_chicago.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end_chicago = date_start_chicago + timedelta(days=1)
+        
+        # Convert to UTC for database queries
+        date_start_utc = date_start_chicago.astimezone(utc_tz)
+        date_end_utc = date_end_chicago.astimezone(utc_tz)
         
         # All users completions for this day
         all_completions = Task.query.filter(
-            Task.completed_on >= date_start,
-            Task.completed_on < date_end,
+            Task.completed_on >= date_start_utc,
+            Task.completed_on < date_end_utc,
             Task.is_complete.is_(True)
         ).count()
         
         # Current user completions for this day
         my_completions = Task.query.filter(
-            Task.completed_on >= date_start,
-            Task.completed_on < date_end,
+            Task.completed_on >= date_start_utc,
+            Task.completed_on < date_end_utc,
             Task.completed_by_user_id == session['user_id'],
             Task.is_complete.is_(True)
         ).count()
         
         # All users hours for this day (including touch logs as 0.5 hours each)
         all_detailed_hours = db.session.query(func.sum(Log.hours)).filter(
-            Log.created_at >= date_start,
-            Log.created_at < date_end,
+            Log.created_at >= date_start_utc,
+            Log.created_at < date_end_utc,
             Log.is_touch.is_(False),
             Log.hours.isnot(None)
         ).scalar() or 0
         
         all_touch_count = db.session.query(func.count(Log.id)).filter(
-            Log.created_at >= date_start,
-            Log.created_at < date_end,
+            Log.created_at >= date_start_utc,
+            Log.created_at < date_end_utc,
             Log.is_touch.is_(True)
         ).scalar() or 0
         
@@ -2540,16 +2552,16 @@ def analytics():
         
         # Current user hours for this day (including touch logs as 0.5 hours each)
         my_detailed_hours = db.session.query(func.sum(Log.hours)).filter(
-            Log.created_at >= date_start,
-            Log.created_at < date_end,
+            Log.created_at >= date_start_utc,
+            Log.created_at < date_end_utc,
             Log.user_id == session['user_id'],
             Log.is_touch.is_(False),
             Log.hours.isnot(None)
         ).scalar() or 0
         
         my_touch_count = db.session.query(func.count(Log.id)).filter(
-            Log.created_at >= date_start,
-            Log.created_at < date_end,
+            Log.created_at >= date_start_utc,
+            Log.created_at < date_end_utc,
             Log.user_id == session['user_id'],
             Log.is_touch.is_(True)
         ).scalar() or 0
@@ -2558,7 +2570,7 @@ def analytics():
         my_hours = float(my_detailed_hours) + my_touch_hours
         
         completion_data.append({
-            'date': date.strftime('%Y-%m-%d'),
+            'date': date_start_chicago.strftime('%Y-%m-%d'),
             'all_tasks': all_completions,
             'my_tasks': my_completions,
             'all_hours': round(all_hours, 1),
@@ -2596,7 +2608,7 @@ def analytics():
         func.count(Task.id).label('completed_tasks')
     ).join(Client).join(Task).filter(
         Task.is_complete.is_(True),
-        Task.completed_on >= twenty_nine_days_ago
+        Task.completed_on >= twenty_nine_days_ago_utc
     ).group_by(Project.id, Project.name, Client.name).order_by(desc('completed_tasks')).limit(8).all()
     
     # Convert to dictionaries for JSON serialization
@@ -2615,11 +2627,11 @@ def analytics():
         Project.name,
         Client.name.label('client_name')
     ).join(Client).join(Log).filter(
-        Log.created_at >= thirty_days_ago
+        Log.created_at >= thirty_days_ago_utc
     ).group_by(Project.id, Project.name, Client.name).all()
     
     for project in projects_with_logs:
-        total_hours = calculate_project_logged_time(project.id, thirty_days_ago)
+        total_hours = calculate_project_logged_time(project.id, thirty_days_ago_utc)
         if total_hours > 0:  # Only include projects with actual logged time
             most_logged_time_projects.append({
                 'name': project.name,
@@ -2634,10 +2646,10 @@ def analytics():
     # LOG ANALYTICS (Last 30 Days)
     
     # Total log metrics
-    total_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago).count()
-    touch_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago, Log.is_touch.is_(True)).count()
-    detailed_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago, Log.is_touch.is_(False)).count()
-    total_hours_last_30 = db.session.query(func.sum(Log.hours)).filter(Log.created_at >= thirty_days_ago).scalar() or 0
+    total_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago_utc).count()
+    touch_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago_utc, Log.is_touch.is_(True)).count()
+    detailed_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago_utc, Log.is_touch.is_(False)).count()
+    total_hours_last_30 = db.session.query(func.sum(Log.hours)).filter(Log.created_at >= thirty_days_ago_utc).scalar() or 0
     
     # Daily log activity for chart
     log_activity_data = []
@@ -2653,24 +2665,29 @@ def analytics():
         })
     else:
         for i in range(30):
-            date = thirty_days_ago + timedelta(days=i)
-            date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
-            date_end = date_start + timedelta(days=1)
+            # Calculate date in Chicago timezone for display
+            date_chicago = current_time_chicago - timedelta(days=29-i)
+            date_start_chicago = date_chicago.replace(hour=0, minute=0, second=0, microsecond=0)
+            date_end_chicago = date_start_chicago + timedelta(days=1)
+            
+            # Convert to UTC for database queries
+            date_start_utc = date_start_chicago.astimezone(utc_tz)
+            date_end_utc = date_end_chicago.astimezone(utc_tz)
             
             touch_count = Log.query.filter(
-                Log.created_at >= date_start,
-                Log.created_at < date_end,
+                Log.created_at >= date_start_utc,
+                Log.created_at < date_end_utc,
                 Log.is_touch.is_(True)
             ).count()
             
             detailed_count = Log.query.filter(
-                Log.created_at >= date_start,
-                Log.created_at < date_end,
+                Log.created_at >= date_start_utc,
+                Log.created_at < date_end_utc,
                 Log.is_touch.is_(False)
             ).count()
             
             log_activity_data.append({
-                'date': date.strftime('%Y-%m-%d'),
+                'date': date_start_chicago.strftime('%Y-%m-%d'),
                 'touch_logs': touch_count,
                 'detailed_logs': detailed_count,
                 'total_logs': touch_count + detailed_count
@@ -2685,7 +2702,7 @@ def analytics():
         func.sum(text('CASE WHEN is_touch IS TRUE THEN 1 ELSE 0 END')).label('touch_count'),
         func.sum(text('CASE WHEN is_touch IS FALSE THEN 1 ELSE 0 END')).label('detailed_count')
     ).join(Client).join(Log).filter(
-        Log.created_at >= thirty_days_ago
+        Log.created_at >= thirty_days_ago_utc
     ).group_by(Project.id, Project.name, Client.name).order_by(desc('log_count')).limit(8).all()
     
 
