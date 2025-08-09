@@ -478,8 +478,25 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Raw completion data type:', typeof completionData);
     console.log('Raw completion data length:', completionData.length);
     
-    // Reverse the data so most recent date is on the right
+    // Check the original data structure first
+    const aug6Original = completionData.find(d => d.date === '2025-08-06');
+    if (aug6Original) {
+        console.log('=== DEBUG: August 6th in original data ===');
+        console.log('August 6th original index:', completionData.findIndex(d => d.date === '2025-08-06'));
+        console.log('August 6th original data:', aug6Original);
+    }
+    
+    // The data is already in chronological order (oldest to newest)
+    // We want to reverse it so newest is on the right
     const reversedData = [...completionData].reverse();
+    
+    // Check the reversed data structure
+    const aug6Reversed = reversedData.find(d => d.date === '2025-08-06');
+    if (aug6Reversed) {
+        console.log('=== DEBUG: August 6th in reversed data ===');
+        console.log('August 6th reversed index:', reversedData.findIndex(d => d.date === '2025-08-06'));
+        console.log('August 6th reversed data:', aug6Reversed);
+    }
     
     // Process labels and data together to ensure alignment
     const labels = [];
@@ -505,6 +522,19 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('August 6th my_hours:', myHours);
         }
     });
+    
+    // Verify the alignment by checking August 6th position
+    const aug6LabelIndex = labels.findIndex(label => label === 'Aug 6');
+    const aug6HoursIndex = myHoursData.findIndex((hours, index) => {
+        const date = new Date(reversedData[index].date);
+        const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return label === 'Aug 6' && hours === 13.5;
+    });
+    
+    console.log('=== DEBUG: August 6th Alignment Check ===');
+    console.log('August 6th label index:', aug6LabelIndex);
+    console.log('August 6th hours index:', aug6HoursIndex);
+    console.log('August 6th hours value:', myHoursData[aug6LabelIndex]);
     
     console.log('Final labels:', labels);
     console.log('Final allHoursData:', allHoursData);
