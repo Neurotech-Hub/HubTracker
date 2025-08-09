@@ -2514,9 +2514,9 @@ def analytics():
         date_start_chicago = date_chicago.replace(hour=0, minute=0, second=0, microsecond=0)
         date_end_chicago = date_start_chicago + timedelta(days=1)
         
-        # Convert to UTC for database queries
-        date_start_utc = date_start_chicago.astimezone(utc_tz)
-        date_end_utc = date_end_chicago.astimezone(utc_tz)
+        # Convert to UTC for database queries - properly localize first
+        date_start_utc = chicago_tz.localize(date_start_chicago).astimezone(utc_tz)
+        date_end_utc = chicago_tz.localize(date_end_chicago).astimezone(utc_tz)
         
         # All users completions for this day
         all_completions = Task.query.filter(
@@ -2670,9 +2670,9 @@ def analytics():
             date_start_chicago = date_chicago.replace(hour=0, minute=0, second=0, microsecond=0)
             date_end_chicago = date_start_chicago + timedelta(days=1)
             
-            # Convert to UTC for database queries
-            date_start_utc = date_start_chicago.astimezone(utc_tz)
-            date_end_utc = date_end_chicago.astimezone(utc_tz)
+            # Convert to UTC for database queries - properly localize first
+            date_start_utc = chicago_tz.localize(date_start_chicago).astimezone(utc_tz)
+            date_end_utc = chicago_tz.localize(date_end_chicago).astimezone(utc_tz)
             
             touch_count = Log.query.filter(
                 Log.created_at >= date_start_utc,
