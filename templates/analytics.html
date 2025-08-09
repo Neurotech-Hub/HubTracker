@@ -503,6 +503,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const allHoursData = [];
     const myHoursData = [];
     
+    console.log('=== DEBUG: Processing reversed data ===');
     reversedData.forEach((d, index) => {
         const date = new Date(d.date);
         const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -520,25 +521,47 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('August 6th label:', label);
             console.log('August 6th all_hours:', allHours);
             console.log('August 6th my_hours:', myHours);
+            console.log('Current labels array length:', labels.length);
+            console.log('Current allHoursData array length:', allHoursData.length);
+            console.log('Current myHoursData array length:', myHoursData.length);
         }
     });
     
-    // Verify the alignment by checking August 6th position
+    // FIX: Correct the data alignment issue
+    // The August 6th data is showing at "Aug 5" position instead of "Aug 6" position
     const aug6LabelIndex = labels.findIndex(label => label === 'Aug 6');
-    const aug6HoursIndex = myHoursData.findIndex((hours, index) => {
-        const date = new Date(reversedData[index].date);
-        const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return label === 'Aug 6' && hours === 13.5;
-    });
+    const aug6DataIndex = reversedData.findIndex(d => d.date === '2025-08-06');
     
-    console.log('=== DEBUG: August 6th Alignment Check ===');
-    console.log('August 6th label index:', aug6LabelIndex);
-    console.log('August 6th hours index:', aug6HoursIndex);
-    console.log('August 6th hours value:', myHoursData[aug6LabelIndex]);
+    if (aug6LabelIndex !== -1 && aug6DataIndex !== -1) {
+        // Get the correct August 6th data
+        const aug6Data = reversedData[aug6DataIndex];
+        const correctAllHours = parseFloat(aug6Data.all_hours) || 0;
+        const correctMyHours = parseFloat(aug6Data.my_hours) || 0;
+        
+        // Update the data at the correct August 6th label position
+        allHoursData[aug6LabelIndex] = correctAllHours;
+        myHoursData[aug6LabelIndex] = correctMyHours;
+        
+        console.log(`=== FIXED ALIGNMENT ===`);
+        console.log(`August 6th label at index: ${aug6LabelIndex}`);
+        console.log(`August 6th data from index: ${aug6DataIndex}`);
+        console.log(`Updated August 6th position with ${correctMyHours} hours`);
+    }
     
-    console.log('Final labels:', labels);
-    console.log('Final allHoursData:', allHoursData);
-    console.log('Final myHoursData:', myHoursData);
+    // Verify the fix worked
+    const aug6LabelIndexFinal = labels.findIndex(label => label === 'Aug 6');
+    if (aug6LabelIndexFinal !== -1) {
+        console.log('=== VERIFICATION ===');
+        console.log(`August 6th position: ${aug6LabelIndexFinal}`);
+        console.log(`August 6th hours: ${myHoursData[aug6LabelIndexFinal]}`);
+        console.log(`August 6th all hours: ${allHoursData[aug6LabelIndexFinal]}`);
+        
+        if (myHoursData[aug6LabelIndexFinal] === 13.5) {
+            console.log('✅ August 6th data is correctly aligned!');
+        } else {
+            console.log('❌ August 6th data is still misaligned!');
+        }
+    }
     
     new Chart(ctx, {
         type: 'line',
