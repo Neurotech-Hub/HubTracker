@@ -505,7 +505,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('=== DEBUG: Processing reversed data ===');
     reversedData.forEach((d, index) => {
-        const date = new Date(d.date);
+        // Fix: Parse date as local date to avoid timezone issues
+        const [year, month, day] = d.date.split('-').map(Number);
+        const date = new Date(year, month - 1, day); // month is 0-indexed
         const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const allHours = parseFloat(d.all_hours) || 0;
         const myHours = parseFloat(d.my_hours) || 0;
