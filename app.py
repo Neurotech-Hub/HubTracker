@@ -479,14 +479,14 @@ def index():
             Log.hours.isnot(None)
         ).scalar() or 0
         
-        touch_count = db.session.query(func.count(Log.id)).filter(
+        # Get actual hours from touch logs
+        touch_hours = db.session.query(func.sum(Log.hours)).filter(
             Log.created_at >= date_start,
             Log.created_at < date_end,
-            Log.is_touch.is_(True)
+            Log.is_touch.is_(True),
+            Log.hours.isnot(None)
         ).scalar() or 0
         
-        # Convert touch logs to hours (30 minutes each)
-        touch_hours = touch_count * 0.5
         total_hours = detailed_hours + touch_hours
         
         # Calculate projects touched based on activity logs
@@ -1095,14 +1095,14 @@ def export_report():
                 Log.is_touch.is_(False)
             ).first()
             
-            # Get touch logs count (30 minutes each)
-            touch_count = db.session.query(func.count(Log.id)).filter(
+            # Get actual hours from touch logs
+            touch_hours = db.session.query(func.sum(Log.hours)).filter(
                 Log.project_id == project_id,
                 Log.created_at >= start_date,
                 Log.created_at < end_date + timedelta(days=1),
-                Log.is_touch.is_(True)
+                Log.is_touch.is_(True),
+                Log.hours.isnot(None)
             ).scalar() or 0
-            touch_hours = touch_count * 0.5
             
             total_hours = float(detailed_logs.total_hours or 0) + touch_hours
             total_cost = float(detailed_logs.total_cost or 0)
@@ -2566,13 +2566,13 @@ def analytics():
             Log.hours.isnot(None)
         ).scalar() or 0
         
-        all_touch_count = db.session.query(func.count(Log.id)).filter(
+        # Get actual hours from touch logs
+        all_touch_hours = db.session.query(func.sum(Log.hours)).filter(
             Log.created_at >= date_start_utc,
             Log.created_at < date_end_utc,
-            Log.is_touch.is_(True)
+            Log.is_touch.is_(True),
+            Log.hours.isnot(None)
         ).scalar() or 0
-        
-        all_touch_hours = all_touch_count * 0.5
         all_hours = float(all_detailed_hours) + all_touch_hours
         
         # Current user hours for this day (including touch logs as 0.5 hours each)
@@ -2584,14 +2584,14 @@ def analytics():
             Log.hours.isnot(None)
         ).scalar() or 0
         
-        my_touch_count = db.session.query(func.count(Log.id)).filter(
+        # Get actual hours from touch logs for current user
+        my_touch_hours = db.session.query(func.sum(Log.hours)).filter(
             Log.created_at >= date_start_utc,
             Log.created_at < date_end_utc,
             Log.user_id == session['user_id'],
-            Log.is_touch.is_(True)
+            Log.is_touch.is_(True),
+            Log.hours.isnot(None)
         ).scalar() or 0
-        
-        my_touch_hours = my_touch_count * 0.5
         my_hours = float(my_detailed_hours) + my_touch_hours
         
         # Debug logging for August 6th specifically
@@ -2644,7 +2644,7 @@ def analytics():
     
     # Helper function to calculate total logged time for a project
     def calculate_project_logged_time(project_id, start_date):
-        """Calculate total logged time for a project including touch logs (30 min each)"""
+        """Calculate total logged time for a project including actual touch log hours"""
         from sqlalchemy import func, case
         
         # Get detailed logs with actual hours
@@ -2654,15 +2654,13 @@ def analytics():
             Log.is_touch.is_(False)
         ).scalar() or 0
         
-        # Get touch logs count (30 minutes each)
-        touch_count = db.session.query(func.count(Log.id)).filter(
+        # Get actual hours from touch logs
+        touch_hours = db.session.query(func.sum(Log.hours)).filter(
             Log.project_id == project_id,
             Log.created_at >= start_date,
-            Log.is_touch.is_(True)
+            Log.is_touch.is_(True),
+            Log.hours.isnot(None)
         ).scalar() or 0
-        
-        # Convert touch logs to hours (30 minutes each)
-        touch_hours = touch_count * 0.5
         
         return float(detailed_hours) + touch_hours
     
@@ -2888,9 +2886,10 @@ def add_touch_log():
     if not project:
         return {'success': False, 'error': 'Project not found'}, 404
     
-    # Create touch log
+    # Create touch log with 20 minutes (0.333 hours)
     log = Log(
         is_touch=True,
+        hours=0.333,  # 20 minutes
         user_id=session['user_id'],
         project_id=int(project_id)
     )
@@ -2906,6 +2905,7 @@ def add_touch_log():
         entity_id=log.id,
         new_value={
             'is_touch': log.is_touch,
+            'hours': log.hours,
             'project_id': log.project_id
         }
     )

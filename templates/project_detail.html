@@ -193,7 +193,9 @@
                             <div class="d-flex align-items-center mb-2">
                                 {% if log.is_touch %}
                                 <i class="bi bi-finger-index text-success me-2"></i>
-                                <span>Touch log by <strong>{{ log.user.full_name }}</strong></span>
+                                <span>Touch log by <strong>{{ log.user.full_name }}</strong>
+                                {% if log.hours %}({{ log.hours }}h){% endif %}
+                                </span>
                                 {% else %}
                                 <i class="bi bi-clock text-primary me-2"></i>
                                 <span>Time log by <strong>{{ log.user.full_name }}</strong>

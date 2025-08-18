@@ -65,9 +65,7 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            {% if log.is_touch %}
-                                                <span class="text-muted">0.5h</span>
-                                            {% elif log.hours %}
+                                            {% if log.hours %}
                                                 {{ "%.1f"|format(log.hours) }}h
                                             {% else %}
                                                 <span class="text-muted">-</span>
