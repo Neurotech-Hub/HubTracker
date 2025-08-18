@@ -3107,43 +3107,7 @@ textarea:focus::placeholder {
     }
 }
 
-/* Kanban Scroll Gutter for Mobile */
-.kanban-scroll-gutter {
-    display: none;
-}
 
-@media (max-width: 991px) {
-    .kanban-row-mobile {
-        position: relative;
-        padding-right: 32px;
-        /* Make space for the gutter */
-    }
-
-    .kanban-scroll-gutter {
-        display: block;
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 32px;
-        height: calc(100% - 1.5rem);
-        /* Account for bottom margin/padding */
-        background: linear-gradient(to left, #f8f9fa 80%, rgba(0, 0, 0, 0.03) 100%);
-        cursor: grab;
-        /* Visual indicator: vertical grip */
-        background-image: repeating-linear-gradient(to bottom,
-                #ccc 0 4px,
-                transparent 4px 8px);
-        opacity: 0.5;
-        border-radius: 0 8px 8px 0;
-        z-index: 10;
-        pointer-events: auto;
-    }
-
-    /* Ensure the gutter doesn't interfere with drag-and-drop */
-    .kanban-scroll-gutter * {
-        pointer-events: none;
-    }
-}
 
 /* Status dot styles for log entry modal */
 .status-dot {

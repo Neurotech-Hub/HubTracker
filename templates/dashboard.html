@@ -135,6 +135,7 @@
                             <h6 class="mb-0 text-white fw-medium">
                                 <i class="bi bi-play-circle me-1"></i>Active
                                 <span class="badge bg-light text-success ms-1">{{ active_projects|length }}</span>
+                                <small class="d-none d-lg-inline text-white-50 ms-2">(drag to move)</small>
                             </h6>
                         </div>
                         <div class="kanban-column-body" id="active-column" data-status="Active">
@@ -187,6 +188,7 @@
                             <h6 class="mb-0 text-white fw-medium">
                                 <i class="bi bi-pause-circle me-1"></i>Awaiting
                                 <span class="badge bg-light text-warning ms-1">{{ awaiting_projects|length }}</span>
+                                <small class="d-none d-lg-inline text-white-50 ms-2">(drag to move)</small>
                             </h6>
                         </div>
                         <div class="kanban-column-body" id="awaiting-column" data-status="Awaiting">
@@ -233,6 +235,7 @@
                             <h6 class="mb-0 text-white fw-medium">
                                 <i class="bi bi-pause-circle me-1"></i>Paused
                                 <span class="badge bg-light text-info ms-1">{{ paused_projects|length }}</span>
+                                <small class="d-none d-lg-inline text-white-50 ms-2">(drag to move)</small>
                             </h6>
                         </div>
                         <div class="kanban-column-body" id="paused-column" data-status="Paused">
@@ -272,8 +275,7 @@
                     </div>
                 </div>
                 
-                <!-- Kanban Scroll Gutter for Mobile -->
-                <div class="kanban-scroll-gutter d-block d-lg-none" aria-label="Scroll area"></div>
+
             </div>
 
             <!-- Compact Archive Zone -->
@@ -408,39 +410,7 @@ function initializeCountdown(elementId, targetDate, endDate) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Kanban
-    setTimeout(function() {
-        // Initialize sortable for each column
-        const columns = ['active-column', 'awaiting-column', 'paused-column', 'archived-column'];
-        
-        columns.forEach(columnId => {
-            const element = document.getElementById(columnId);
-            if (element) {
-                new Sortable(element, {
-                    group: 'kanban',
-                    animation: 150,
-                    ghostClass: 'kanban-card-ghost',
-                    chosenClass: 'kanban-card-chosen',
-                    dragClass: 'kanban-card-drag',
-                    // Only allow dragging of kanban cards, exclude skeleton loading
-                    draggable: '.kanban-card',
-                    filter: '.skeleton-loading', // Exclude skeleton loading elements
-                    onEnd: function(evt) {
-                        // Get the project ID and new status
-                        const projectId = evt.item.dataset.projectId;
-                        const newStatus = evt.to.dataset.status;
-                        
-                        if (projectId && newStatus) {
-                            // Update project status via API
-                            updateProjectStatus(projectId, newStatus);
-                        } else {
-                            console.error('Could not find project ID or status', { projectId, newStatus, item: evt.item });
-                        }
-                    }
-                });
-            }
-        });
-    }, 200); // Wait 200ms for Alpine to render content
+
     
     // Function to update project status
     function updateProjectStatus(projectId, newStatus) {
@@ -568,6 +538,60 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error setting up countdown for appointment {{ appointment.id }}:', error);
     }
     {% endfor %}
+    
+    // Handle window resize to enable/disable drag functionality
+    let sortableInstances = [];
+    
+    function initializeSortable() {
+        // Clear existing instances
+        sortableInstances.forEach(instance => {
+            if (instance && instance.destroy) {
+                instance.destroy();
+            }
+        });
+        sortableInstances = [];
+        
+        // Only initialize on desktop devices (lg and up)
+        if (window.innerWidth >= 992) {
+            const columns = ['active-column', 'awaiting-column', 'paused-column', 'archived-column'];
+            
+            columns.forEach(columnId => {
+                const element = document.getElementById(columnId);
+                if (element) {
+                    const sortable = new Sortable(element, {
+                        group: 'kanban',
+                        animation: 150,
+                        ghostClass: 'kanban-card-ghost',
+                        chosenClass: 'kanban-card-chosen',
+                        dragClass: 'kanban-card-drag',
+                        draggable: '.kanban-card',
+                        filter: '.skeleton-loading',
+                        onEnd: function(evt) {
+                            const projectId = evt.item.dataset.projectId;
+                            const newStatus = evt.to.dataset.status;
+                            
+                            if (projectId && newStatus) {
+                                updateProjectStatus(projectId, newStatus);
+                            } else {
+                                console.error('Could not find project ID or status', { projectId, newStatus, item: evt.item });
+                            }
+                        }
+                    });
+                    sortableInstances.push(sortable);
+                }
+            });
+        }
+    }
+    
+    // Debounced resize handler
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(initializeSortable, 250);
+    });
+    
+    // Initial setup
+    setTimeout(initializeSortable, 200);
 });
 </script>
 {% endblock %} 
