@@ -430,18 +430,63 @@ function exportForm() {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                return response.blob();
+                const disposition = response.headers.get('Content-Disposition') || '';
+                return response.blob().then(blob => ({ blob, disposition }));
             })
-            .then(blob => {
-                // Create download link - the blob already has the correct MIME type from the server
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `hub_tracker_report_${this.startDate}_${this.endDate}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
+            .then(({ blob, disposition }) => {
+                // Prefer filename from server headers when available
+                let filename = `hub_tracker_report_${this.startDate}_${this.endDate}.xlsx`;
+                const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(disposition);
+                if (match) {
+                    const encoded = match[1] || match[2];
+                    try {
+                        filename = decodeURIComponent(encoded);
+                    } catch (_) {
+                        filename = encoded;
+                    }
+                }
+
+                // Prefer native save dialog if available (better filename support in some browsers like Arc)
+                if (window.showSaveFilePicker) {
+                    (async () => {
+                        try {
+                            const handle = await window.showSaveFilePicker({
+                                suggestedName: filename,
+                                types: [{
+                                    description: 'Excel Workbook',
+                                    accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
+                                }]
+                            });
+                            const writable = await handle.createWritable();
+                            await writable.write(blob);
+                            await writable.close();
+                        } catch (e) {
+                            // If user cancels or API fails, fallback to anchor download
+                            const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                            const url = window.URL.createObjectURL(file);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = filename;
+                            a.rel = 'noopener';
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                        }
+                    })();
+                } else {
+                    // Fallback: anchor download with File-backed object URL
+                    const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    const url = window.URL.createObjectURL(file);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.rel = 'noopener';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                }
                 
                 // Close modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('createReportModal'));
