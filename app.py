@@ -1288,13 +1288,14 @@ def export_report():
                     'remaining_time': remaining_time
                 })
         
-        # Unassociated Projects Section
-        unassoc_clients = Client.query.filter(Client.membership_id.is_(None)).all()
-        if unassoc_clients:
-            # Section header
-            data_ws.cell(row=row, column=1, value="Unassociated Projects").font = Font(bold=True, size=12)
-            data_ws.cell(row=row, column=1).fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
-            row += 1
+        # Unassociated Projects Section - only include when not filtering by specific membership or client
+        if filter_type == 'all':
+            unassoc_clients = Client.query.filter(Client.membership_id.is_(None)).all()
+            if unassoc_clients:
+                # Section header
+                data_ws.cell(row=row, column=1, value="Unassociated Projects").font = Font(bold=True, size=12)
+                data_ws.cell(row=row, column=1).fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
+                row += 1
             
             for client in unassoc_clients:
                 projects = Project.query.filter_by(client_id=client.id).all()
