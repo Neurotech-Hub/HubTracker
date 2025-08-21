@@ -461,31 +461,13 @@ function exportForm() {
                             await writable.write(blob);
                             await writable.close();
                         } catch (e) {
-                            // If user cancels or API fails, fallback to anchor download
-                            const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                            const url = window.URL.createObjectURL(file);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = filename;
-                            a.rel = 'noopener';
-                            document.body.appendChild(a);
-                            a.click();
-                            window.URL.revokeObjectURL(url);
-                            document.body.removeChild(a);
+                            // If user cancels or API fails, fallback to native browser download via hidden form
+                            this.submitFormDownload();
                         }
                     })();
                 } else {
-                    // Fallback: anchor download with File-backed object URL
-                    const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                    const url = window.URL.createObjectURL(file);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    a.rel = 'noopener';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
+                    // Fallback: native browser download via hidden form (best for Chrome/Arc filename handling)
+                    this.submitFormDownload();
                 }
                 
                 // Close modal
@@ -506,6 +488,43 @@ function exportForm() {
                 exportBtn.innerHTML = originalText;
                 exportBtn.disabled = false;
             });
+        },
+
+        // Fallback download method: submit a hidden form to let the browser handle Content-Disposition
+        submitFormDownload() {
+            // Ensure a hidden iframe exists to target the form submission
+            let iframe = document.getElementById('download_iframe');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.id = 'download_iframe';
+                iframe.name = 'download_iframe';
+                document.body.appendChild(iframe);
+            }
+            // Build a hidden form
+            const form = document.createElement('form');
+            form.style.display = 'none';
+            form.method = 'POST';
+            form.action = '/api/export-report';
+            form.target = 'download_iframe';
+
+            const addField = (name, value) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            };
+
+            addField('start_date', this.startDate);
+            addField('end_date', this.endDate);
+            addField('filter_type', this.filterType);
+            addField('filter_value', this.filterValue);
+
+            document.body.appendChild(form);
+            form.submit();
+            // Cleanup the form after a short delay
+            setTimeout(() => form.remove(), 1000);
         }
     }
 }

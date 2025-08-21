@@ -998,11 +998,12 @@ def export_report():
         from datetime import datetime, timedelta
         import io
         
-        # Get form data
-        start_date_str = request.json.get('start_date')
-        end_date_str = request.json.get('end_date')
-        filter_type = request.json.get('filter_type', 'all')
-        filter_value = request.json.get('filter_value', '')
+        # Get form data (support JSON or form-encoded)
+        data = request.get_json(silent=True) or request.form
+        start_date_str = data.get('start_date')
+        end_date_str = data.get('end_date')
+        filter_type = data.get('filter_type', 'all')
+        filter_value = data.get('filter_value', '')
         
         # Parse dates
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
