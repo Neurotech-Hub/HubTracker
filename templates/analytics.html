@@ -433,10 +433,8 @@ function exportForm() {
                 return response.blob();
             })
             .then(blob => {
-                // Create download link with proper MIME type
-                const url = window.URL.createObjectURL(new Blob([blob], { 
-                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-                }));
+                // Create download link - the blob already has the correct MIME type from the server
+                const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `hub_tracker_report_${this.startDate}_${this.endDate}.xlsx`;
