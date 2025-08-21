@@ -2597,11 +2597,9 @@ def analytics():
         # Debug logging for August 6th specifically
         if debug_date == '2025-08-06':
             print(f"All detailed hours: {all_detailed_hours}")
-            print(f"All touch count: {all_touch_count}")
             print(f"All touch hours: {all_touch_hours}")
             print(f"All hours total: {all_hours}")
             print(f"My detailed hours: {my_detailed_hours}")
-            print(f"My touch count: {my_touch_count}")
             print(f"My touch hours: {my_touch_hours}")
             print(f"My hours total: {my_hours}")
             
