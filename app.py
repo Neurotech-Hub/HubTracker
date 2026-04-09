@@ -2514,6 +2514,10 @@ def analytics():
     # Get task completion data for last 30 days (including today)
     twenty_nine_days_ago_utc = current_time_utc - timedelta(days=29)
     
+    # Load admin users once so the chart can show one line per admin user
+    users_for_hours_chart = User.query.filter_by(role='admin').order_by(User.first_name.asc(), User.last_name.asc()).all()
+    admin_user_ids = [user.id for user in users_for_hours_chart]
+
     # Generate date series for last 30 days (including today)
     completion_data = []
     for i in range(30):
@@ -2624,12 +2628,31 @@ def analytics():
             for log in all_logs:
                 print(f"  - Log ID: {log.id}, User: {log.user_id}, Hours: {log.hours}, Created: {log.created_at}, Is Touch: {log.is_touch}")
         
+        # Per-user hours for this day (used by Hours Trends chart)
+        user_hours_rows = []
+        if admin_user_ids:
+            user_hours_rows = db.session.query(
+                Log.user_id,
+                func.sum(Log.hours).label('total_hours')
+            ).filter(
+                Log.created_at >= date_start_utc,
+                Log.created_at < date_end_utc,
+                Log.hours.isnot(None),
+                Log.user_id.in_(admin_user_ids)
+            ).group_by(Log.user_id).all()
+
+        user_hours = {
+            row.user_id: round(float(row.total_hours), 1)
+            for row in user_hours_rows
+        }
+
         completion_data.append({
             'date': date_start_chicago.strftime('%Y-%m-%d'),
             'all_tasks': all_completions,
             'my_tasks': my_completions,
             'all_hours': round(all_hours, 1),
-            'my_hours': round(my_hours, 1)
+            'my_hours': round(my_hours, 1),
+            'user_hours': user_hours
         })
     
     # Debug logging for the final completion_data
@@ -2788,6 +2811,7 @@ def analytics():
 
                          # Task analytics
                          completion_data=completion_data,
+                         chart_users=[{'id': user.id, 'name': user.full_name} for user in users_for_hours_chart],
                          most_active_projects=most_active_projects,
                          most_logged_time_projects=most_logged_time_projects,
                          # Log analytics

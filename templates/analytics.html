@@ -535,6 +535,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Data from backend
     const completionData = {{ completion_data | tojson }};
+    const chartUsers = {{ chart_users | tojson }};
     
     // The data is already in chronological order (oldest to newest)
     // We want to reverse it so newest is on the right
@@ -542,59 +543,42 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Process labels and data together to ensure alignment
     const labels = [];
-    const allHoursData = [];
-    const myHoursData = [];
+    const userSeries = {};
+
+    chartUsers.forEach((user) => {
+        userSeries[user.id] = [];
+    });
     
     reversedData.forEach((d, index) => {
         // Fix: Parse date as local date to avoid timezone issues
         const [year, month, day] = d.date.split('-').map(Number);
         const date = new Date(year, month - 1, day); // month is 0-indexed
         const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const allHours = parseFloat(d.all_hours) || 0;
-        const myHours = parseFloat(d.my_hours) || 0;
-        
         labels.push(label);
-        allHoursData.push(allHours);
-        myHoursData.push(myHours);
+        chartUsers.forEach((user) => {
+            const dayHours = d.user_hours && d.user_hours[user.id] !== undefined ? d.user_hours[user.id] : 0;
+            userSeries[user.id].push(parseFloat(dayHours) || 0);
+        });
     });
-    
-    // FIX: Correct the data alignment issue
-    // The August 6th data is showing at "Aug 5" position instead of "Aug 6" position
-    const aug6LabelIndex = labels.findIndex(label => label === 'Aug 6');
-    const aug6DataIndex = reversedData.findIndex(d => d.date === '2025-08-06');
-    
-    if (aug6LabelIndex !== -1 && aug6DataIndex !== -1) {
-        // Get the correct August 6th data
-        const aug6Data = reversedData[aug6DataIndex];
-        const correctAllHours = parseFloat(aug6Data.all_hours) || 0;
-        const correctMyHours = parseFloat(aug6Data.my_hours) || 0;
-        
-        // Update the data at the correct August 6th label position
-        allHoursData[aug6LabelIndex] = correctAllHours;
-        myHoursData[aug6LabelIndex] = correctMyHours;
-    }
+
+    const datasets = chartUsers.map((user, index) => {
+        const hue = (index * 53) % 360;
+        return {
+            label: user.name,
+            data: userSeries[user.id] || [],
+            borderColor: `hsl(${hue}, 70%, 45%)`,
+            backgroundColor: `hsla(${hue}, 70%, 45%, 0.12)`,
+            borderWidth: 2,
+            fill: false,
+            tension: 0.4
+        };
+    });
     
     new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'All Hours',
-                data: allHoursData,
-                borderColor: '#3498db',
-                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }, {
-                label: 'My Hours',
-                data: myHoursData,
-                borderColor: '#2ecc71',
-                backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
+            datasets: datasets
         },
         options: {
             responsive: true,
