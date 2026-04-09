@@ -303,7 +303,19 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                <span class="badge-clean badge-count">{{ client.projects.count() }}</span>
+                                                {% set client_projects = client.projects.order_by(Project.name.asc()).all() %}
+                                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                                    <span class="badge-clean badge-count">{{ client_projects|length }}</span>
+                                                    {% if client_projects %}
+                                                        <span class="small">
+                                                            {% for project in client_projects %}
+                                                                <a href="{{ url_for('project_detail', project_id=project.id) }}" class="text-decoration-none">{{ project.name }}</a>{% if not loop.last %}, {% endif %}
+                                                            {% endfor %}
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="text-muted small">No projects</span>
+                                                    {% endif %}
+                                                </div>
                                             </td>
                                             <td class="text-end">
                                                 <a href="{{ url_for('client_detail', client_id=client.id) }}" 
@@ -501,7 +513,7 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="fundingScope" class="form-label">Scope (Markdown)</label>
+                        <label for="fundingScope" class="form-label">Scope</label>
                         <textarea class="form-control" id="fundingScope" name="scope" rows="3" placeholder="Optional scope markdown..."></textarea>
                     </div>
                 </div>

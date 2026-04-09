@@ -2205,8 +2205,15 @@ def memberships():
         return redirect(url_for('login'))
     
     memberships = Membership.query.order_by(Membership.title.asc()).all()
+    active_memberships = [membership for membership in memberships if membership.is_active]
+    inactive_memberships = [membership for membership in memberships if not membership.is_active]
     
-    return render_template('memberships.html', memberships=memberships)
+    return render_template(
+        'memberships.html',
+        memberships=memberships,
+        active_memberships=active_memberships,
+        inactive_memberships=inactive_memberships
+    )
 
 @app.route('/membership/<int:membership_id>')
 def membership_detail(membership_id):
