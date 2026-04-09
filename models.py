@@ -224,11 +224,16 @@ class Client(db.Model):
     membership_id = db.Column(db.Integer, db.ForeignKey('memberships.id'), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     
-    # Relationships
-    projects = db.relationship('Project', backref='client', lazy='dynamic')
+    # Relationships (DB FK clients <- projects uses ON DELETE CASCADE; passive_deletes avoids ORM pre-loading)
+    projects = db.relationship('Project', backref='client', lazy='dynamic', passive_deletes=True)
     
     def __repr__(self):
         return f'<Client {self.name}>'
+
+
+# Per-client bucket project: created with new clients; backfilled via ensure_general_projects.py.
+GENERAL_PROJECT_NAME = "General"
+
 
 class Project(db.Model):
     __tablename__ = 'projects'
@@ -243,10 +248,10 @@ class Project(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
     
-    # Relationships
-    tasks = db.relationship('Task', backref='project', lazy='dynamic')
-    logs = db.relationship('Log', backref='project', lazy='dynamic')
-    pins = db.relationship('UserProjectPin', backref='project', lazy='dynamic')
+    # Relationships (FK cascades on project delete are defined on Task/Log/UserProjectPin columns)
+    tasks = db.relationship('Task', backref='project', lazy='dynamic', passive_deletes=True)
+    logs = db.relationship('Log', backref='project', lazy='dynamic', passive_deletes=True)
+    pins = db.relationship('UserProjectPin', backref='project', lazy='dynamic', passive_deletes=True)
     
     def __repr__(self):
         return f'<Project {self.name}>'
@@ -322,7 +327,7 @@ class Log(db.Model):
     hours = db.Column(db.Float, nullable=True)
     fixed_cost = db.Column(db.Numeric(10, 2), nullable=True)  # Fixed to 2 decimal places
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='SET NULL'), nullable=True)  # Adding project relationship
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
     

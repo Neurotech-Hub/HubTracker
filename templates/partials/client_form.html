@@ -104,7 +104,7 @@
                     <div class="mb-3">
                         <label for="addProjectLead" class="form-label">Project Lead</label>
                         <select class="form-select" id="addProjectLead" name="project_lead_id">
-                            <option value="">Select a project lead...</option>
+                            <option value="">Unassigned</option>
                             {% for user in users %}
                                 <option value="{{ user.id }}">{{ user.full_name }}</option>
                             {% endfor %}
@@ -122,7 +122,8 @@
                         <label for="addProjectNotes" class="form-label">Notes</label>
                         <textarea class="form-control" id="addProjectNotes" name="notes" rows="3" placeholder="Optional project notes..."></textarea>
                     </div>
-                    <div class="mb-3">
+                    {# Hidden: rarely used — remove d-none to show "Set as default project" again #}
+                    <div class="mb-3 d-none" aria-hidden="true">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="addProjectDefault" name="is_default">
                             <label class="form-check-label" for="addProjectDefault">
@@ -163,21 +164,32 @@ function confirmDelete(itemName, deleteUrl) {
     }
 }
 
-function confirmClientDelete(itemName, deleteUrl, projectsCount) {
+function confirmClientDelete(itemName, deleteUrl, activeProjectsCount, projectsTotal) {
     document.getElementById('deleteItemName').textContent = itemName;
     document.getElementById('deleteForm').action = deleteUrl;
-    
-    // Show warning if there are projects
-    const warningDiv = document.getElementById('projectsWarning');
-    const countSpan = document.getElementById('projectsCount');
-    
-    if (projectsCount > 0) {
-        countSpan.textContent = projectsCount;
-        warningDiv.style.display = 'block';
+
+    const activeWarning = document.getElementById('activeProjectsWarning');
+    const activeCountSpan = document.getElementById('activeProjectsCount');
+    const cascadeInfo = document.getElementById('deleteCascadeInfo');
+    const totalSpan = document.getElementById('projectsTotalCount');
+    const deleteBtn = document.getElementById('deleteClientSubmit');
+
+    if (activeProjectsCount > 0) {
+        activeCountSpan.textContent = activeProjectsCount;
+        activeWarning.style.display = 'block';
+        cascadeInfo.style.display = 'none';
+        deleteBtn.disabled = true;
     } else {
-        warningDiv.style.display = 'none';
+        activeWarning.style.display = 'none';
+        deleteBtn.disabled = false;
+        if (projectsTotal > 0) {
+            totalSpan.textContent = projectsTotal;
+            cascadeInfo.style.display = 'block';
+        } else {
+            cascadeInfo.style.display = 'none';
+        }
     }
-    
+
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
 
@@ -200,9 +212,10 @@ function addProjectForClientFromData(button) {
 function confirmClientDeleteFromData(button) {
     const itemName = button.dataset.clientName;
     const deleteUrl = button.dataset.deleteUrl;
-    const projectsCount = parseInt(button.dataset.projectsCount);
-    
-    confirmClientDelete(itemName, deleteUrl, projectsCount);
+    const activeCount = parseInt(button.dataset.activeProjectsCount || '0', 10);
+    const totalCount = parseInt(button.dataset.projectsTotal || '0', 10);
+
+    confirmClientDelete(itemName, deleteUrl, activeCount, totalCount);
 }
 </script>
 
@@ -217,15 +230,19 @@ function confirmClientDeleteFromData(button) {
                 </div>
                 <div class="modal-body">
                     <p>Are you sure you want to delete <strong><span id="deleteItemName"></span></strong>?</p>
-                    <div id="projectsWarning" class="alert alert-warning" style="display: none;">
+                    <div id="activeProjectsWarning" class="alert alert-warning" style="display: none;">
                         <i class="bi bi-exclamation-triangle me-2"></i>
-                        This client has <strong><span id="projectsCount"></span></strong> projects.
-                        Please reassign or delete them before deleting the client.
+                        This client has <strong><span id="activeProjectsCount"></span></strong> active project(s).
+                        Archive or change their status before deleting this client.
+                    </div>
+                    <div id="deleteCascadeInfo" class="alert alert-info" style="display: none;">
+                        <i class="bi bi-info-circle me-2"></i>
+                        This will permanently delete <strong><span id="projectsTotalCount"></span></strong> project(s) and related tasks, time logs, and pins.
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger">Delete Client</button>
+                    <button type="submit" class="btn btn-danger" id="deleteClientSubmit">Delete Client</button>
                 </div>
             </form>
         </div>

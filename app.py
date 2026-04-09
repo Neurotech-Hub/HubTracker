@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, date
 import pytz
 import os
 import markdown
-from sqlalchemy import func, desc, text
+from sqlalchemy import func, desc, text, or_, and_
 import re
 from markupsafe import Markup
 import json
@@ -53,7 +53,7 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
 # Import models and db
-from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment
+from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME
 
 # Initialize extensions
 db.init_app(app)
@@ -61,6 +61,16 @@ migrate = Migrate(app, db)
 
 # Initialize Flask-Mail
 mail = Mail(app)
+
+# TEMPORARY: idempotent backfill for "General" projects. Remove after first production deploy.
+try:
+    from ensure_general_projects import ensure_general_projects_for_all_clients
+
+    with app.app_context():
+        _general_stats = ensure_general_projects_for_all_clients()
+        app.logger.info("ensure_general_projects startup: %s", _general_stats)
+except Exception:
+    app.logger.exception("ensure_general_projects startup failed")
 
 def send_appointment_notification(appointment):
     """Send email notification for new appointment using Flask-Mail"""
@@ -2141,9 +2151,15 @@ def add_client():
     )
     
     db.session.add(client)
-    db.session.commit()
-    
-    # Log client creation activity
+    db.session.flush()
+    general = Project(
+        name=GENERAL_PROJECT_NAME,
+        client_id=client.id,
+        project_lead_id=None,
+        status='Archived',
+        is_default=False,
+    )
+    db.session.add(general)
     ActivityLog.log_activity(
         user_id=session['user_id'],
         activity_type='client_created',
@@ -2154,6 +2170,7 @@ def add_client():
             'membership_id': client.membership_id
         }
     )
+    db.session.commit()
     
     flash('Client created successfully', 'success')
     return redirect(url_for('clients'))
@@ -2187,12 +2204,45 @@ def delete_client(client_id):
         return redirect(url_for('login'))
     
     client = Client.query.get_or_404(client_id)
-    
-    # Check if client has projects
-    if client.projects.count() > 0:
-        flash('Cannot delete client with existing projects', 'error')
+
+    if client.projects.filter(Project.status == 'Active').count() > 0:
+        flash(
+            'Cannot delete a client that still has active projects. Archive or change their status first.',
+            'error',
+        )
         return redirect(url_for('clients'))
-    
+
+    project_ids = [
+        r[0]
+        for r in db.session.query(Project.id).filter(Project.client_id == client.id).all()
+    ]
+    task_ids = (
+        [r[0] for r in db.session.query(Task.id).filter(Task.project_id.in_(project_ids)).all()]
+        if project_ids
+        else []
+    )
+    log_ids = (
+        [r[0] for r in db.session.query(Log.id).filter(Log.project_id.in_(project_ids)).all()]
+        if project_ids
+        else []
+    )
+
+    activity_conds = [and_(ActivityLog.entity_type == 'client', ActivityLog.entity_id == client_id)]
+    if project_ids:
+        activity_conds.append(
+            and_(ActivityLog.entity_type == 'project', ActivityLog.entity_id.in_(project_ids))
+        )
+    if task_ids:
+        activity_conds.append(
+            and_(ActivityLog.entity_type == 'task', ActivityLog.entity_id.in_(task_ids))
+        )
+    if log_ids:
+        activity_conds.append(
+            and_(ActivityLog.entity_type == 'log', ActivityLog.entity_id.in_(log_ids))
+        )
+    if activity_conds:
+        ActivityLog.query.filter(or_(*activity_conds)).delete(synchronize_session=False)
+
     db.session.delete(client)
     db.session.commit()
     flash('Client deleted successfully', 'success')
@@ -3519,7 +3569,7 @@ def import_labs_projects():
                         name=project_name,
                         client_id=client.id,
                         status='Archived',
-                        project_lead_id=1
+                        project_lead_id=None
                     )
                     db.session.add(project)
             

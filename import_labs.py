@@ -47,14 +47,14 @@ def import_labs():
                         name=project_name,
                         client_id=client.id,
                         status='Archived',
-                        project_lead_id=1
+                        project_lead_id=None
                     )
                     db.session.add(project)
                     print(f"  Created project: {project_name}")
                 else:
                     # Update existing project
                     project.status = 'Archived'
-                    project.project_lead_id = 1
+                    project.project_lead_id = None
                     print(f"  Updated existing project: {project_name}")
         
         # Commit all changes

@@ -70,7 +70,8 @@
             <button type="button" class="action-btn-clean btn-delete" 
                     data-client-name="{{ client.name }}"
                     data-delete-url="{{ url_for('delete_client', client_id=client.id) }}"
-                    data-projects-count="{{ client.projects.count() }}"
+                    data-active-projects-count="{{ client.projects.filter_by(status='Active').count() }}"
+                    data-projects-total="{{ client.projects.count() }}"
                     onclick="confirmClientDeleteFromData(this)"
                     title="Delete Client">
                 <i class="bi bi-trash"></i>

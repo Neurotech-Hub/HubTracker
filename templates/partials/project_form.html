@@ -30,7 +30,7 @@
                     <div class="mb-3">
                         <label for="addProjectLead" class="form-label">Project Lead</label>
                         <select class="form-select" id="addProjectLead" name="project_lead_id">
-                            <option value="">Select a project lead...</option>
+                            <option value="">Unassigned</option>
                             {% for user in users %}
                                 <option value="{{ user.id }}">{{ user.full_name }}</option>
                             {% endfor %}
@@ -48,7 +48,8 @@
                         <label for="addProjectNotes" class="form-label">Notes</label>
                         <textarea class="form-control" id="addProjectNotes" name="notes" rows="3" placeholder="Optional project notes..."></textarea>
                     </div>
-                    <div class="mb-3">
+                    {# Hidden: rarely used — remove d-none to show "Set as default project" again #}
+                    <div class="mb-3 d-none" aria-hidden="true">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="addProjectDefault" name="is_default">
                             <label class="form-check-label" for="addProjectDefault">
@@ -93,7 +94,7 @@
                     <div class="mb-3">
                         <label for="editProjectLead" class="form-label">Project Lead</label>
                         <select class="form-select" id="editProjectLead" name="project_lead_id">
-                            <option value="">Select a project lead...</option>
+                            <option value="">Unassigned</option>
                             {% for user in users %}
                                 <option value="{{ user.id }}">{{ user.full_name }}</option>
                             {% endfor %}
@@ -112,7 +113,8 @@
                         <label for="editProjectNotes" class="form-label">Notes</label>
                         <textarea class="form-control" id="editProjectNotes" name="notes" rows="3" placeholder="Optional project notes..."></textarea>
                     </div>
-                    <div class="mb-3">
+                    {# Hidden: rarely used — remove d-none to show "Set as default project" again #}
+                    <div class="mb-3 d-none" aria-hidden="true">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="editProjectDefault" name="is_default">
                             <label class="form-check-label" for="editProjectDefault">
