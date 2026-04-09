@@ -53,7 +53,7 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
 # Import models and db
-from models import db, User, Client, Membership, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, MembershipSupplement, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment
+from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment
 
 # Initialize extensions
 db.init_app(app)
@@ -433,7 +433,13 @@ def index():
     total_clients = Client.query.count()
     total_active_projects = Project.query.filter_by(status='Active').count()
     total_users = User.query.count()
-    total_memberships = Membership.query.filter_by(status='Active').count()
+    now = get_current_time()
+    total_memberships = db.session.query(Membership.id).join(
+        MembershipFunding, MembershipFunding.membership_id == Membership.id
+    ).filter(
+        MembershipFunding.start_date <= now,
+        MembershipFunding.end_date >= now
+    ).distinct().count()
     open_tasks = Task.query.filter_by(is_complete=False).count()
     total_equipment = Equipment.query.count()
     
@@ -851,9 +857,9 @@ def dashboard():
                     'data': activity,
                     'created_at': activity.created_at
                 })
-            elif activity.activity_type == 'membership_supplement_added':
+            elif activity.activity_type in ['membership_supplement_added', 'membership_funding_added']:
                 all_activities.append({
-                    'type': 'membership_supplement_added',
+                    'type': 'membership_funding_added',
                     'data': activity,
                     'created_at': activity.created_at
                 })
@@ -1112,13 +1118,15 @@ def export_report():
         
         # Helper function to calculate membership remaining
         def calculate_membership_remaining(membership_id):
-            """Calculate remaining budget and time for a membership, using supplement-aware totals"""
+            """Calculate remaining budget and time for a membership, using funding-aware totals"""
             membership = db.session.get(Membership, membership_id)
             if not membership:
                 return 0, 0
-            # Use the supplement-aware properties directly
+            # Use active funding-aware properties directly
             total_budget = float(membership.total_budget or 0)
             total_time = float(membership.total_time or 0)
+            earliest_funding_start = membership.funding_entries.order_by(MembershipFunding.start_date.asc()).first()
+            start_anchor = earliest_funding_start.start_date if earliest_funding_start else datetime(2020, 1, 1)
             # Calculate used cost and time for this membership (all clients/projects)
             clients = Client.query.filter_by(membership_id=membership_id).all()
             client_ids = [c.id for c in clients]
@@ -1126,7 +1134,7 @@ def export_report():
             used_cost = 0
             used_time = 0
             for project in projects:
-                hours, cost = calculate_project_totals(project.id, membership.start_date or datetime(2020, 1, 1), datetime.now())
+                hours, cost = calculate_project_totals(project.id, start_anchor, datetime.now())
                 used_time += hours
                 used_cost += cost
             remaining_budget = total_budget - used_cost
@@ -1865,12 +1873,12 @@ def projects():
         
         if project.client and project.client.membership:
             membership = project.client.membership
-            if membership.time:
-                project.membership_time = membership.time
-                project.hours_remaining = max(0, membership.time - project.used_hours)
-            if membership.budget:
-                project.membership_budget = membership.budget
-                project.budget_remaining = max(0, membership.budget - project.used_budget)
+            if membership.total_time:
+                project.membership_time = membership.total_time
+                project.hours_remaining = max(0, membership.total_time - project.used_hours)
+            if membership.total_budget:
+                project.membership_budget = membership.total_budget
+                project.budget_remaining = max(0, membership.total_budget - project.used_budget)
         
         if project.status == 'Archived':
             archived_projects.append(project)
@@ -1912,12 +1920,12 @@ def project_detail(project_id):
     
     if project.client and project.client.membership:
         membership = project.client.membership
-        if membership.time:
-            project.membership_time = membership.time
-            project.hours_remaining = max(0, membership.time - project.used_hours)
-        if membership.budget:
-            project.membership_budget = membership.budget
-            project.budget_remaining = max(0, membership.budget - project.used_budget)
+        if membership.total_time:
+            project.membership_time = membership.total_time
+            project.hours_remaining = max(0, membership.total_time - project.used_hours)
+        if membership.total_budget:
+            project.membership_budget = membership.total_budget
+            project.budget_remaining = max(0, membership.total_budget - project.used_budget)
     
     # Get open tasks for this project
     open_tasks = project.tasks.filter_by(is_complete=False).order_by(Task.created_at.desc()).all()
@@ -2212,13 +2220,34 @@ def membership_detail(membership_id):
     
     # Sort projects by name
     projects.sort(key=lambda p: p.name)
+
+    # Funding entries ordered newest start date first
+    funding_entries = membership.funding_entries.order_by(MembershipFunding.start_date.desc()).all()
+    membership_client_ids = [client.id for client in associated_clients]
+    for funding in funding_entries:
+        if membership_client_ids:
+            logs_summary = db.session.query(
+                db.func.sum(Log.hours).label('used_time'),
+                db.func.sum(Log.fixed_cost).label('used_budget')
+            ).join(
+                Project, Project.id == Log.project_id
+            ).filter(
+                Project.client_id.in_(membership_client_ids),
+                Log.created_at >= funding.start_date,
+                Log.created_at <= funding.end_date
+            ).first()
+            funding.used_time = float(logs_summary.used_time or 0)
+            funding.used_budget = float(logs_summary.used_budget or 0)
+        else:
+            funding.used_time = 0.0
+            funding.used_budget = 0.0
     
     return render_template('membership_detail.html', 
                          membership=membership,
                          clients=associated_clients,
                          all_clients=all_clients,
                          projects=projects,
-                         MembershipSupplement=MembershipSupplement)
+                         funding_entries=funding_entries)
 
 @app.route('/add_membership', methods=['POST'])
 def add_membership():
@@ -2226,57 +2255,14 @@ def add_membership():
         return redirect(url_for('login'))
     
     title = request.form.get('title', '').strip()
-    start_date_str = request.form.get('start_date')
-    is_annual = request.form.get('is_annual') == 'on'
-    cost_str = request.form.get('cost', '').strip()
-    time_str = request.form.get('time', '').strip()
-    budget_str = request.form.get('budget', '').strip()
     notes = request.form.get('notes', '').strip()
     
     if not title:
         flash('Title is required', 'error')
         return redirect(url_for('memberships'))
     
-    start_date = None
-    if start_date_str:
-        try:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-            start_date = TIMEZONE.localize(start_date)
-        except ValueError:
-            flash('Invalid start date format', 'error')
-            return redirect(url_for('memberships'))
-    
-    cost = None
-    if cost_str:
-        try:
-            cost = float(cost_str)
-        except ValueError:
-            flash('Invalid cost format', 'error')
-            return redirect(url_for('memberships'))
-    
-    time = None
-    if time_str:
-        try:
-            time = int(time_str)
-        except ValueError:
-            flash('Invalid time format', 'error')
-            return redirect(url_for('memberships'))
-    
-    budget = None
-    if budget_str:
-        try:
-            budget = float(budget_str)
-        except ValueError:
-            flash('Invalid budget format', 'error')
-            return redirect(url_for('memberships'))
-    
     membership = Membership(
         title=title,
-        start_date=start_date,
-        is_annual=is_annual,
-        cost=cost,
-        time=time,
-        budget=budget,
         notes=notes
     )
     
@@ -2291,10 +2277,7 @@ def add_membership():
         entity_id=membership.id,
         new_value={
             'title': membership.title,
-            'cost': membership.cost,
-            'time': membership.time,
-            'budget': membership.budget,
-            'is_annual': membership.is_annual
+            'notes': membership.notes
         }
     )
     
@@ -2309,58 +2292,13 @@ def edit_membership(membership_id):
     membership = Membership.query.get_or_404(membership_id)
     
     title = request.form.get('title', '').strip()
-    start_date_str = request.form.get('start_date')
-    status = request.form.get('status', 'Active')
-    is_annual = request.form.get('is_annual') == 'on'
-    cost_str = request.form.get('cost', '').strip()
-    time_str = request.form.get('time', '').strip()
-    budget_str = request.form.get('budget', '').strip()
     notes = request.form.get('notes', '').strip()
     
     if not title:
         flash('Title is required', 'error')
         return redirect(url_for('memberships'))
     
-    start_date = None
-    if start_date_str:
-        try:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-            start_date = TIMEZONE.localize(start_date)
-        except ValueError:
-            flash('Invalid start date format', 'error')
-            return redirect(url_for('memberships'))
-    
-    cost = None
-    if cost_str:
-        try:
-            cost = float(cost_str)
-        except ValueError:
-            flash('Invalid cost format', 'error')
-            return redirect(url_for('memberships'))
-    
-    time = None
-    if time_str:
-        try:
-            time = int(time_str)
-        except ValueError:
-            flash('Invalid time format', 'error')
-            return redirect(url_for('memberships'))
-    
-    budget = None
-    if budget_str:
-        try:
-            budget = float(budget_str)
-        except ValueError:
-            flash('Invalid budget format', 'error')
-            return redirect(url_for('memberships'))
-    
     membership.title = title
-    membership.start_date = start_date
-    membership.status = status
-    membership.is_annual = is_annual
-    membership.cost = cost
-    membership.time = time
-    membership.budget = budget
     membership.notes = notes
     
     db.session.commit()
@@ -2505,8 +2443,14 @@ def analytics():
     print(f"Thirty days ago UTC: {thirty_days_ago_utc}")
     
     # Get basic stats for the top metrics
-    total_members = Membership.query.filter_by(status='Active').count()
-    total_projects = Project.query.count()
+    now = get_current_time()
+    total_members = db.session.query(Membership.id).join(
+        MembershipFunding, MembershipFunding.membership_id == Membership.id
+    ).filter(
+        MembershipFunding.start_date <= now,
+        MembershipFunding.end_date >= now
+    ).distinct().count()
+    total_projects = Project.query.filter_by(status='Active').count()
     total_clients = Client.query.count()
     open_tasks = Task.query.filter_by(is_complete=False).count()
 
@@ -3287,96 +3231,140 @@ def edit_profile():
     flash('Profile updated successfully', 'success')
     return redirect(url_for('profile'))
 
-@app.route('/supplement/<int:membership_id>/add', methods=['POST'])
-def add_supplement(membership_id):
+@app.route('/funding/<int:membership_id>/add', methods=['POST'])
+def add_funding(membership_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
     membership = Membership.query.get_or_404(membership_id)
     
-    time = request.form.get('time', type=int)
-    budget = request.form.get('budget', type=float)
-    notes = request.form.get('notes', '').strip()
+    amount = request.form.get('amount', type=float)
+    start_date_str = request.form.get('start_date', '').strip()
+    end_date_str = request.form.get('end_date', '').strip()
+    scope = request.form.get('scope', '').strip()
+    time_budget = request.form.get('time_budget', type=int)
+    dollar_budget = request.form.get('dollar_budget', type=float)
     
-    if not time and not budget:
-        flash('Please specify either time or budget for the supplement.', 'warning')
+    if amount is None:
+        flash('Amount is required (0 is allowed).', 'warning')
+        return redirect(url_for('membership_detail', membership_id=membership_id))
+    if not start_date_str or not end_date_str:
+        flash('Start date and end date are required.', 'warning')
+        return redirect(url_for('membership_detail', membership_id=membership_id))
+
+    try:
+        start_date = TIMEZONE.localize(datetime.strptime(start_date_str, '%Y-%m-%d'))
+        end_date = TIMEZONE.localize(datetime.strptime(end_date_str, '%Y-%m-%d'))
+    except ValueError:
+        flash('Invalid date format for funding entry.', 'warning')
+        return redirect(url_for('membership_detail', membership_id=membership_id))
+
+    if end_date < start_date:
+        flash('End date must be on or after start date.', 'warning')
         return redirect(url_for('membership_detail', membership_id=membership_id))
     
-    supplement = MembershipSupplement(
+    funding = MembershipFunding(
         membership_id=membership_id,
-        time=time,
-        budget=budget,
-        notes=notes
+        amount=amount,
+        start_date=start_date,
+        end_date=end_date,
+        scope=scope,
+        time_budget=time_budget,
+        dollar_budget=dollar_budget
     )
-    db.session.add(supplement)
+    db.session.add(funding)
     db.session.commit()
     
-    # Log membership supplement activity
+    # Log membership funding activity
     ActivityLog.log_activity(
         user_id=session['user_id'],
-        activity_type='membership_supplement_added',
-        entity_type='membership_supplement',
-        entity_id=supplement.id,
+        activity_type='membership_funding_added',
+        entity_type='membership_funding',
+        entity_id=funding.id,
         new_value={
-            'membership_id': supplement.membership_id,
-            'time': supplement.time,
-            'budget': supplement.budget
+            'membership_id': funding.membership_id,
+            'amount': funding.amount,
+            'time_budget': funding.time_budget,
+            'dollar_budget': funding.dollar_budget
         }
     )
     
     db.session.commit()
     
-    flash('Supplement added successfully.', 'success')
+    flash('Funding entry added successfully.', 'success')
     return redirect(url_for('membership_detail', membership_id=membership_id))
 
-@app.route('/supplement/<int:supplement_id>/edit', methods=['POST'])
-def edit_supplement(supplement_id):
+@app.route('/funding/<int:funding_id>/edit', methods=['POST'])
+def edit_funding(funding_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    supplement = MembershipSupplement.query.get_or_404(supplement_id)
+    funding = MembershipFunding.query.get_or_404(funding_id)
     
-    time = request.form.get('time', type=int)
-    budget = request.form.get('budget', type=float)
-    notes = request.form.get('notes', '').strip()
+    amount = request.form.get('amount', type=float)
+    start_date_str = request.form.get('start_date', '').strip()
+    end_date_str = request.form.get('end_date', '').strip()
+    scope = request.form.get('scope', '').strip()
+    time_budget = request.form.get('time_budget', type=int)
+    dollar_budget = request.form.get('dollar_budget', type=float)
     
-    if not time and not budget:
-        flash('Please specify either time or budget for the supplement.', 'warning')
-        return redirect(url_for('membership_detail', membership_id=supplement.membership_id))
+    if amount is None:
+        flash('Amount is required (0 is allowed).', 'warning')
+        return redirect(url_for('membership_detail', membership_id=funding.membership_id))
+    if not start_date_str or not end_date_str:
+        flash('Start date and end date are required.', 'warning')
+        return redirect(url_for('membership_detail', membership_id=funding.membership_id))
+
+    try:
+        start_date = TIMEZONE.localize(datetime.strptime(start_date_str, '%Y-%m-%d'))
+        end_date = TIMEZONE.localize(datetime.strptime(end_date_str, '%Y-%m-%d'))
+    except ValueError:
+        flash('Invalid date format for funding entry.', 'warning')
+        return redirect(url_for('membership_detail', membership_id=funding.membership_id))
+
+    if end_date < start_date:
+        flash('End date must be on or after start date.', 'warning')
+        return redirect(url_for('membership_detail', membership_id=funding.membership_id))
     
-    supplement.time = time
-    supplement.budget = budget
-    supplement.notes = notes
+    funding.amount = amount
+    funding.start_date = start_date
+    funding.end_date = end_date
+    funding.scope = scope
+    funding.time_budget = time_budget
+    funding.dollar_budget = dollar_budget
     db.session.commit()
     
-    flash('Supplement updated successfully.', 'success')
-    return redirect(url_for('membership_detail', membership_id=supplement.membership_id))
+    flash('Funding entry updated successfully.', 'success')
+    return redirect(url_for('membership_detail', membership_id=funding.membership_id))
 
-@app.route('/supplement/<int:supplement_id>/delete', methods=['POST'])
-def delete_supplement(supplement_id):
+@app.route('/funding/<int:funding_id>/delete', methods=['POST'])
+def delete_funding(funding_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    supplement = MembershipSupplement.query.get_or_404(supplement_id)
-    membership_id = supplement.membership_id
+    funding = MembershipFunding.query.get_or_404(funding_id)
+    membership_id = funding.membership_id
     
-    db.session.delete(supplement)
+    db.session.delete(funding)
     db.session.commit()
     
-    flash('Supplement deleted successfully.', 'success')
+    flash('Funding entry deleted successfully.', 'success')
     return redirect(url_for('membership_detail', membership_id=membership_id))
 
-@app.route('/api/supplement/<int:supplement_id>')
-def get_supplement(supplement_id):
+@app.route('/api/funding/<int:funding_id>')
+def get_funding(funding_id):
     if 'user_id' not in session:
         return {'error': 'Not authenticated'}, 401
     
-    supplement = MembershipSupplement.query.get_or_404(supplement_id)
+    funding = MembershipFunding.query.get_or_404(funding_id)
     return {
-        'id': supplement.id,
-        'time': supplement.time,
-        'budget': supplement.budget,
-        'notes': supplement.notes
+        'id': funding.id,
+        'amount': funding.amount,
+        'start_date': funding.start_date.strftime('%Y-%m-%d') if funding.start_date else '',
+        'end_date': funding.end_date.strftime('%Y-%m-%d') if funding.end_date else '',
+        'scope': funding.scope,
+        'time_budget': funding.time_budget,
+        'dollar_budget': funding.dollar_budget
     }
 
 # ADMIN ROUTES (Admin only)

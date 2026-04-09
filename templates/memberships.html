@@ -26,12 +26,11 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th class="border-0">Membership</th>
-                                        <th class="border-0">Type</th>
-                                        <th class="border-0">Cost</th>
-                                        <th class="border-0">Time</th>
-                                        <th class="border-0">Budget</th>
+                                        <th class="border-0">Funding Status</th>
+                                        <th class="border-0">All-time Amount</th>
+                                        <th class="border-0">Active Time</th>
+                                        <th class="border-0">Active Budget</th>
                                         <th class="border-0">Clients</th>
-                                        <th class="border-0">Status</th>
                                         <th class="border-0 text-end">Actions</th>
                                     </tr>
                                 </thead>
@@ -110,15 +109,9 @@ function confirmMembershipDelete(itemName, deleteUrl, clientsCount) {
 function editMembershipFromData(button) {
     const membershipId = button.dataset.membershipId;
     const title = button.dataset.membershipTitle;
-    const startDate = button.dataset.membershipStartDate;
-    const isAnnual = button.dataset.membershipIsAnnual === 'true';
-    const cost = button.dataset.membershipCost ? parseFloat(button.dataset.membershipCost) : null;
-    const time = button.dataset.membershipTime ? parseInt(button.dataset.membershipTime) : null;
-    const budget = button.dataset.membershipBudget ? parseFloat(button.dataset.membershipBudget) : null;
     const notes = button.dataset.membershipNotes;
-    const status = button.dataset.membershipStatus;
     
-    editMembership(membershipId, title, startDate, isAnnual, cost, time, budget, notes, status);
+    editMembership(membershipId, title, notes);
 }
 
 function confirmMembershipDeleteFromData(button) {

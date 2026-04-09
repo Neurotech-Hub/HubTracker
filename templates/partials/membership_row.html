@@ -7,67 +7,35 @@
                         {{ membership.title }}
                     </a>
                 </div>
-                {% if membership.start_date %}
-                <small class="text-muted">Started {{ membership.start_date.strftime('%b %d, %Y') }}</small>
-                {% endif %}
+                <small class="text-muted">Funding entries: {{ membership.funding_entries.count() }}</small>
             </div>
         </div>
     </td>
     <td class="align-middle">
-        {% if membership.is_annual %}
-        <span class="badge-clean badge-membership-annual">Annual</span>
+        {% if membership.is_active %}
+        <span class="badge-clean badge-status-active">Active Funding</span>
         {% else %}
-        <span class="badge-clean badge-membership-no-expiry">No Expiry</span>
+        <span class="badge-clean badge-status-archived">No Active Funding</span>
         {% endif %}
     </td>
     <td class="align-middle">
-        {% if membership.cost %}
-        {{ membership.cost|currency }}
-        {% else %}
-        <span class="text-muted">-</span>
-        {% endif %}
+        {{ membership.all_time_amount|currency }}
     </td>
     <td class="align-middle">
-        {% if membership.time %}
-        {{ membership.time }}h
-        {% else %}
-        <span class="text-muted">-</span>
-        {% endif %}
+        {{ membership.total_time }}h
     </td>
     <td class="align-middle">
-        {% if membership.budget %}
-        {{ membership.budget|currency }}
-        {% else %}
-        <span class="text-muted">-</span>
-        {% endif %}
+        {{ membership.total_budget|currency }}
     </td>
     <td class="align-middle">
         <span class="badge-clean badge-count">{{ membership.clients.count() }}</span>
     </td>
-    <td class="align-middle">
-        {% if membership.status == 'Active' %}
-            <span class="badge-clean badge-status-active">{{ membership.status }}</span>
-        {% elif membership.status == 'Pending' %}
-            <span class="badge-clean badge-status-pending">{{ membership.status }}</span>
-        {% else %}
-            <span class="badge-clean badge-status-archived">{{ membership.status }}</span>
-        {% endif %}
-    </td>
     <td class="align-middle text-end">
         <div class="action-btn-group">
-            <a href="{{ url_for('membership_detail', membership_id=membership.id) }}" class="action-btn-clean btn-view" title="View Details">
-                <i class="bi bi-eye"></i>
-            </a>
             <button type="button" class="action-btn-clean btn-edit" title="Edit Membership" 
                     data-membership-id="{{ membership.id }}"
                     data-membership-title="{{ membership.title }}"
-                    data-membership-start-date="{{ membership.start_date.strftime('%Y-%m-%d') if membership.start_date else '' }}"
-                    data-membership-is-annual="{{ membership.is_annual|tojson }}"
-                    data-membership-cost="{{ membership.cost if membership.cost else '' }}"
-                    data-membership-time="{{ membership.time if membership.time else '' }}"
-                    data-membership-budget="{{ membership.budget if membership.budget else '' }}"
                     data-membership-notes="{{ membership.notes|default('', true) }}"
-                    data-membership-status="{{ membership.status }}"
                     onclick="editMembershipFromData(this)">
                 <i class="bi bi-pencil"></i>
             </button>

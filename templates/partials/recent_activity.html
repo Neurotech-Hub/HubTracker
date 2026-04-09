@@ -114,13 +114,13 @@
                                     <small class="text-muted">by {{ activity.data.user.full_name if activity.data.user else 'Unknown' }}</small>
                                 </div>
                                 <small class="text-muted">{{ activity.created_at|time_ago }}</small>
-                            {% elif activity.type == 'membership_supplement_added' %}
+                            {% elif activity.type == 'membership_funding_added' %}
                                 <div class="activity-icon-compact bg-success text-white me-2">
                                     <i class="bi bi-plus-circle"></i>
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="task-description-main">
-                                        Membership supplement added
+                                        Membership funding added
                                     </div>
                                     <small class="text-muted">by {{ activity.data.user.full_name if activity.data.user else 'Unknown' }}</small>
                                 </div>

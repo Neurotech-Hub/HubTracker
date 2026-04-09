@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 # Create db instance that will be initialized in app.py
@@ -89,88 +89,132 @@ class Membership(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
-    start_date = db.Column(db.DateTime(timezone=True), nullable=True)
-    is_annual = db.Column(db.Boolean, default=False, nullable=False)
-    cost = db.Column(db.Float, nullable=True)  # Monthly or annual cost
-    time = db.Column(db.Integer, nullable=True)  # Time budget in hours
-    budget = db.Column(db.Float, nullable=True)  # Dollar budget
     notes = db.Column(db.Text, nullable=True)  # Markdown-enabled notes
-    status = db.Column(db.String(20), default='Active', server_default='Active', nullable=False)  # Active, Pending, Archived
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
     
     # Relationships
     clients = db.relationship('Client', backref='membership', lazy='dynamic')
-    supplements = db.relationship('MembershipSupplement', backref='membership', lazy='dynamic')
+    funding_entries = db.relationship('MembershipFunding', backref='membership', lazy='dynamic')
     
     def __repr__(self):
         return f'<Membership {self.title}>'
     
     @property
+    def active_funding(self):
+        """Funding entries active at the current time."""
+        now = get_current_time()
+        return self.funding_entries.filter(
+            MembershipFunding.start_date <= now,
+            MembershipFunding.end_date >= now
+        )
+    
+    @property
+    def all_time_amount(self):
+        return sum(f.amount or 0 for f in self.funding_entries)
+    
+    @property
+    def total_budget_all_time(self):
+        return sum(f.dollar_budget or 0 for f in self.funding_entries)
+    
+    @property
+    def total_time_all_time(self):
+        return sum(f.time_budget or 0 for f in self.funding_entries)
+    
+    @property
     def total_budget(self):
-        """Get total budget including supplements"""
-        base = self.budget or 0
-        supplements = sum(s.budget or 0 for s in self.supplements)
-        return base + supplements
+        """Active dollar budget (legacy-compatible name)."""
+        return sum(f.dollar_budget or 0 for f in self.active_funding)
     
     @property
     def total_time(self):
-        """Get total time budget including supplements"""
-        base = self.time or 0
-        supplements = sum(s.time or 0 for s in self.supplements)
-        return base + supplements
+        """Active time budget (legacy-compatible name)."""
+        return sum(f.time_budget or 0 for f in self.active_funding)
     
+    def _membership_logs(self):
+        return db.session.query(Log).join(
+            Project, Project.id == Log.project_id
+        ).join(
+            Client, Client.id == Project.client_id
+        ).filter(
+            Client.membership_id == self.id
+        ).all()
+    
+    @property
+    def used_budget_all_time(self):
+        return float(sum(float(log.fixed_cost or 0) for log in self._membership_logs()))
+
+    @property
+    def used_time_all_time(self):
+        return float(sum(float(log.hours or 0) for log in self._membership_logs()))
+
     @property
     def used_budget(self):
-        """Calculate used budget from logs"""
-        from sqlalchemy import func
-        total = db.session.query(func.sum(Log.fixed_cost)).join(
-            Project, Project.id == Log.project_id
-        ).join(
-            Client, Client.id == Project.client_id
-        ).filter(
-            Client.membership_id == self.id,
-            Log.fixed_cost.isnot(None)
-        ).scalar()
-        return float(total) if total else 0
-    
+        """Usage within currently active funding windows (legacy-compatible name)."""
+        active_windows = [(f.start_date, f.end_date) for f in self.active_funding]
+        if not active_windows:
+            return 0.0
+        total = 0.0
+        for log in self._membership_logs():
+            created_at = log.created_at
+            if created_at and any(start <= created_at <= end for start, end in active_windows):
+                total += float(log.fixed_cost or 0)
+        return total
+
     @property
     def used_time(self):
-        """Calculate used time from logs"""
-        from sqlalchemy import func
-        total = db.session.query(func.sum(Log.hours)).join(
-            Project, Project.id == Log.project_id
-        ).join(
-            Client, Client.id == Project.client_id
-        ).filter(
-            Client.membership_id == self.id,
-            Log.hours.isnot(None)
-        ).scalar()
-        return float(total) if total else 0
-    
+        """Usage within currently active funding windows (legacy-compatible name)."""
+        active_windows = [(f.start_date, f.end_date) for f in self.active_funding]
+        if not active_windows:
+            return 0.0
+        total = 0.0
+        for log in self._membership_logs():
+            created_at = log.created_at
+            if created_at and any(start <= created_at <= end for start, end in active_windows):
+                total += float(log.hours or 0)
+        return total
+
+    @property
+    def unfunded_budget(self):
+        return self.used_budget_all_time - self.used_budget
+
+    @property
+    def unfunded_time(self):
+        return self.used_time_all_time - self.used_time
+
     @property
     def remaining_budget(self):
-        """Calculate remaining budget"""
         return self.total_budget - self.used_budget
-    
+
     @property
     def remaining_time(self):
-        """Calculate remaining time"""
         return self.total_time - self.used_time
 
-class MembershipSupplement(db.Model):
-    __tablename__ = 'membership_supplements'
-    
+    @property
+    def is_active(self):
+        """Dynamic active trait: any funding entry active now."""
+        now = get_current_time()
+        return self.funding_entries.filter(
+            MembershipFunding.start_date <= now,
+            MembershipFunding.end_date >= now
+        ).count() > 0
+
+class MembershipFunding(db.Model):
+    __tablename__ = 'membership_funding'
+
     id = db.Column(db.Integer, primary_key=True)
     membership_id = db.Column(db.Integer, db.ForeignKey('memberships.id', ondelete='CASCADE'), nullable=False)
-    budget = db.Column(db.Float, nullable=True)  # Additional dollar budget
-    time = db.Column(db.Integer, nullable=True)  # Additional time budget in hours
-    notes = db.Column(db.Text, nullable=True)  # Optional notes about the supplement
+    amount = db.Column(db.Float, default=0, nullable=False)  # Revenue recognized for this funding period
+    start_date = db.Column(db.DateTime(timezone=True), nullable=False)
+    end_date = db.Column(db.DateTime(timezone=True), nullable=False)
+    scope = db.Column(db.Text, nullable=True)  # Markdown scope/details for this funding entry
+    time_budget = db.Column(db.Integer, nullable=True)  # Time budget in hours
+    dollar_budget = db.Column(db.Float, nullable=True)  # Consumables/hardware budget
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
-    
+
     def __repr__(self):
-        return f'<MembershipSupplement {self.id} for Membership {self.membership_id}>'
+        return f'<MembershipFunding {self.id} for Membership {self.membership_id}>'
 
 class Client(db.Model):
     __tablename__ = 'clients'
