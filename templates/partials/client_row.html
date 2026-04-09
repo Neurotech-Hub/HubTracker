@@ -31,10 +31,10 @@
             <a href="{{ url_for('membership_detail', membership_id=client.membership.id) }}" class="text-decoration-none">
                 {{ client.membership.title }}
             </a>
-            {% if client.membership.is_annual %}
-            <span class="badge-clean badge-membership-annual">Annual</span>
+            {% if client.membership.is_active %}
+            <span class="badge-clean badge-status-active">Active</span>
             {% else %}
-            <span class="badge-clean badge-membership-no-expiry">No Expiry</span>
+            <span class="badge-clean badge-status-archived">No Funding</span>
             {% endif %}
         {% else %}
             <span class="text-muted">No membership</span>

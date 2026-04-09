@@ -167,6 +167,35 @@
             </div>
         </div>
     </div>
+
+    <!-- Logs Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-clock-history me-2"></i>Logs
+                        <span class="badge-clean badge-count">{{ logs|length }}</span>
+                    </h5>
+                    <a href="{{ url_for('logs') }}" class="btn btn-sm btn-outline-secondary">
+                        View All Logs
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if logs %}
+                        {% set show_log_actions = true %}
+                        {% include 'partials/logs_table.html' %}
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-clock-history fs-1 mb-3 d-block"></i>
+                            <div class="fw-medium">No logs found</div>
+                            <div class="small">No logs for this client yet</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Include Client Form (contains add/edit client and add project modals) -->
@@ -177,4 +206,5 @@
 
 <!-- Include Task Modal -->
 {% include 'partials/task_modal.html' %}
+{% include 'partials/logs_modals_and_scripts.html' %}
 {% endblock %} 

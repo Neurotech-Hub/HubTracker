@@ -1934,7 +1934,7 @@ def project_detail(project_id):
     completed_tasks = project.tasks.filter_by(is_complete=True).order_by(Task.completed_on.desc()).all()
     
     # Get all logs for this project
-    all_logs = project.logs.order_by(Log.created_at.desc()).all()
+    logs = project.logs.order_by(Log.created_at.desc()).all()
     
     # Check if current user has pinned this project
     is_pinned = UserProjectPin.query.filter_by(
@@ -1954,7 +1954,7 @@ def project_detail(project_id):
                          project=project, 
                          tasks=serialized_open_tasks,
                          completed_tasks=serialized_completed_tasks,
-                         all_logs=all_logs,
+                         logs=logs,
                          is_pinned=is_pinned,
                          clients=clients,
                          users=users)
@@ -2099,6 +2099,13 @@ def client_detail(client_id):
     
     # Serialize tasks
     serialized_tasks = [serialize_task(task) for task in tasks]
+
+    # Get all logs for this client across all projects
+    logs = Log.query.join(
+        Project, Project.id == Log.project_id
+    ).filter(
+        Project.client_id == client_id
+    ).order_by(Log.created_at.desc()).all()
     
     # Get memberships for dropdown
     memberships = Membership.query.all()
@@ -2109,6 +2116,7 @@ def client_detail(client_id):
                          client=client, 
                          projects=projects, 
                          tasks=serialized_tasks,
+                         logs=logs,
                          memberships=memberships,
                          users=users,
                          clients=clients)
@@ -2196,7 +2204,7 @@ def memberships():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    memberships = Membership.query.all()
+    memberships = Membership.query.order_by(Membership.title.asc()).all()
     
     return render_template('memberships.html', memberships=memberships)
 
@@ -2220,6 +2228,17 @@ def membership_detail(membership_id):
     
     # Sort projects by name
     projects.sort(key=lambda p: p.name)
+
+    # Membership logs: all logs for associated clients/projects, newest first
+    membership_logs = Log.query.join(
+        User, User.id == Log.user_id
+    ).outerjoin(
+        Project, Project.id == Log.project_id
+    ).outerjoin(
+        Client, Client.id == Project.client_id
+    ).filter(
+        Client.membership_id == membership.id
+    ).order_by(Log.created_at.desc()).all()
 
     # Funding entries ordered newest start date first
     funding_entries = membership.funding_entries.order_by(MembershipFunding.start_date.desc()).all()
@@ -2247,7 +2266,8 @@ def membership_detail(membership_id):
                          clients=associated_clients,
                          all_clients=all_clients,
                          projects=projects,
-                         funding_entries=funding_entries)
+                         funding_entries=funding_entries,
+                         logs=membership_logs)
 
 @app.route('/add_membership', methods=['POST'])
 def add_membership():

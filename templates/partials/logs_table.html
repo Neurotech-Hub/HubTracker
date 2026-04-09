@@ -1,0 +1,99 @@
+<div class="table-responsive">
+    <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+            <tr>
+                <th class="border-0">Date/Time</th>
+                <th class="border-0">User</th>
+                <th class="border-0">Project</th>
+                <th class="border-0">Type</th>
+                <th class="border-0">Hours</th>
+                <th class="border-0">Cost</th>
+                <th class="border-0">Notes</th>
+                {% if show_log_actions|default(true) %}
+                <th class="border-0 text-end">Actions</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>
+                    <div class="fw-medium">{{ log.created_at.strftime('%b %d, %Y') }}</div>
+                    <small class="text-muted">{{ log.created_at.strftime('%I:%M %p') }}</small>
+                </td>
+                <td>
+                    <div class="fw-medium">{{ log.user.full_name }}</div>
+                </td>
+                <td>
+                    {% if log.project %}
+                        <div class="fw-medium">{{ log.project.name }}</div>
+                        <small class="text-muted">{{ log.project.client.name }}</small>
+                    {% else %}
+                        <span class="text-muted">No project</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.is_touch %}
+                        <span class="badge bg-info">Touch</span>
+                    {% else %}
+                        <span class="badge bg-primary">Time Log</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.hours %}
+                        {{ "%.1f"|format(log.hours) }}h
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.fixed_cost %}
+                        {{ log.fixed_cost|currency }}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.notes %}
+                        <div class="text-truncate" style="max-width: 200px;" title="{{ log.notes }}">
+                            {{ log.notes }}
+                        </div>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                {% if show_log_actions|default(true) %}
+                <td class="text-end">
+                    <div class="action-btn-group">
+                        {% if not log.is_touch %}
+                        <button type="button" class="action-btn-clean btn-edit" 
+                                data-log-id="{{ log.id }}"
+                                data-log-notes="{{ log.notes or '' }}"
+                                data-log-hours="{{ log.hours or '' }}"
+                                data-log-fixed-cost="{{ log.fixed_cost or '' }}"
+                                data-log-project-id="{{ log.project_id or '' }}"
+                                data-log-datetime="{{ log.created_at.strftime('%Y-%m-%dT%H:%M') }}"
+                                data-bs-toggle="modal" data-bs-target="#editLogModal"
+                                onclick="editLogFromData(this)"
+                                title="Edit Log">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        {% endif %}
+                        
+                        <button type="button" class="action-btn-clean btn-delete" 
+                                data-log-id="{{ log.id }}"
+                                data-log-type="{{ 'Touch' if log.is_touch else 'Time Log' }}"
+                                data-log-project="{{ log.project.name if log.project else 'No project' }}"
+                                data-delete-url="{{ url_for('delete_log', log_id=log.id) }}"
+                                onclick="confirmLogDeleteFromData(this)"
+                                title="Delete Log">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

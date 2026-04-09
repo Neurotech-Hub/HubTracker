@@ -1,0 +1,108 @@
+<!-- Edit Log Modal -->
+<div class="modal fade" id="editLogModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editLogForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Log Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editLogProject" class="form-label">Project</label>
+                        <select id="editLogProject" name="project_id" class="form-select">
+                            <option value="">Select project...</option>
+                            {% for project in projects %}
+                            <option value="{{ project.id }}">{{ project.name }} ({{ project.client.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editLogDatetime" class="form-label">Date & Time</label>
+                        <input type="datetime-local" id="editLogDatetime" name="log_datetime" class="form-control">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLogHours" class="form-label">Hours</label>
+                                <input type="number" id="editLogHours" name="hours" class="form-control" step="0.1" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLogCost" class="form-label">Fixed Cost</label>
+                                <input type="number" id="editLogCost" name="fixed_cost" class="form-control" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editLogNotes" class="form-label">Notes</label>
+                        <textarea id="editLogNotes" name="notes" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteLogModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="deleteLogForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Log Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this <strong><span id="deleteLogType"></span></strong> entry?</p>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Project:</strong> <span id="deleteLogProject"></span><br>
+                        This action cannot be undone.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete Log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editLogFromData(button) {
+    const logId = button.dataset.logId;
+    const notes = button.dataset.logNotes;
+    const hours = button.dataset.logHours;
+    const fixedCost = button.dataset.logFixedCost;
+    const projectId = button.dataset.logProjectId;
+    const datetime = button.dataset.logDatetime;
+    
+    document.getElementById('editLogForm').action = `/edit_log/${logId}`;
+    document.getElementById('editLogProject').value = projectId;
+    document.getElementById('editLogDatetime').value = datetime;
+    document.getElementById('editLogHours').value = hours;
+    document.getElementById('editLogCost').value = fixedCost;
+    document.getElementById('editLogNotes').value = notes;
+}
+
+function confirmLogDeleteFromData(button) {
+    const logType = button.dataset.logType;
+    const logProject = button.dataset.logProject;
+    const deleteUrl = button.dataset.deleteUrl;
+    
+    document.getElementById('deleteLogForm').action = deleteUrl;
+    document.getElementById('deleteLogType').textContent = logType;
+    document.getElementById('deleteLogProject').textContent = logProject;
+    new bootstrap.Modal(document.getElementById('deleteLogModal')).show();
+}
+</script>

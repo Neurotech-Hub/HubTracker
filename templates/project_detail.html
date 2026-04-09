@@ -178,39 +178,34 @@
             </div>
             {% endif %}
             
-            <!-- All Activity -->
-            {% if all_logs %}
+            <!-- Logs -->
             <div class="row">
                 <div class="col-12">
                     <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="bi bi-activity me-2"></i>All Activity
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 d-inline-flex align-items-center gap-1">
+                                <i class="bi bi-clock-history me-2"></i>Logs
+                                <span class="badge-clean badge-count">{{ logs|length }}</span>
                             </h5>
+                            <a href="{{ url_for('logs') }}" class="btn btn-sm btn-outline-secondary">
+                                View All Logs
+                            </a>
                         </div>
                         <div class="card-body">
-                            {% for log in all_logs %}
-                            <div class="d-flex align-items-center mb-2">
-                                {% if log.is_touch %}
-                                <i class="bi bi-finger-index text-success me-2"></i>
-                                <span>Touch log by <strong>{{ log.user.full_name }}</strong>
-                                {% if log.hours %}({{ log.hours }}h){% endif %}
-                                </span>
-                                {% else %}
-                                <i class="bi bi-clock text-primary me-2"></i>
-                                <span>Time log by <strong>{{ log.user.full_name }}</strong>
-                                {% if log.hours %}({{ log.hours }}h){% endif %}
-                                {% if log.fixed_cost %}(${{ log.fixed_cost }}){% endif %}
-                                </span>
-                                {% endif %}
-                                <small class="text-muted ms-auto">{{ log.created_at.strftime('%m/%d %I:%M %p') }}</small>
-                            </div>
-                            {% endfor %}
+                            {% if logs %}
+                                {% set show_log_actions = true %}
+                                {% include 'partials/logs_table.html' %}
+                            {% else %}
+                                <div class="text-center py-4 text-muted">
+                                    <i class="bi bi-clock-history fs-1 mb-3 d-block"></i>
+                                    <div class="fw-medium">No logs found</div>
+                                    <div class="small">No logs for this project yet</div>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -220,4 +215,5 @@
 
 <!-- Include Task Modal -->
 {% include 'partials/task_modal.html' %}
+{% include 'partials/logs_modals_and_scripts.html' %}
 {% endblock %}
