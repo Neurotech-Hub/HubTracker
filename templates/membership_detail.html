@@ -459,16 +459,14 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="fundingAmount" class="form-label">Amount <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="fundingAmount" name="amount" step="0.01" min="0" value="0" required>
-                                </div>
-                            </div>
+                    <div class="mb-3">
+                        <label for="fundingAmount" class="form-label">Amount <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="fundingAmount" name="amount" step="0.01" min="0" value="0" required>
                         </div>
+                    </div>
+                    <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="fundingTimeBudget" class="form-label">Time Budget</label>
@@ -478,12 +476,14 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="fundingDollarBudget" class="form-label">Dollar Budget</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" id="fundingDollarBudget" name="dollar_budget" step="0.01" min="0" placeholder="0.00">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fundingDollarBudget" class="form-label">Dollar Budget</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="fundingDollarBudget" name="dollar_budget" step="0.01" min="0" placeholder="0.00">
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="row">
