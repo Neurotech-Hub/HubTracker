@@ -303,7 +303,7 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                {% set client_projects = client.projects.order_by(Project.name.asc()).all() %}
+                                                {% set client_projects = client.projects.all()|sort(attribute='name') %}
                                                 <div class="d-flex flex-wrap align-items-center gap-2">
                                                     <span class="badge-clean badge-count">{{ client_projects|length }}</span>
                                                     {% if client_projects %}
