@@ -62,16 +62,6 @@ migrate = Migrate(app, db)
 # Initialize Flask-Mail
 mail = Mail(app)
 
-# TEMPORARY: idempotent backfill for "General" projects. Remove after first production deploy.
-try:
-    from ensure_general_projects import ensure_general_projects_for_all_clients
-
-    with app.app_context():
-        _general_stats = ensure_general_projects_for_all_clients()
-        app.logger.info("ensure_general_projects startup: %s", _general_stats)
-except Exception:
-    app.logger.exception("ensure_general_projects startup failed")
-
 def send_appointment_notification(appointment):
     """Send email notification for new appointment using Flask-Mail"""
     try:

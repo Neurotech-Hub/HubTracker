@@ -277,10 +277,12 @@
                         <!-- Project Search -->
                         <div class="mb-3">
                             <input type="text" 
+                                   id="logEntryProjectSearch"
                                    class="form-control" 
                                    placeholder="Search projects..." 
                                    x-model="searchQuery"
                                    @input="filterProjects()"
+                                   autocomplete="off"
                             >
                         </div>
                         
@@ -401,6 +403,14 @@
     <script>
     // Set default datetime when time log modal opens
     document.addEventListener('DOMContentLoaded', function() {
+        const logEntryModal = document.getElementById('logEntryModal');
+        const logEntrySearch = document.getElementById('logEntryProjectSearch');
+        if (logEntryModal && logEntrySearch) {
+            logEntryModal.addEventListener('shown.bs.modal', function() {
+                logEntrySearch.focus({ preventScroll: true });
+            });
+        }
+
         const timeLogModal = document.getElementById('timeLogModal');
         const dateTimeInput = document.getElementById('timeLogDateTime');
         

@@ -3,7 +3,7 @@
 Ensure every client has a "General" project (Archived, unassigned lead).
 is_default is never set here — only the user can mark a default project.
 
-Also callable on app startup (see app.py); run manually:
+Run manually when needed:
 
     python ensure_general_projects.py
 """
