@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Quote' if quote else 'New Quote' }} - Hub Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">{{ 'Edit Quote' if quote else 'New Quote' }}</h2>
+        <a href="{{ url_for('quotes') }}" class="btn btn-outline-secondary">Back to Quotes</a>
+    </div>
+
+    <form method="POST" action="{{ url_for('quote_edit', quote_db_id=quote.id) if quote else url_for('quote_new') }}">
+        <div class="row g-3">
+            <div class="col-12 col-lg-8">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <strong>Quote Details</strong>
+                    </div>
+                    <div class="card-body">
+                        {% if quote %}
+                        <div class="mb-3">
+                            <label class="form-label">Quote ID</label>
+                            <input type="text" class="form-control" value="{{ quote.quote_id }}" disabled>
+                        </div>
+                        {% endif %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Client <span class="text-danger">*</span></label>
+                                <select class="form-select" name="client_id" id="clientSelect" required>
+                                    <option value="">Select client...</option>
+                                    {% set active_client = quote.client_id if quote else selected_client_id %}
+                                    {% for client in clients %}
+                                    <option value="{{ client.id }}" {% if active_client == client.id %}selected{% endif %}>{{ client.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Project</label>
+                                <select class="form-select" name="project_id" id="projectSelect">
+                                    <option value="">No project</option>
+                                    {% set active_project = quote.project_id if quote else selected_project_id %}
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}" data-client-id="{{ project.client_id }}" {% if active_project == project.id %}selected{% endif %}>{{ project.name }} ({{ project.client.name }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Issue Date</label>
+                                <input type="date" class="form-control" name="issue_date" value="{{ quote.issue_date.strftime('%Y-%m-%d') if quote and quote.issue_date else issue_date_default }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Valid Until</label>
+                                <input type="date" class="form-control" name="valid_until" value="{{ quote.valid_until.strftime('%Y-%m-%d') if quote and quote.valid_until else valid_until_default }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Title <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="title" value="{{ quote.title if quote else '' }}" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Scope Summary</label>
+                                <textarea class="form-control" name="scope_summary" rows="3">{{ quote.scope_summary if quote else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>Line Items</strong>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addLineItemRow()">Add Line Item</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle" id="lineItemsTable">
+                                <thead>
+                                    <tr>
+                                        <th style="min-width: 180px;">Item</th>
+                                        <th style="min-width: 200px;">Description</th>
+                                        <th style="width: 120px;">Qty</th>
+                                        <th style="width: 140px;">Unit Price</th>
+                                        <th style="width: 64px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lineItemsBody">
+                                    {% set form_items = line_items if line_items else [] %}
+                                    {% for item in form_items %}
+                                    <tr class="line-item-row">
+                                        <td><input type="text" name="line_item_name[]" class="form-control" value="{{ item.item_name }}" required></td>
+                                        <td><input type="text" name="line_item_description[]" class="form-control" value="{{ item.description or '' }}"></td>
+                                        <td><input type="number" name="line_item_quantity[]" class="form-control line-qty" value="{{ item.quantity or 1 }}" step="0.01" min="0"></td>
+                                        <td><input type="number" name="line_item_unit_price[]" class="form-control line-price" value="{{ item.unit_price or 0 }}" step="0.01" min="0"></td>
+                                        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeLineItemRow(this)"><i class="bi bi-trash"></i></button></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Totals & Terms</strong></div>
+                    <div class="card-body">
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Shipping</label>
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="shippingAmount" name="shipping_amount" value="{{ quote.shipping_amount if quote else '0.00' }}" step="0.01" min="0">
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="shippingTbd" name="shipping_tbd" {% if quote and quote.shipping_tbd %}checked{% endif %}>
+                                        <label class="form-check-label" for="shippingTbd">Shipping TBD</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Discount %</label>
+                                    <input type="number" class="form-control" id="discountPercent" name="discount_percent" value="{{ quote.discount_percent if quote else '0.00' }}" step="0.01" min="0" max="100">
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="border rounded p-3 h-100 bg-light">
+                                    <div class="small text-muted">Subtotal</div>
+                                    <div class="fw-semibold mb-1" id="subtotalDisplay">{{ quote.subtotal|currency if quote else '$0.00' }}</div>
+                                    <div class="small text-muted">Discount Amount</div>
+                                    <div class="fw-semibold text-danger mb-1" id="discountAmountDisplay">$0.00</div>
+                                    <div class="small text-muted">Final Total</div>
+                                    <div class="fw-bold fs-5" id="finalTotalDisplay">{{ quote.total_amount|currency if quote else '$0.00' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" rows="3">{{ quote.notes if quote else '' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Terms</label>
+                            <textarea class="form-control" name="terms" rows="5">{{ quote.terms if quote else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <div class="card">
+                    <div class="card-header"><strong>Publishing</strong></div>
+                    <div class="card-body">
+                        {% set status_value = quote.status if quote else 'draft' %}
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="draft" {% if status_value == 'draft' %}selected{% endif %}>Draft</option>
+                                <option value="published" {% if status_value == 'published' %}selected{% endif %}>Published</option>
+                                <option value="archived" {% if status_value == 'archived' %}selected{% endif %}>Archived</option>
+                            </select>
+                        </div>
+                        {% if quote %}
+                        <div class="d-grid gap-2">
+                            {% if quote.status == 'published' and quote.public_token %}
+                            <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" class="btn btn-outline-primary btn-sm w-100" target="_blank">Open Client View</a>
+                            {% else %}
+                            <a href="{{ url_for('quote_preview', quote_db_id=quote.id) }}" class="btn btn-outline-primary btn-sm w-100" target="_blank">Preview Client View</a>
+                            {% endif %}
+                        </div>
+                        <div class="pt-2 border-top mt-3">
+                            <div class="row g-2">
+                                <div class="col-12 col-md-5">
+                                    <form method="POST" action="{{ url_for('quote_delete', quote_db_id=quote.id) }}" onsubmit="return confirm('Delete this quote? This will only remove the quote and its line items.');">
+                                        <button type="submit" class="btn btn-outline-danger w-100">Delete Quote</button>
+                                    </form>
+                                </div>
+                                <div class="col-12 col-md-7">
+                                    <button type="submit" class="btn btn-primary w-100">{{ 'Save Changes' if quote else 'Create Quote' }}</button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if not quote %}
+                        <div class="row g-2 mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary w-100">{{ 'Save Changes' if quote else 'Create Quote' }}</button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function addLineItemRow() {
+    const tbody = document.getElementById('lineItemsBody');
+    const row = document.createElement('tr');
+    row.className = 'line-item-row';
+    row.innerHTML =
+        '<td><input type="text" name="line_item_name[]" class="form-control" required></td>' +
+        '<td><input type="text" name="line_item_description[]" class="form-control"></td>' +
+        '<td><input type="number" name="line_item_quantity[]" class="form-control line-qty" value="1" step="0.01" min="0"></td>' +
+        '<td><input type="number" name="line_item_unit_price[]" class="form-control line-price" value="0.00" step="0.01" min="0"></td>' +
+        '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeLineItemRow(this)"><i class="bi bi-trash"></i></button></td>';
+    tbody.appendChild(row);
+    bindLineItemListeners(row);
+    recalculateLiveTotals();
+}
+
+function removeLineItemRow(button) {
+    const row = button.closest('tr');
+    const tbody = document.getElementById('lineItemsBody');
+    if (tbody.children.length > 1) {
+        row.remove();
+    } else {
+        row.querySelectorAll('input').forEach(function(input) {
+            input.value = '';
+        });
+    }
+    recalculateLiveTotals();
+}
+
+function formatCurrency(num) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num || 0);
+}
+
+function getNumericValue(inputId) {
+    const val = parseFloat(document.getElementById(inputId).value);
+    return Number.isFinite(val) ? val : 0;
+}
+
+function recalculateLiveTotals() {
+    const rows = document.querySelectorAll('#lineItemsBody tr');
+    let subtotal = 0;
+    rows.forEach(function(row) {
+        const qtyInput = row.querySelector('.line-qty');
+        const priceInput = row.querySelector('.line-price');
+        const qty = parseFloat((qtyInput && qtyInput.value) ? qtyInput.value : '0');
+        const unitPrice = parseFloat((priceInput && priceInput.value) ? priceInput.value : '0');
+        subtotal += (Number.isFinite(qty) ? qty : 0) * (Number.isFinite(unitPrice) ? unitPrice : 0);
+    });
+
+    const shippingTbd = document.getElementById('shippingTbd').checked;
+    const shippingAmount = shippingTbd ? 0 : getNumericValue('shippingAmount');
+    const discountPercent = Math.min(100, Math.max(0, getNumericValue('discountPercent')));
+    const preDiscount = subtotal + shippingAmount;
+    const discountAmount = preDiscount * (discountPercent / 100);
+    const finalTotal = preDiscount - discountAmount;
+
+    document.getElementById('subtotalDisplay').textContent = formatCurrency(subtotal);
+    document.getElementById('discountAmountDisplay').textContent = formatCurrency(discountAmount);
+    document.getElementById('finalTotalDisplay').textContent = formatCurrency(finalTotal);
+}
+
+function bindLineItemListeners(container) {
+    container.querySelectorAll('.line-qty, .line-price').forEach(function(input) {
+        input.addEventListener('input', recalculateLiveTotals);
+    });
+}
+
+function filterProjectsByClient() {
+    const clientId = document.getElementById('clientSelect').value;
+    const projectSelect = document.getElementById('projectSelect');
+    const options = projectSelect.querySelectorAll('option');
+    options.forEach(function(option) {
+        if (!option.value) {
+            option.hidden = false;
+            return;
+        }
+        const match = !clientId || option.dataset.clientId === clientId;
+        option.hidden = !match;
+        if (!match && option.selected) {
+            projectSelect.value = '';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('#lineItemsBody tr').forEach(bindLineItemListeners);
+    document.getElementById('shippingAmount').addEventListener('input', recalculateLiveTotals);
+    document.getElementById('discountPercent').addEventListener('input', recalculateLiveTotals);
+    document.getElementById('shippingTbd').addEventListener('change', function() {
+        const shippingInput = document.getElementById('shippingAmount');
+        shippingInput.disabled = document.getElementById('shippingTbd').checked;
+        recalculateLiveTotals();
+    });
+    document.getElementById('clientSelect').addEventListener('change', filterProjectsByClient);
+    if (document.querySelectorAll('#lineItemsBody tr').length === 0) {
+        addLineItemRow();
+    }
+    filterProjectsByClient();
+    document.getElementById('shippingAmount').disabled = document.getElementById('shippingTbd').checked;
+    recalculateLiveTotals();
+});
+</script>
+{% endblock %}

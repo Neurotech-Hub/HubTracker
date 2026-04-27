@@ -57,6 +57,9 @@
                 <a href="{{ url_for('memberships') }}" class="mobile-nav-link {% if request.endpoint == 'memberships' %}active{% endif %}">
                     <i class="bi bi-card-list me-2"></i>Memberships
                 </a>
+                <a href="{{ url_for('quotes') }}" class="mobile-nav-link {% if request.endpoint in ['quotes', 'quote_new', 'quote_edit'] %}active{% endif %}">
+                    <i class="bi bi-receipt me-2"></i>Quotes
+                </a>
                 <a href="{{ url_for('analytics') }}" class="mobile-nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                     <i class="bi bi-graph-up me-2"></i>Analytics
                 </a>
@@ -125,6 +128,9 @@
                 </a>
                 <a href="{{ url_for('memberships') }}" class="nav-link {% if request.endpoint == 'memberships' %}active{% endif %}">
                     <i class="bi bi-card-list me-2"></i>Memberships
+                </a>
+                <a href="{{ url_for('quotes') }}" class="nav-link {% if request.endpoint in ['quotes', 'quote_new', 'quote_edit'] %}active{% endif %}">
+                    <i class="bi bi-receipt me-2"></i>Quotes
                 </a>
                 <a href="{{ url_for('analytics') }}" class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                     <i class="bi bi-graph-up me-2"></i>Analytics

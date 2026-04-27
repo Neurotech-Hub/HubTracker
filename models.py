@@ -223,9 +223,20 @@ class Client(db.Model):
     name = db.Column(db.String(100), nullable=False)
     membership_id = db.Column(db.Integer, db.ForeignKey('memberships.id'), nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    contact_name = db.Column(db.String(120), nullable=True)
+    contact_email = db.Column(db.String(120), nullable=True)
+    contact_phone = db.Column(db.String(50), nullable=True)
+    bill_to_org = db.Column(db.String(120), nullable=True)
+    bill_to_address1 = db.Column(db.String(255), nullable=True)
+    bill_to_address2 = db.Column(db.String(255), nullable=True)
+    bill_to_city = db.Column(db.String(120), nullable=True)
+    bill_to_state = db.Column(db.String(120), nullable=True)
+    bill_to_postal_code = db.Column(db.String(40), nullable=True)
+    bill_to_country = db.Column(db.String(120), nullable=True)
     
     # Relationships (DB FK clients <- projects uses ON DELETE CASCADE; passive_deletes avoids ORM pre-loading)
     projects = db.relationship('Project', backref='client', lazy='dynamic', passive_deletes=True)
+    quotes = db.relationship('Quote', backref='client', lazy='dynamic', passive_deletes=True)
     
     def __repr__(self):
         return f'<Client {self.name}>'
@@ -252,6 +263,7 @@ class Project(db.Model):
     tasks = db.relationship('Task', backref='project', lazy='dynamic', passive_deletes=True)
     logs = db.relationship('Log', backref='project', lazy='dynamic', passive_deletes=True)
     pins = db.relationship('UserProjectPin', backref='project', lazy='dynamic', passive_deletes=True)
+    quotes = db.relationship('Quote', backref='project', lazy='dynamic', passive_deletes=True)
     
     def __repr__(self):
         return f'<Project {self.name}>'
@@ -317,6 +329,71 @@ class Task(db.Model):
             self.completed_on = None
         else:
             self.mark_complete(user_id)
+
+
+class Quote(db.Model):
+    __tablename__ = 'quotes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    quote_id = db.Column(db.String(16), nullable=False, unique=True, index=True)  # YYYYMMDD-XX
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='SET NULL'), nullable=True)
+    prepared_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    title = db.Column(db.String(255), nullable=True)
+    scope_summary = db.Column(db.Text, nullable=True)
+    issue_date = db.Column(db.Date, nullable=False)
+    valid_until = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default='draft', server_default='draft')  # draft, published, archived
+    subtotal = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    shipping_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    shipping_tbd = db.Column(db.Boolean, nullable=False, default=False)
+    discount_percent = db.Column(db.Numeric(5, 2), nullable=False, default=0)
+    tax_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    notes = db.Column(db.Text, nullable=True)
+    terms = db.Column(db.Text, nullable=True)
+    public_token = db.Column(db.String(64), nullable=True, unique=True, index=True)
+    is_public = db.Column(db.Boolean, default=False, nullable=False)
+    published_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+
+    # Relationships
+    line_items = db.relationship(
+        'QuoteLineItem',
+        backref='quote',
+        lazy='selectin',
+        cascade='all, delete-orphan',
+        passive_deletes=True
+    )
+    prepared_by_user = db.relationship('User', backref='prepared_quotes', foreign_keys=[prepared_by_user_id], lazy='joined')
+
+    def __repr__(self):
+        return f'<Quote {self.quote_id}>'
+
+
+class QuoteLineItem(db.Model):
+    __tablename__ = 'quote_line_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    quote_id = db.Column(db.Integer, db.ForeignKey('quotes.id', ondelete='CASCADE'), nullable=False, index=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    item_name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    quantity = db.Column(db.Numeric(10, 2), nullable=False, default=1)
+    unit_price = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    line_total = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint('quantity >= 0', name='ck_quote_line_items_quantity_non_negative'),
+        db.CheckConstraint('unit_price >= 0', name='ck_quote_line_items_unit_price_non_negative'),
+        db.CheckConstraint('line_total >= 0', name='ck_quote_line_items_line_total_non_negative'),
+    )
+
+    def __repr__(self):
+        return f'<QuoteLineItem {self.item_name}>'
 
 class Log(db.Model):
     __tablename__ = 'logs'

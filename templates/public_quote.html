@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote {{ quote.quote_id }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --washu-red: #BA0C2F;
+            --washu-green: #215732;
+            --washu-gray: #D9D9D9;
+        }
+
+        body { background: #f8f9fa; }
+        .quote-paper { background: #fff; border-radius: 0.5rem; }
+        .quote-meta dt { color: #6c757d; font-weight: 600; }
+        .quote-meta dd { margin-bottom: 0.5rem; }
+        .action-bar { position: sticky; top: 0; z-index: 10; background: #f8f9fa; }
+        .brand-bar { border-top: 6px solid var(--washu-red); }
+        .brand-title { color: #000000; font-family: Georgia, serif; font-size: 2.2rem; font-weight: 500; letter-spacing: 0.02em; }
+        .brand-subtitle { color: var(--washu-red); font-weight: 600; }
+        .brand-logo { max-height: 72px; width: auto; }
+        .quote-id-top { font-size: 0.95rem; font-weight: 500; color: #6c757d; text-align: right; }
+        .quote-title-main { font-size: 1.35rem; font-weight: 600; color: #212529; }
+        .totals-table .table-light th,
+        .totals-table .table-light td { background: rgba(33, 87, 50, 0.10) !important; }
+        .totals-table .table-light th,
+        .totals-table .table-light td { color: var(--washu-green); }
+
+        @media print {
+            body { background: #fff; font-size: 12px; }
+            .action-bar { display: none !important; }
+            .quote-paper { border: none !important; box-shadow: none !important; padding: 0 !important; }
+            .container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .table th, .table td { padding: 0.25rem 0.35rem !important; }
+            .text-muted { color: #555 !important; }
+            .page-break-avoid { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="action-bar d-flex justify-content-end gap-2 mb-3">
+            {% if is_preview %}
+            <span class="badge bg-secondary align-self-center me-auto">Admin Preview</span>
+            {% endif %}
+            <button type="button" class="btn btn-outline-primary btn-sm" id="copyLinkBtn">
+                <i class="bi bi-link-45deg me-1"></i>Copy Link
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                <i class="bi bi-printer me-1"></i>Print
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="window.print()">
+                <i class="bi bi-download me-1"></i>Download
+            </button>
+        </div>
+
+        <div class="quote-paper brand-bar border shadow-sm p-4 p-md-5">
+            <div class="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom">
+                <div>
+                    <div class="brand-title">Neurotech Hub</div>
+                    <div class="brand-subtitle">at Washington University in St. Louis</div>
+                </div>
+                <div class="d-flex flex-column align-items-end">
+                    <div class="quote-id-top mb-2">Quote {{ quote.quote_id }}</div>
+                    {% if has_brand_logo %}
+                    <img class="brand-logo" src="{{ url_for('static', filename='img/neurotechhub-logo.png') }}" alt="Neurotech Hub logo">
+                    {% endif %}
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h3 class="mb-1 quote-title-main">{{ quote.title or 'Client Quote' }}</h3>
+                </div>
+                <dl class="quote-meta text-end mb-0">
+                    <dt>Issue Date</dt>
+                    <dd>{{ quote.issue_date.strftime('%B %d, %Y') if quote.issue_date else '—' }}</dd>
+                    <dt>Valid Until</dt>
+                    <dd>{{ quote.valid_until.strftime('%B %d, %Y') if quote.valid_until else '—' }}</dd>
+                </dl>
+            </div>
+
+            <div class="row page-break-avoid">
+                <div class="col-md-6 mb-3">
+                    <h6 class="text-uppercase text-muted">Prepared By</h6>
+                    <div>{{ quote.prepared_by_user.full_name if quote.prepared_by_user else 'Hub Tracker Admin' }}</div>
+                    {% if quote.prepared_by_user and quote.prepared_by_user.email %}
+                    <div>{{ quote.prepared_by_user.email }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <h6 class="text-uppercase text-muted">Bill To</h6>
+                    <div>{{ quote.client.contact_name or quote.client.name }}</div>
+                    {% if quote.client.bill_to_org %}<div>{{ quote.client.bill_to_org }}</div>{% endif %}
+                    {% if quote.client.bill_to_address1 %}<div>{{ quote.client.bill_to_address1 }}</div>{% endif %}
+                    {% if quote.client.bill_to_address2 %}<div>{{ quote.client.bill_to_address2 }}</div>{% endif %}
+                    <div>
+                        {% if quote.client.bill_to_city %}{{ quote.client.bill_to_city }}{% endif %}
+                        {% if quote.client.bill_to_state %}, {{ quote.client.bill_to_state }}{% endif %}
+                        {% if quote.client.bill_to_postal_code %} {{ quote.client.bill_to_postal_code }}{% endif %}
+                    </div>
+                    {% if quote.client.bill_to_country %}<div>{{ quote.client.bill_to_country }}</div>{% endif %}
+                    {% if quote.client.contact_email %}<div>{{ quote.client.contact_email }}</div>{% endif %}
+                    {% if quote.client.contact_phone %}<div>{{ quote.client.contact_phone }}</div>{% endif %}
+                </div>
+            </div>
+
+            {% if quote.scope_summary %}
+            <div class="mb-4 page-break-avoid">
+                <h6 class="text-uppercase text-muted">Scope Summary</h6>
+                <p class="mb-0">{{ quote.scope_summary }}</p>
+            </div>
+            {% endif %}
+
+            <div class="table-responsive mb-3">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Item</th>
+                            <th>Description</th>
+                            <th class="text-end">Qty</th>
+                            <th class="text-end">Unit Price</th>
+                            <th class="text-end">Line Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in quote.line_items %}
+                        <tr>
+                            <td>{{ item.item_name }}</td>
+                            <td>{{ item.description or '—' }}</td>
+                            <td class="text-end">{{ item.quantity }}</td>
+                            <td class="text-end">{{ item.unit_price|currency }}</td>
+                            <td class="text-end">{{ item.line_total|currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row justify-content-end page-break-avoid totals-table">
+                <div class="col-md-5">
+                    <table class="table table-sm">
+                        <tr><th>Subtotal</th><td class="text-end">{{ quote.subtotal|currency }}</td></tr>
+                        <tr><th>Shipping</th><td class="text-end">{{ 'TBD' if quote.shipping_tbd else (quote.shipping_amount|currency) }}</td></tr>
+                        <tr><th>Discount %</th><td class="text-end">{{ quote.discount_percent }}%</td></tr>
+                        <tr class="table-light"><th>Total</th><td class="text-end fw-bold">{{ quote.total_amount|currency }}</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            {% if quote.notes %}
+            <div class="mb-3 page-break-avoid">
+                <h6 class="text-uppercase text-muted">Notes</h6>
+                <p class="mb-0">{{ quote.notes }}</p>
+            </div>
+            {% endif %}
+
+            {% if quote.terms %}
+            <div class="page-break-avoid">
+                <h6 class="text-uppercase text-muted">Terms</h6>
+                <p class="mb-0">{{ quote.terms }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('copyLinkBtn').addEventListener('click', async () => {
+            const url = {{ public_url|tojson }};
+            if (!url) {
+                alert('Publish this quote first to copy a shareable link.');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(url);
+                const btn = document.getElementById('copyLinkBtn');
+                btn.textContent = 'Copied';
+                setTimeout(() => { btn.innerHTML = '<i class="bi bi-link-45deg me-1"></i>Copy Link'; }, 1200);
+            } catch (err) {
+                alert('Could not copy the link from this browser context.');
+            }
+        });
+    </script>
+</body>
+</html>

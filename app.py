@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, abort
 from flask_migrate import Migrate
 from datetime import datetime, timedelta, date
 import pytz
@@ -8,9 +8,12 @@ from sqlalchemy import func, desc, text, or_, and_
 import re
 from markupsafe import Markup
 import json
+import secrets
+from decimal import Decimal, InvalidOperation
 from icalendar import Calendar, Event
 from io import BytesIO
 from flask_mail import Mail, Message
+from sqlalchemy.exc import IntegrityError
 
 # Load environment variables from .env file
 try:
@@ -53,7 +56,7 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
 # Import models and db
-from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME
+from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME, Quote, QuoteLineItem
 
 # Initialize extensions
 db.init_app(app)
@@ -421,6 +424,107 @@ app.jinja_env.filters['currency'] = currency_filter
 app.jinja_env.filters['time_until'] = time_until
 app.jinja_env.filters['central_time'] = central_time
 app.jinja_env.filters['duration_hours_central'] = duration_hours_central
+
+QUOTE_STATUS_OPTIONS = ('draft', 'published', 'archived')
+
+
+def require_admin():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if session.get('role') != 'admin':
+        flash('Access denied. Administrator privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    return None
+
+
+def parse_decimal(value, default='0'):
+    raw = value if value is not None and value != '' else default
+    try:
+        return Decimal(str(raw)).quantize(Decimal('0.01'))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal(default).quantize(Decimal('0.01'))
+
+
+def parse_discount_percent(value):
+    discount = parse_decimal(value, default='0')
+    if discount < Decimal('0'):
+        return Decimal('0.00')
+    if discount > Decimal('100'):
+        return Decimal('100.00')
+    return discount
+
+
+def generate_quote_id(issue_date):
+    if isinstance(issue_date, datetime):
+        issue_date = issue_date.date()
+
+    prefix = issue_date.strftime('%Y%m%d')
+    max_attempts = 5
+
+    for _ in range(max_attempts):
+        with db.session.no_autoflush:
+            latest_quote = Quote.query.filter(Quote.quote_id.like(f'{prefix}-%')).order_by(Quote.quote_id.desc()).first()
+        next_seq = 1
+        if latest_quote and '-' in latest_quote.quote_id:
+            try:
+                next_seq = int(latest_quote.quote_id.split('-')[1]) + 1
+            except (ValueError, IndexError):
+                next_seq = 1
+        return f'{prefix}-{next_seq:02d}'
+
+    raise RuntimeError('Unable to generate quote id')
+
+
+def parse_quote_line_items(form):
+    items = []
+    names = form.getlist('line_item_name[]')
+    descriptions = form.getlist('line_item_description[]')
+    quantities = form.getlist('line_item_quantity[]')
+    unit_prices = form.getlist('line_item_unit_price[]')
+
+    max_count = max(len(names), len(descriptions), len(quantities), len(unit_prices), 0)
+    for idx in range(max_count):
+        name = (names[idx] if idx < len(names) else '').strip()
+        description = (descriptions[idx] if idx < len(descriptions) else '').strip()
+        quantity = parse_decimal(quantities[idx] if idx < len(quantities) else '0')
+        unit_price = parse_decimal(unit_prices[idx] if idx < len(unit_prices) else '0')
+
+        if not name and quantity == 0 and unit_price == 0 and not description:
+            continue
+        if not name:
+            continue
+
+        line_total = (quantity * unit_price).quantize(Decimal('0.01'))
+        items.append({
+            'sort_order': idx,
+            'item_name': name,
+            'description': description or None,
+            'quantity': quantity,
+            'unit_price': unit_price,
+            'line_total': line_total,
+        })
+    return items
+
+
+def recalculate_quote_totals(quote, parsed_line_items=None):
+    subtotal = Decimal('0.00')
+    if parsed_line_items is not None:
+        for item_data in parsed_line_items:
+            subtotal += Decimal(item_data.get('line_total', 0) or 0)
+    else:
+        active_items = [item for item in list(quote.line_items) if item not in db.session.deleted]
+        line_items_sorted = sorted(active_items, key=lambda x: x.sort_order or 0)
+        for item in line_items_sorted:
+            item.line_total = (Decimal(item.quantity or 0) * Decimal(item.unit_price or 0)).quantize(Decimal('0.01'))
+            subtotal += Decimal(item.line_total or 0)
+
+    quote.subtotal = subtotal.quantize(Decimal('0.01'))
+    quote.shipping_amount = Decimal(quote.shipping_amount or 0).quantize(Decimal('0.01'))
+    quote.discount_percent = parse_discount_percent(quote.discount_percent)
+    quote.tax_amount = Decimal('0.00')  # Tax removed from quote workflow.
+    discount_amount = (quote.subtotal * (quote.discount_percent / Decimal('100'))).quantize(Decimal('0.01'))
+    shipping_component = Decimal('0.00') if quote.shipping_tbd else quote.shipping_amount
+    quote.total_amount = (quote.subtotal - discount_amount + shipping_component).quantize(Decimal('0.01'))
 
 @app.route('/')
 def index():
@@ -2129,6 +2233,16 @@ def add_client():
     name = request.form.get('name', '').strip()
     membership_id = request.form.get('membership_id')
     notes = request.form.get('notes', '').strip()
+    contact_name = request.form.get('contact_name', '').strip() or None
+    contact_email = request.form.get('contact_email', '').strip() or None
+    contact_phone = request.form.get('contact_phone', '').strip() or None
+    bill_to_org = request.form.get('bill_to_org', '').strip() or None
+    bill_to_address1 = request.form.get('bill_to_address1', '').strip() or None
+    bill_to_address2 = request.form.get('bill_to_address2', '').strip() or None
+    bill_to_city = request.form.get('bill_to_city', '').strip() or None
+    bill_to_state = request.form.get('bill_to_state', '').strip() or None
+    bill_to_postal_code = request.form.get('bill_to_postal_code', '').strip() or None
+    bill_to_country = request.form.get('bill_to_country', '').strip() or None
     
     if not name:
         flash('Client name is required', 'error')
@@ -2137,7 +2251,17 @@ def add_client():
     client = Client(
         name=name,
         membership_id=int(membership_id) if membership_id else None,
-        notes=notes
+        notes=notes,
+        contact_name=contact_name,
+        contact_email=contact_email,
+        contact_phone=contact_phone,
+        bill_to_org=bill_to_org,
+        bill_to_address1=bill_to_address1,
+        bill_to_address2=bill_to_address2,
+        bill_to_city=bill_to_city,
+        bill_to_state=bill_to_state,
+        bill_to_postal_code=bill_to_postal_code,
+        bill_to_country=bill_to_country,
     )
     
     db.session.add(client)
@@ -2175,6 +2299,16 @@ def edit_client(client_id):
     name = request.form.get('name', '').strip()
     membership_id = request.form.get('membership_id')
     notes = request.form.get('notes', '').strip()
+    contact_name = request.form.get('contact_name', '').strip() or None
+    contact_email = request.form.get('contact_email', '').strip() or None
+    contact_phone = request.form.get('contact_phone', '').strip() or None
+    bill_to_org = request.form.get('bill_to_org', '').strip() or None
+    bill_to_address1 = request.form.get('bill_to_address1', '').strip() or None
+    bill_to_address2 = request.form.get('bill_to_address2', '').strip() or None
+    bill_to_city = request.form.get('bill_to_city', '').strip() or None
+    bill_to_state = request.form.get('bill_to_state', '').strip() or None
+    bill_to_postal_code = request.form.get('bill_to_postal_code', '').strip() or None
+    bill_to_country = request.form.get('bill_to_country', '').strip() or None
     
     if not name:
         flash('Client name is required', 'error')
@@ -2183,6 +2317,16 @@ def edit_client(client_id):
     client.name = name
     client.membership_id = int(membership_id) if membership_id else None
     client.notes = notes
+    client.contact_name = contact_name
+    client.contact_email = contact_email
+    client.contact_phone = contact_phone
+    client.bill_to_org = bill_to_org
+    client.bill_to_address1 = bill_to_address1
+    client.bill_to_address2 = bill_to_address2
+    client.bill_to_city = bill_to_city
+    client.bill_to_state = bill_to_state
+    client.bill_to_postal_code = bill_to_postal_code
+    client.bill_to_country = bill_to_country
     
     db.session.commit()
     flash('Client updated successfully', 'success')
@@ -2237,6 +2381,303 @@ def delete_client(client_id):
     db.session.commit()
     flash('Client deleted successfully', 'success')
     return redirect(url_for('clients'))
+
+# QUOTES ROUTES
+@app.route('/quotes')
+def quotes():
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quotes_list = Quote.query.order_by(Quote.created_at.desc()).all()
+    return render_template('quotes.html', quotes=quotes_list)
+
+
+@app.route('/quotes/new', methods=['GET', 'POST'])
+def quote_new():
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    clients = Client.query.order_by(Client.name.asc()).all()
+    projects = Project.query.order_by(Project.name.asc()).all()
+
+    if request.method == 'GET':
+        selected_client_id = request.args.get('client_id', type=int)
+        selected_project_id = request.args.get('project_id', type=int)
+        today = get_current_time().date()
+        valid_until_default = today + timedelta(days=90)
+        return render_template(
+            'quote_form.html',
+            quote=None,
+            clients=clients,
+            projects=projects,
+            selected_client_id=selected_client_id,
+            selected_project_id=selected_project_id,
+            line_items=[],
+            issue_date_default=today.strftime('%Y-%m-%d'),
+            valid_until_default=valid_until_default.strftime('%Y-%m-%d'),
+        )
+
+    client_id = request.form.get('client_id', type=int)
+    project_id = request.form.get('project_id', type=int)
+    title = request.form.get('title', '').strip()
+    issue_date_str = request.form.get('issue_date', '').strip()
+    valid_until_str = request.form.get('valid_until', '').strip()
+
+    if not client_id:
+        flash('Client is required.', 'error')
+        return render_template('quote_form.html', quote=None, clients=clients, projects=projects, line_items=[])
+    if not title:
+        flash('Title is required.', 'error')
+        return render_template('quote_form.html', quote=None, clients=clients, projects=projects, line_items=[])
+
+    client = db.session.get(Client, client_id)
+    if not client:
+        flash('Selected client was not found.', 'error')
+        return render_template('quote_form.html', quote=None, clients=clients, projects=projects, line_items=[])
+
+    try:
+        issue_date = datetime.strptime(issue_date_str, '%Y-%m-%d').date() if issue_date_str else get_current_time().date()
+    except ValueError:
+        flash('Issue date must be valid.', 'error')
+        return render_template('quote_form.html', quote=None, clients=clients, projects=projects, line_items=[])
+
+    valid_until = None
+    if valid_until_str:
+        try:
+            valid_until = datetime.strptime(valid_until_str, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Valid until date must be valid.', 'error')
+            return render_template('quote_form.html', quote=None, clients=clients, projects=projects, line_items=[])
+
+    status = request.form.get('status', 'draft').strip().lower()
+    if status not in QUOTE_STATUS_OPTIONS:
+        status = 'draft'
+
+    quote = Quote(
+        client_id=client_id,
+        project_id=project_id or None,
+        prepared_by_user_id=session.get('user_id'),
+        title=title,
+        scope_summary=request.form.get('scope_summary', '').strip() or None,
+        issue_date=issue_date,
+        valid_until=valid_until,
+        status=status,
+        shipping_amount=parse_decimal(request.form.get('shipping_amount')),
+        shipping_tbd=request.form.get('shipping_tbd') == 'on',
+        discount_percent=parse_discount_percent(request.form.get('discount_percent')),
+        tax_amount=Decimal('0.00'),
+        notes=request.form.get('notes', '').strip() or None,
+        terms=request.form.get('terms', '').strip() or None,
+        is_public=(status == 'published'),
+    )
+    if status == 'published':
+        quote.public_token = secrets.token_urlsafe(24)
+        quote.published_at = get_current_time()
+
+    line_items = parse_quote_line_items(request.form)
+    for item in line_items:
+        quote.line_items.append(QuoteLineItem(**item))
+
+    quote.quote_id = generate_quote_id(issue_date)
+    db.session.add(quote)
+    recalculate_quote_totals(quote, parsed_line_items=line_items)
+
+    try:
+        for _ in range(5):
+            try:
+                db.session.commit()
+                flash(f'Quote {quote.quote_id} created.', 'success')
+                return redirect(url_for('quote_edit', quote_db_id=quote.id))
+            except IntegrityError as err:
+                db.session.rollback()
+                quote.quote_id = generate_quote_id(issue_date)
+                db.session.add(quote)
+                app.logger.warning(f"Quote create IntegrityError for {quote.quote_id}: {err}")
+        flash('Could not generate a unique quote ID. Please try again.', 'error')
+    except Exception as err:
+        db.session.rollback()
+        app.logger.exception("Quote creation failed")
+        flash(f'Failed to create quote: {err}', 'error')
+
+    return render_template(
+        'quote_form.html',
+        quote=None,
+        clients=clients,
+        projects=projects,
+        line_items=line_items,
+        issue_date_default=issue_date.strftime('%Y-%m-%d'),
+        valid_until_default=(valid_until.strftime('%Y-%m-%d') if valid_until else ''),
+    )
+
+
+@app.route('/quotes/<int:quote_db_id>/edit', methods=['GET', 'POST'])
+def quote_edit(quote_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(quote_db_id)
+    clients = Client.query.order_by(Client.name.asc()).all()
+    projects = Project.query.order_by(Project.name.asc()).all()
+
+    if request.method == 'GET':
+        return render_template(
+            'quote_form.html',
+            quote=quote,
+            clients=clients,
+            projects=projects,
+            selected_client_id=quote.client_id,
+            selected_project_id=quote.project_id,
+            line_items=sorted(list(quote.line_items), key=lambda x: x.sort_order or 0),
+        )
+
+    client_id = request.form.get('client_id', type=int)
+    if not client_id:
+        flash('Client is required.', 'error')
+        return redirect(url_for('quote_edit', quote_db_id=quote.id))
+
+    issue_date_str = request.form.get('issue_date', '').strip()
+    valid_until_str = request.form.get('valid_until', '').strip()
+    try:
+        issue_date = datetime.strptime(issue_date_str, '%Y-%m-%d').date() if issue_date_str else quote.issue_date
+    except ValueError:
+        flash('Issue date must be valid.', 'error')
+        return redirect(url_for('quote_edit', quote_db_id=quote.id))
+
+    valid_until = None
+    if valid_until_str:
+        try:
+            valid_until = datetime.strptime(valid_until_str, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Valid until date must be valid.', 'error')
+            return redirect(url_for('quote_edit', quote_db_id=quote.id))
+
+    quote.client_id = client_id
+    quote.project_id = request.form.get('project_id', type=int) or None
+    quote.prepared_by_user_id = session.get('user_id')
+    status = request.form.get('status', quote.status).strip().lower()
+    if status not in QUOTE_STATUS_OPTIONS:
+        status = quote.status
+    quote.status = status
+    quote.is_public = (status == 'published')
+    if status == 'published':
+        if not quote.public_token:
+            quote.public_token = secrets.token_urlsafe(24)
+        if not quote.published_at:
+            quote.published_at = get_current_time()
+
+    title = request.form.get('title', '').strip()
+    if not title:
+        flash('Title is required.', 'error')
+        return redirect(url_for('quote_edit', quote_db_id=quote.id))
+    quote.title = title
+    quote.scope_summary = request.form.get('scope_summary', '').strip() or None
+    quote.issue_date = issue_date
+    quote.valid_until = valid_until
+    quote.shipping_amount = parse_decimal(request.form.get('shipping_amount'))
+    quote.shipping_tbd = request.form.get('shipping_tbd') == 'on'
+    quote.discount_percent = parse_discount_percent(request.form.get('discount_percent'))
+    quote.tax_amount = Decimal('0.00')
+    quote.notes = request.form.get('notes', '').strip() or None
+    quote.terms = request.form.get('terms', '').strip() or None
+
+    # Full replace keeps ordering and deletions simple.
+    for existing in list(quote.line_items):
+        db.session.delete(existing)
+    parsed_line_items = parse_quote_line_items(request.form)
+    for item in parsed_line_items:
+        quote.line_items.append(QuoteLineItem(**item))
+
+    # Flush ensures deleted items are excluded before recomputing totals.
+    db.session.flush()
+    recalculate_quote_totals(quote, parsed_line_items=parsed_line_items)
+    db.session.commit()
+    flash(f'Quote {quote.quote_id} updated.', 'success')
+    return redirect(url_for('quote_edit', quote_db_id=quote.id))
+
+
+@app.route('/quotes/<int:quote_db_id>/publish', methods=['POST'])
+def quote_publish(quote_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(quote_db_id)
+    quote.status = 'published'
+    quote.is_public = True
+    quote.published_at = get_current_time()
+    quote.public_token = secrets.token_urlsafe(24)
+    db.session.commit()
+    flash(f'Quote {quote.quote_id} published.', 'success')
+    return redirect(url_for('quote_edit', quote_db_id=quote.id))
+
+
+@app.route('/quotes/<int:quote_db_id>/archive', methods=['POST'])
+def quote_archive(quote_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(quote_db_id)
+    quote.status = 'archived'
+    quote.is_public = False
+    db.session.commit()
+    flash(f'Quote {quote.quote_id} archived.', 'success')
+    return redirect(url_for('quote_edit', quote_db_id=quote.id))
+
+
+@app.route('/quotes/<int:quote_db_id>/delete', methods=['POST'])
+def quote_delete(quote_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(quote_db_id)
+    quote_id_value = quote.quote_id
+    db.session.delete(quote)
+    db.session.commit()
+    flash(f'Quote {quote_id_value} deleted.', 'success')
+    return redirect(url_for('quotes'))
+
+
+@app.route('/quotes/<int:quote_db_id>/preview')
+def quote_preview(quote_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(quote_db_id)
+    preview_url = None
+    if quote.public_token and quote.is_public and quote.status == 'published':
+        preview_url = url_for('public_quote', public_token=quote.public_token, _external=True)
+    brand_logo_path = os.path.join(app.static_folder, 'img', 'neurotechhub-logo.png')
+    has_brand_logo = os.path.exists(brand_logo_path)
+
+    return render_template(
+        'public_quote.html',
+        quote=quote,
+        public_url=preview_url,
+        is_preview=True,
+        has_brand_logo=has_brand_logo
+    )
+
+
+@app.route('/q/<public_token>')
+def public_quote(public_token):
+    quote = Quote.query.filter_by(public_token=public_token).first()
+    if not quote or not quote.is_public or quote.status != 'published':
+        abort(404)
+
+    brand_logo_path = os.path.join(app.static_folder, 'img', 'neurotechhub-logo.png')
+    has_brand_logo = os.path.exists(brand_logo_path)
+    return render_template(
+        'public_quote.html',
+        quote=quote,
+        public_url=request.url,
+        has_brand_logo=has_brand_logo
+    )
 
 # MEMBERSHIPS ROUTES
 @app.route('/memberships')
