@@ -54,11 +54,11 @@
                             </div>
                             <div class="col-12">
                                 <label class="form-label">Title <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="title" value="{{ quote.title if quote else '' }}" required>
+                                <input type="text" class="form-control" name="title" value="{{ quote.title if quote and quote.title else '' }}" required>
                             </div>
                             <div class="col-12">
                                 <label class="form-label">Scope Summary</label>
-                                <textarea class="form-control" name="scope_summary" rows="3">{{ quote.scope_summary if quote else '' }}</textarea>
+                                <textarea class="form-control" name="scope_summary" rows="3">{{ quote.scope_summary if quote and quote.scope_summary else '' }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -132,11 +132,11 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Notes</label>
-                            <textarea class="form-control" name="notes" rows="3">{{ quote.notes if quote else '' }}</textarea>
+                            <textarea class="form-control" name="notes" rows="3">{{ quote.notes if quote and quote.notes else '' }}</textarea>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Terms</label>
-                            <textarea class="form-control" name="terms" rows="5">{{ quote.terms if quote else '' }}</textarea>
+                            <textarea class="form-control" name="terms" rows="5">{{ quote.terms if quote and quote.terms else '' }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -166,9 +166,13 @@
                         <div class="pt-2 border-top mt-3">
                             <div class="row g-2">
                                 <div class="col-12 col-md-5">
-                                    <form method="POST" action="{{ url_for('quote_delete', quote_db_id=quote.id) }}" onsubmit="return confirm('Delete this quote? This will only remove the quote and its line items.');">
-                                        <button type="submit" class="btn btn-outline-danger w-100">Delete Quote</button>
-                                    </form>
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-danger w-100"
+                                        onclick="if (confirm('Delete this quote? This will only remove the quote and its line items.')) { document.getElementById('quoteDeleteForm').submit(); }"
+                                    >
+                                        Delete Quote
+                                    </button>
                                 </div>
                                 <div class="col-12 col-md-7">
                                     <button type="submit" class="btn btn-primary w-100">{{ 'Save Changes' if quote else 'Create Quote' }}</button>
@@ -188,6 +192,9 @@
             </div>
         </div>
     </form>
+    {% if quote %}
+    <form id="quoteDeleteForm" method="POST" action="{{ url_for('quote_delete', quote_db_id=quote.id) }}"></form>
+    {% endif %}
 </div>
 {% endblock %}
 
