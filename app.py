@@ -6,7 +6,7 @@ import os
 import markdown
 from sqlalchemy import func, desc, text, or_, and_
 import re
-from markupsafe import Markup
+from markupsafe import Markup, escape
 import json
 import secrets
 from decimal import Decimal, InvalidOperation
@@ -268,6 +268,43 @@ def render_tags(value):
     value = re.sub(r'#\[(.*?)\]', r'<span class="task-tag task-tag-project">#\1</span>', value)
     return Markup(value)
 
+@app.template_filter('autolink')
+def autolink_filter(value):
+    """Auto-link plain URLs in text and open in new tab."""
+    if not value:
+        return ''
+
+    text = str(value)
+    url_pattern = re.compile(r'(?P<url>(?:https?://|www\.)[^\s<]+)')
+    parts = []
+    last_idx = 0
+
+    for match in url_pattern.finditer(text):
+        start, end = match.span('url')
+        url = match.group('url')
+        trailing = ''
+        while url and url[-1] in '.,;:!?)]}':
+            trailing = url[-1] + trailing
+            url = url[:-1]
+            end -= 1
+
+        if not url:
+            continue
+
+        parts.append(escape(text[last_idx:start]))
+        href = url if url.startswith(('http://', 'https://')) else f'https://{url}'
+        parts.append(
+            Markup(
+                f'<a href="{escape(href)}" target="_blank" rel="noopener noreferrer">{escape(url)}</a>'
+            )
+        )
+        if trailing:
+            parts.append(escape(trailing))
+        last_idx = end + len(trailing)
+
+    parts.append(escape(text[last_idx:]))
+    return Markup('').join(parts)
+
 @app.template_filter('time_ago')
 def time_ago(datetime_obj):
     """Convert datetime to 'time ago' format"""
@@ -425,7 +462,7 @@ app.jinja_env.filters['time_until'] = time_until
 app.jinja_env.filters['central_time'] = central_time
 app.jinja_env.filters['duration_hours_central'] = duration_hours_central
 
-QUOTE_STATUS_OPTIONS = ('draft', 'published', 'archived')
+BILL_TYPE_OPTIONS = ('quote', 'invoice')
 
 
 def require_admin():
@@ -452,6 +489,16 @@ def parse_discount_percent(value):
     if discount > Decimal('100'):
         return Decimal('100.00')
     return discount
+
+
+def parse_units_multiplier(value):
+    try:
+        units = int(str(value).strip()) if value is not None and str(value).strip() != '' else 1
+    except (ValueError, TypeError):
+        return 1
+    if units <= 0:
+        return 1
+    return units
 
 
 def generate_quote_id(issue_date):
@@ -507,18 +554,19 @@ def parse_quote_line_items(form):
 
 
 def recalculate_quote_totals(quote, parsed_line_items=None):
-    subtotal = Decimal('0.00')
+    base_subtotal = Decimal('0.00')
     if parsed_line_items is not None:
         for item_data in parsed_line_items:
-            subtotal += Decimal(item_data.get('line_total', 0) or 0)
+            base_subtotal += Decimal(item_data.get('line_total', 0) or 0)
     else:
         active_items = [item for item in list(quote.line_items) if item not in db.session.deleted]
         line_items_sorted = sorted(active_items, key=lambda x: x.sort_order or 0)
         for item in line_items_sorted:
             item.line_total = (Decimal(item.quantity or 0) * Decimal(item.unit_price or 0)).quantize(Decimal('0.01'))
-            subtotal += Decimal(item.line_total or 0)
+            base_subtotal += Decimal(item.line_total or 0)
 
-    quote.subtotal = subtotal.quantize(Decimal('0.01'))
+    quote.units_multiplier = parse_units_multiplier(getattr(quote, 'units_multiplier', 1))
+    quote.subtotal = (base_subtotal * Decimal(quote.units_multiplier or 1)).quantize(Decimal('0.01'))
     quote.shipping_amount = Decimal(quote.shipping_amount or 0).quantize(Decimal('0.01'))
     quote.discount_percent = parse_discount_percent(quote.discount_percent)
     quote.tax_amount = Decimal('0.00')  # Tax removed from quote workflow.
@@ -2382,19 +2430,19 @@ def delete_client(client_id):
     flash('Client deleted successfully', 'success')
     return redirect(url_for('clients'))
 
-# QUOTES ROUTES
-@app.route('/quotes')
-def quotes():
+# BILLING ROUTES
+@app.route('/billing')
+def billing():
     auth_error = require_admin()
     if auth_error:
         return auth_error
 
-    quotes_list = Quote.query.order_by(Quote.created_at.desc()).all()
-    return render_template('quotes.html', quotes=quotes_list)
+    bills = Quote.query.order_by(Quote.created_at.desc()).all()
+    return render_template('quotes.html', quotes=bills)
 
 
-@app.route('/quotes/new', methods=['GET', 'POST'])
-def quote_new():
+@app.route('/billing/new', methods=['GET', 'POST'])
+def billing_new():
     auth_error = require_admin()
     if auth_error:
         return auth_error
@@ -2451,9 +2499,9 @@ def quote_new():
             flash('Valid until date must be valid.', 'error')
             return render_template('quote_form.html', quote=None, clients=clients, projects=projects, line_items=[])
 
-    status = request.form.get('status', 'draft').strip().lower()
-    if status not in QUOTE_STATUS_OPTIONS:
-        status = 'draft'
+    bill_type = request.form.get('bill_type', 'quote').strip().lower()
+    if bill_type not in BILL_TYPE_OPTIONS:
+        bill_type = 'quote'
 
     quote = Quote(
         client_id=client_id,
@@ -2461,20 +2509,30 @@ def quote_new():
         prepared_by_user_id=session.get('user_id'),
         title=title,
         scope_summary=request.form.get('scope_summary', '').strip() or None,
+        bill_type=bill_type,
         issue_date=issue_date,
         valid_until=valid_until,
-        status=status,
+        status='published',
         shipping_amount=parse_decimal(request.form.get('shipping_amount')),
         shipping_tbd=request.form.get('shipping_tbd') == 'on',
+        units_multiplier=parse_units_multiplier(request.form.get('units_multiplier')),
         discount_percent=parse_discount_percent(request.form.get('discount_percent')),
         tax_amount=Decimal('0.00'),
         notes=request.form.get('notes', '').strip() or None,
         terms=request.form.get('terms', '').strip() or None,
-        is_public=(status == 'published'),
+        approved_by_name=request.form.get('approved_by_name', '').strip() or None,
+        approved_cost_center=request.form.get('approved_cost_center', '').strip() or None,
+        is_public=True,
+        public_token=secrets.token_urlsafe(24),
+        published_at=get_current_time(),
     )
-    if status == 'published':
-        quote.public_token = secrets.token_urlsafe(24)
-        quote.published_at = get_current_time()
+    approved_at_raw = request.form.get('approved_at', '').strip()
+    if approved_at_raw:
+        try:
+            quote.approved_at = datetime.strptime(approved_at_raw, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            flash('Approved At must be a valid date/time.', 'error')
+            return render_template('quote_form.html', quote=None, clients=clients, projects=projects, line_items=[])
 
     line_items = parse_quote_line_items(request.form)
     for item in line_items:
@@ -2488,8 +2546,8 @@ def quote_new():
         for _ in range(5):
             try:
                 db.session.commit()
-                flash(f'Quote {quote.quote_id} created.', 'success')
-                return redirect(url_for('quote_edit', quote_db_id=quote.id))
+                flash(f'Bill {quote.quote_id} created.', 'success')
+                return redirect(url_for('billing_edit', bill_db_id=quote.id))
             except IntegrityError as err:
                 db.session.rollback()
                 quote.quote_id = generate_quote_id(issue_date)
@@ -2512,13 +2570,13 @@ def quote_new():
     )
 
 
-@app.route('/quotes/<int:quote_db_id>/edit', methods=['GET', 'POST'])
-def quote_edit(quote_db_id):
+@app.route('/billing/<int:bill_db_id>/edit', methods=['GET', 'POST'])
+def billing_edit(bill_db_id):
     auth_error = require_admin()
     if auth_error:
         return auth_error
 
-    quote = Quote.query.get_or_404(quote_db_id)
+    quote = Quote.query.get_or_404(bill_db_id)
     clients = Client.query.order_by(Client.name.asc()).all()
     projects = Project.query.order_by(Project.name.asc()).all()
 
@@ -2536,7 +2594,7 @@ def quote_edit(quote_db_id):
     client_id = request.form.get('client_id', type=int)
     if not client_id:
         flash('Client is required.', 'error')
-        return redirect(url_for('quote_edit', quote_db_id=quote.id))
+        return redirect(url_for('billing_edit', bill_db_id=quote.id))
 
     issue_date_str = request.form.get('issue_date', '').strip()
     valid_until_str = request.form.get('valid_until', '').strip()
@@ -2544,7 +2602,7 @@ def quote_edit(quote_db_id):
         issue_date = datetime.strptime(issue_date_str, '%Y-%m-%d').date() if issue_date_str else quote.issue_date
     except ValueError:
         flash('Issue date must be valid.', 'error')
-        return redirect(url_for('quote_edit', quote_db_id=quote.id))
+        return redirect(url_for('billing_edit', bill_db_id=quote.id))
 
     valid_until = None
     if valid_until_str:
@@ -2552,36 +2610,48 @@ def quote_edit(quote_db_id):
             valid_until = datetime.strptime(valid_until_str, '%Y-%m-%d').date()
         except ValueError:
             flash('Valid until date must be valid.', 'error')
-            return redirect(url_for('quote_edit', quote_db_id=quote.id))
+            return redirect(url_for('billing_edit', bill_db_id=quote.id))
 
     quote.client_id = client_id
     quote.project_id = request.form.get('project_id', type=int) or None
     quote.prepared_by_user_id = session.get('user_id')
-    status = request.form.get('status', quote.status).strip().lower()
-    if status not in QUOTE_STATUS_OPTIONS:
-        status = quote.status
-    quote.status = status
-    quote.is_public = (status == 'published')
-    if status == 'published':
-        if not quote.public_token:
-            quote.public_token = secrets.token_urlsafe(24)
-        if not quote.published_at:
-            quote.published_at = get_current_time()
+    bill_type = request.form.get('bill_type', quote.bill_type or 'quote').strip().lower()
+    if bill_type not in BILL_TYPE_OPTIONS:
+        bill_type = quote.bill_type or 'quote'
+    quote.bill_type = bill_type
+    quote.is_public = True
+    if not quote.public_token:
+        quote.public_token = secrets.token_urlsafe(24)
+    if not quote.published_at:
+        quote.published_at = get_current_time()
 
     title = request.form.get('title', '').strip()
     if not title:
         flash('Title is required.', 'error')
-        return redirect(url_for('quote_edit', quote_db_id=quote.id))
+        return redirect(url_for('billing_edit', bill_db_id=quote.id))
     quote.title = title
     quote.scope_summary = request.form.get('scope_summary', '').strip() or None
     quote.issue_date = issue_date
     quote.valid_until = valid_until
     quote.shipping_amount = parse_decimal(request.form.get('shipping_amount'))
     quote.shipping_tbd = request.form.get('shipping_tbd') == 'on'
+    quote.units_multiplier = parse_units_multiplier(request.form.get('units_multiplier'))
     quote.discount_percent = parse_discount_percent(request.form.get('discount_percent'))
     quote.tax_amount = Decimal('0.00')
     quote.notes = request.form.get('notes', '').strip() or None
     quote.terms = request.form.get('terms', '').strip() or None
+    quote.approved_by_name = request.form.get('approved_by_name', '').strip() or None
+    quote.approved_cost_center = request.form.get('approved_cost_center', '').strip() or None
+
+    approved_at_raw = request.form.get('approved_at', '').strip()
+    if approved_at_raw:
+        try:
+            quote.approved_at = datetime.strptime(approved_at_raw, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            flash('Approved At must be a valid date/time.', 'error')
+            return redirect(url_for('billing_edit', bill_db_id=quote.id))
+    else:
+        quote.approved_at = None
 
     # Full replace keeps ordering and deletions simple.
     for existing in list(quote.line_items):
@@ -2594,63 +2664,33 @@ def quote_edit(quote_db_id):
     db.session.flush()
     recalculate_quote_totals(quote, parsed_line_items=parsed_line_items)
     db.session.commit()
-    flash(f'Quote {quote.quote_id} updated.', 'success')
-    return redirect(url_for('quote_edit', quote_db_id=quote.id))
+    flash(f'Bill {quote.quote_id} updated.', 'success')
+    return redirect(url_for('billing_edit', bill_db_id=quote.id))
 
 
-@app.route('/quotes/<int:quote_db_id>/publish', methods=['POST'])
-def quote_publish(quote_db_id):
+@app.route('/billing/<int:bill_db_id>/delete', methods=['POST'])
+def billing_delete(bill_db_id):
     auth_error = require_admin()
     if auth_error:
         return auth_error
 
-    quote = Quote.query.get_or_404(quote_db_id)
-    quote.status = 'published'
-    quote.is_public = True
-    quote.published_at = get_current_time()
-    quote.public_token = secrets.token_urlsafe(24)
-    db.session.commit()
-    flash(f'Quote {quote.quote_id} published.', 'success')
-    return redirect(url_for('quote_edit', quote_db_id=quote.id))
-
-
-@app.route('/quotes/<int:quote_db_id>/archive', methods=['POST'])
-def quote_archive(quote_db_id):
-    auth_error = require_admin()
-    if auth_error:
-        return auth_error
-
-    quote = Quote.query.get_or_404(quote_db_id)
-    quote.status = 'archived'
-    quote.is_public = False
-    db.session.commit()
-    flash(f'Quote {quote.quote_id} archived.', 'success')
-    return redirect(url_for('quote_edit', quote_db_id=quote.id))
-
-
-@app.route('/quotes/<int:quote_db_id>/delete', methods=['POST'])
-def quote_delete(quote_db_id):
-    auth_error = require_admin()
-    if auth_error:
-        return auth_error
-
-    quote = Quote.query.get_or_404(quote_db_id)
+    quote = Quote.query.get_or_404(bill_db_id)
     quote_id_value = quote.quote_id
     db.session.delete(quote)
     db.session.commit()
-    flash(f'Quote {quote_id_value} deleted.', 'success')
-    return redirect(url_for('quotes'))
+    flash(f'Bill {quote_id_value} deleted.', 'success')
+    return redirect(url_for('billing'))
 
 
-@app.route('/quotes/<int:quote_db_id>/preview')
-def quote_preview(quote_db_id):
+@app.route('/billing/<int:bill_db_id>/preview')
+def billing_preview(bill_db_id):
     auth_error = require_admin()
     if auth_error:
         return auth_error
 
-    quote = Quote.query.get_or_404(quote_db_id)
+    quote = Quote.query.get_or_404(bill_db_id)
     preview_url = None
-    if quote.public_token and quote.is_public and quote.status == 'published':
+    if quote.public_token and quote.is_public:
         preview_url = url_for('public_quote', public_token=quote.public_token, _external=True)
     brand_logo_path = os.path.join(app.static_folder, 'img', 'neurotechhub-logo.png')
     has_brand_logo = os.path.exists(brand_logo_path)
@@ -2667,7 +2707,7 @@ def quote_preview(quote_db_id):
 @app.route('/q/<public_token>')
 def public_quote(public_token):
     quote = Quote.query.filter_by(public_token=public_token).first()
-    if not quote or not quote.is_public or quote.status != 'published':
+    if not quote or not quote.is_public:
         abort(404)
 
     brand_logo_path = os.path.join(app.static_folder, 'img', 'neurotechhub-logo.png')
@@ -2678,6 +2718,60 @@ def public_quote(public_token):
         public_url=request.url,
         has_brand_logo=has_brand_logo
     )
+
+
+@app.route('/q/<public_token>/approve', methods=['POST'])
+def public_quote_approve(public_token):
+    quote = Quote.query.filter_by(public_token=public_token).first()
+    if not quote or not quote.is_public:
+        abort(404)
+
+    if quote.bill_type != 'quote':
+        flash('Approval is only available for quote-type bills.', 'error')
+        return redirect(url_for('public_quote', public_token=public_token))
+
+    if quote.approved_by_name or quote.approved_at:
+        flash('This quote has already been approved.', 'info')
+        return redirect(url_for('public_quote', public_token=public_token))
+
+    approver_name = request.form.get('approved_by_name', '').strip()
+    if not approver_name:
+        flash('Approver Name is required to approve this quote.', 'error')
+        return redirect(url_for('public_quote', public_token=public_token))
+
+    quote.approved_by_name = approver_name
+    quote.approved_cost_center = request.form.get('approved_cost_center', '').strip() or None
+    quote.approved_at = get_current_time()
+    db.session.commit()
+    flash('Quote approved successfully.', 'success')
+    return redirect(url_for('public_quote', public_token=public_token))
+
+
+@app.route('/quotes')
+def quotes():
+    return redirect(url_for('billing'))
+
+
+@app.route('/quotes/new', methods=['GET', 'POST'])
+def quote_new():
+    if request.method == 'POST':
+        return redirect(url_for('billing_new'), code=307)
+    return redirect(url_for('billing_new', **request.args))
+
+
+@app.route('/quotes/<int:quote_db_id>/edit', methods=['GET', 'POST'])
+def quote_edit(quote_db_id):
+    return redirect(url_for('billing_edit', bill_db_id=quote_db_id), code=307 if request.method == 'POST' else 302)
+
+
+@app.route('/quotes/<int:quote_db_id>/delete', methods=['POST'])
+def quote_delete(quote_db_id):
+    return redirect(url_for('billing_delete', bill_db_id=quote_db_id), code=307)
+
+
+@app.route('/quotes/<int:quote_db_id>/preview')
+def quote_preview(quote_db_id):
+    return redirect(url_for('billing_preview', bill_db_id=quote_db_id))
 
 # MEMBERSHIPS ROUTES
 @app.route('/memberships')

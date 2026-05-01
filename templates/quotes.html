@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Quotes - Hub Tracker{% endblock %}
+{% block title %}Billing - Hub Tracker{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">Quotes</h2>
-        <a href="{{ url_for('quote_new') }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle me-2"></i>New Quote
+        <h2 class="mb-0">Billing</h2>
+        <a href="{{ url_for('billing_new') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>New Bill
         </a>
     </div>
 
@@ -18,10 +18,10 @@
                 <table class="table table-hover table-sm mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Quote ID</th>
+                            <th>Bill ID</th>
                             <th>Client</th>
                             <th>Project</th>
-                            <th>Status</th>
+                            <th>Type</th>
                             <th>Issued</th>
                             <th>Total</th>
                             <th class="text-end">Actions</th>
@@ -34,15 +34,15 @@
                             <td>{{ quote.client.name }}</td>
                             <td>{{ quote.project.name if quote.project else '—' }}</td>
                             <td>
-                                <span class="badge {% if quote.status == 'published' %}bg-success{% elif quote.status == 'archived' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">
-                                    {{ quote.status.title() }}
+                                <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% else %}bg-success{% endif %}">
+                                    {{ (quote.bill_type or 'quote').title() }}
                                 </span>
                             </td>
                             <td>{{ quote.issue_date.strftime('%Y-%m-%d') if quote.issue_date else '—' }}</td>
                             <td>{{ quote.total_amount|currency }}</td>
                             <td class="text-end">
-                                <a href="{{ url_for('quote_edit', quote_db_id=quote.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                {% if quote.status == 'published' and quote.public_token %}
+                                <a href="{{ url_for('billing_edit', bill_db_id=quote.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                {% if quote.public_token and quote.is_public %}
                                 <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" target="_blank" class="btn btn-sm btn-outline-success">View Public</a>
                                 {% endif %}
                             </td>
@@ -57,9 +57,9 @@
     <div class="card">
         <div class="card-body text-center text-muted py-5">
             <i class="bi bi-receipt fs-1 d-block mb-2"></i>
-            <div class="fw-medium">No quotes yet</div>
-            <div class="small mb-3">Create your first client quote.</div>
-            <a href="{{ url_for('quote_new') }}" class="btn btn-primary">Create Quote</a>
+            <div class="fw-medium">No bills yet</div>
+            <div class="small mb-3">Create your first client bill.</div>
+            <a href="{{ url_for('billing_new') }}" class="btn btn-primary">Create Bill</a>
         </div>
     </div>
     {% endif %}

@@ -1,25 +1,25 @@
 {% extends "base.html" %}
 
-{% block title %}{{ 'Edit Quote' if quote else 'New Quote' }} - Hub Tracker{% endblock %}
+{% block title %}{{ 'Edit Bill' if quote else 'New Bill' }} - Hub Tracker{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">{{ 'Edit Quote' if quote else 'New Quote' }}</h2>
-        <a href="{{ url_for('quotes') }}" class="btn btn-outline-secondary">Back to Quotes</a>
+        <h2 class="mb-0">{{ 'Edit Bill' if quote else 'New Bill' }}</h2>
+        <a href="{{ url_for('billing') }}" class="btn btn-outline-secondary">Back to Billing</a>
     </div>
 
-    <form method="POST" action="{{ url_for('quote_edit', quote_db_id=quote.id) if quote else url_for('quote_new') }}">
+    <form method="POST" action="{{ url_for('billing_edit', bill_db_id=quote.id) if quote else url_for('billing_new') }}">
         <div class="row g-3">
             <div class="col-12 col-lg-8">
                 <div class="card mb-3">
                     <div class="card-header">
-                        <strong>Quote Details</strong>
+                        <strong>Billing Details</strong>
                     </div>
                     <div class="card-body">
                         {% if quote %}
                         <div class="mb-3">
-                            <label class="form-label">Quote ID</label>
+                            <label class="form-label">Bill ID</label>
                             <input type="text" class="form-control" value="{{ quote.quote_id }}" disabled>
                         </div>
                         {% endif %}
@@ -71,29 +71,47 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-sm align-middle" id="lineItemsTable">
+                            <table class="table table-sm align-middle mb-0" id="lineItemsTable">
                                 <thead>
                                     <tr>
-                                        <th style="min-width: 180px;">Item</th>
-                                        <th style="min-width: 200px;">Description</th>
-                                        <th style="width: 120px;">Qty</th>
-                                        <th style="width: 140px;">Unit Price</th>
-                                        <th style="width: 64px;"></th>
+                                        <th style="min-width: 170px;">Item</th>
+                                        <th style="min-width: 260px;">Description</th>
+                                        <th style="width: 100px;">Qty</th>
+                                        <th style="width: 130px;">Unit Price</th>
+                                        <th style="width: 56px;"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="lineItemsBody">
                                     {% set form_items = line_items if line_items else [] %}
                                     {% for item in form_items %}
                                     <tr class="line-item-row">
-                                        <td><input type="text" name="line_item_name[]" class="form-control" value="{{ item.item_name }}" required></td>
-                                        <td><input type="text" name="line_item_description[]" class="form-control" value="{{ item.description or '' }}"></td>
-                                        <td><input type="number" name="line_item_quantity[]" class="form-control line-qty" value="{{ item.quantity or 1 }}" step="0.01" min="0"></td>
-                                        <td><input type="number" name="line_item_unit_price[]" class="form-control line-price" value="{{ item.unit_price or 0 }}" step="0.01" min="0"></td>
+                                        <td><input type="text" name="line_item_name[]" class="form-control form-control-sm" value="{{ item.item_name }}" required></td>
+                                        <td><textarea name="line_item_description[]" class="form-control form-control-sm py-1" rows="2" placeholder="Optional details">{{ item.description or '' }}</textarea></td>
+                                        <td><input type="number" name="line_item_quantity[]" class="form-control form-control-sm line-qty" value="{{ item.quantity or 1 }}" step="0.01" min="0"></td>
+                                        <td><input type="number" name="line_item_unit_price[]" class="form-control form-control-sm line-price" value="{{ item.unit_price or 0 }}" step="0.01" min="0"></td>
                                         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeLineItemRow(this)"><i class="bi bi-trash"></i></button></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
+                        </div>
+                        <hr class="my-3">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-md-4 col-lg-3">
+                                <label class="form-label mb-1" for="unitsMultiplier">Units</label>
+                                <input
+                                    type="number"
+                                    class="form-control form-control-sm"
+                                    id="unitsMultiplier"
+                                    name="units_multiplier"
+                                    value="{{ quote.units_multiplier if quote and quote.units_multiplier else '1' }}"
+                                    step="1"
+                                    min="1"
+                                >
+                            </div>
+                            <div class="col-12 col-md-8 col-lg-9">
+                                <div class="small text-muted">Applies a global multiplier to all line items.</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -144,23 +162,34 @@
 
             <div class="col-12 col-lg-4">
                 <div class="card">
-                    <div class="card-header"><strong>Publishing</strong></div>
+                    <div class="card-header"><strong>Billing Settings</strong></div>
                     <div class="card-body">
-                        {% set status_value = quote.status if quote else 'draft' %}
                         <div class="mb-3">
-                            <label class="form-label">Status</label>
-                            <select class="form-select" name="status">
-                                <option value="draft" {% if status_value == 'draft' %}selected{% endif %}>Draft</option>
-                                <option value="published" {% if status_value == 'published' %}selected{% endif %}>Published</option>
-                                <option value="archived" {% if status_value == 'archived' %}selected{% endif %}>Archived</option>
+                            {% set bill_type_value = quote.bill_type if quote and quote.bill_type else 'quote' %}
+                            <label class="form-label">Bill Type</label>
+                            <select class="form-select" name="bill_type">
+                                <option value="quote" {% if bill_type_value == 'quote' %}selected{% endif %}>Quote</option>
+                                <option value="invoice" {% if bill_type_value == 'invoice' %}selected{% endif %}>Invoice</option>
                             </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Approver Name</label>
+                            <input type="text" class="form-control" name="approved_by_name" value="{{ quote.approved_by_name if quote and quote.approved_by_name else '' }}" placeholder="Client approver name">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cost Center</label>
+                            <input type="text" class="form-control" name="approved_cost_center" value="{{ quote.approved_cost_center if quote and quote.approved_cost_center else '' }}" placeholder="Optional">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Approved At</label>
+                            <input type="datetime-local" class="form-control" name="approved_at" value="{{ quote.approved_at.strftime('%Y-%m-%dT%H:%M') if quote and quote.approved_at else '' }}">
                         </div>
                         {% if quote %}
                         <div class="d-grid gap-2">
-                            {% if quote.status == 'published' and quote.public_token %}
+                            {% if quote.public_token and quote.is_public %}
                             <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" class="btn btn-outline-primary btn-sm w-100" target="_blank">Open Client View</a>
                             {% else %}
-                            <a href="{{ url_for('quote_preview', quote_db_id=quote.id) }}" class="btn btn-outline-primary btn-sm w-100" target="_blank">Preview Client View</a>
+                            <a href="{{ url_for('billing_preview', bill_db_id=quote.id) }}" class="btn btn-outline-primary btn-sm w-100" target="_blank">Preview Client View</a>
                             {% endif %}
                         </div>
                         <div class="pt-2 border-top mt-3">
@@ -169,13 +198,13 @@
                                     <button
                                         type="button"
                                         class="btn btn-outline-danger w-100"
-                                        onclick="if (confirm('Delete this quote? This will only remove the quote and its line items.')) { document.getElementById('quoteDeleteForm').submit(); }"
+                                        onclick="if (confirm('Delete this bill? This will only remove the bill and its line items.')) { document.getElementById('quoteDeleteForm').submit(); }"
                                     >
-                                        Delete Quote
+                                        Delete Bill
                                     </button>
                                 </div>
                                 <div class="col-12 col-md-7">
-                                    <button type="submit" class="btn btn-primary w-100">{{ 'Save Changes' if quote else 'Create Quote' }}</button>
+                                    <button type="submit" class="btn btn-primary w-100">{{ 'Save Changes' if quote else 'Create Bill' }}</button>
                                 </div>
                             </div>
                         </div>
@@ -183,7 +212,7 @@
                         {% if not quote %}
                         <div class="row g-2 mt-3">
                             <div class="col-12">
-                                <button type="submit" class="btn btn-primary w-100">{{ 'Save Changes' if quote else 'Create Quote' }}</button>
+                                <button type="submit" class="btn btn-primary w-100">{{ 'Save Changes' if quote else 'Create Bill' }}</button>
                             </div>
                         </div>
                         {% endif %}
@@ -193,7 +222,7 @@
         </div>
     </form>
     {% if quote %}
-    <form id="quoteDeleteForm" method="POST" action="{{ url_for('quote_delete', quote_db_id=quote.id) }}"></form>
+    <form id="quoteDeleteForm" method="POST" action="{{ url_for('billing_delete', bill_db_id=quote.id) }}"></form>
     {% endif %}
 </div>
 {% endblock %}
@@ -205,10 +234,10 @@ function addLineItemRow() {
     const row = document.createElement('tr');
     row.className = 'line-item-row';
     row.innerHTML =
-        '<td><input type="text" name="line_item_name[]" class="form-control" required></td>' +
-        '<td><input type="text" name="line_item_description[]" class="form-control"></td>' +
-        '<td><input type="number" name="line_item_quantity[]" class="form-control line-qty" value="1" step="0.01" min="0"></td>' +
-        '<td><input type="number" name="line_item_unit_price[]" class="form-control line-price" value="0.00" step="0.01" min="0"></td>' +
+        '<td><input type="text" name="line_item_name[]" class="form-control form-control-sm" required></td>' +
+        '<td><textarea name="line_item_description[]" class="form-control form-control-sm py-1" rows="2" placeholder="Optional details"></textarea></td>' +
+        '<td><input type="number" name="line_item_quantity[]" class="form-control form-control-sm line-qty" value="1" step="0.01" min="0"></td>' +
+        '<td><input type="number" name="line_item_unit_price[]" class="form-control form-control-sm line-price" value="0.00" step="0.01" min="0"></td>' +
         '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeLineItemRow(this)"><i class="bi bi-trash"></i></button></td>';
     tbody.appendChild(row);
     bindLineItemListeners(row);
@@ -239,15 +268,18 @@ function getNumericValue(inputId) {
 
 function recalculateLiveTotals() {
     const rows = document.querySelectorAll('#lineItemsBody tr');
-    let subtotal = 0;
+    let baseSubtotal = 0;
     rows.forEach(function(row) {
         const qtyInput = row.querySelector('.line-qty');
         const priceInput = row.querySelector('.line-price');
         const qty = parseFloat((qtyInput && qtyInput.value) ? qtyInput.value : '0');
         const unitPrice = parseFloat((priceInput && priceInput.value) ? priceInput.value : '0');
-        subtotal += (Number.isFinite(qty) ? qty : 0) * (Number.isFinite(unitPrice) ? unitPrice : 0);
+        baseSubtotal += (Number.isFinite(qty) ? qty : 0) * (Number.isFinite(unitPrice) ? unitPrice : 0);
     });
 
+    const unitsMultiplierRaw = getNumericValue('unitsMultiplier');
+    const unitsMultiplier = unitsMultiplierRaw > 0 ? Math.max(1, Math.round(unitsMultiplierRaw)) : 1;
+    const subtotal = baseSubtotal * unitsMultiplier;
     const shippingTbd = document.getElementById('shippingTbd').checked;
     const shippingAmount = shippingTbd ? 0 : getNumericValue('shippingAmount');
     const discountPercent = Math.min(100, Math.max(0, getNumericValue('discountPercent')));
@@ -287,6 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('#lineItemsBody tr').forEach(bindLineItemListeners);
     document.getElementById('shippingAmount').addEventListener('input', recalculateLiveTotals);
     document.getElementById('discountPercent').addEventListener('input', recalculateLiveTotals);
+    document.getElementById('unitsMultiplier').addEventListener('input', recalculateLiveTotals);
     document.getElementById('shippingTbd').addEventListener('change', function() {
         const shippingInput = document.getElementById('shippingAmount');
         shippingInput.disabled = document.getElementById('shippingTbd').checked;

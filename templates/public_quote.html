@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quote {{ quote.quote_id }}</title>
+    <title>{{ (quote.bill_type or 'quote')|title }} {{ quote.quote_id }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
@@ -33,6 +33,17 @@
         .brand-logo { max-height: 72px; width: auto; }
         .quote-meta-top { font-size: 0.88rem; font-weight: 500; color: #6c757d; text-align: right; line-height: 1.35; }
         .quote-id-top { font-size: 0.95rem; font-weight: 500; color: #6c757d; text-align: right; }
+        .bill-type-top {
+            display: inline-block;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+            color: #495057;
+            border: 1px solid #ced4da;
+            border-radius: 999px;
+            padding: 0.1rem 0.55rem;
+            margin-bottom: 0.3rem;
+        }
         .quote-title-main { font-size: 1.35rem; font-weight: 600; color: #212529; }
         .section-title { font-size: 0.78rem; letter-spacing: 0.08em; color: var(--muted-ink); }
         .section-sep { border-top: 1px solid #e9ecef; padding-top: 1rem; margin-top: 1rem; }
@@ -99,6 +110,7 @@
                 </div>
                 <div class="d-flex flex-column align-items-end">
                     <div class="quote-meta-top mb-2">
+                        <div class="bill-type-top">{{ (quote.bill_type or 'quote')|upper }}</div>
                         <div class="quote-id-top">{{ quote.quote_id }}</div>
                         <div>Issued: {{ quote.issue_date.strftime('%b %d, %Y') if quote.issue_date else '—' }}</div>
                         <div>Valid Until: {{ quote.valid_until.strftime('%b %d, %Y') if quote.valid_until else '—' }}</div>
@@ -110,7 +122,7 @@
             </div>
             <div class="d-flex justify-content-between align-items-start mb-4">
                 <div>
-                    <h3 class="mb-1 quote-title-main">{{ quote.title or 'Client Quote' }}</h3>
+                    <h3 class="mb-1 quote-title-main">{{ quote.title or 'Client Bill' }}</h3>
                 </div>
             </div>
 
@@ -143,7 +155,7 @@
             {% if quote.scope_summary %}
             <div class="mb-4 page-break-avoid section-sep">
                 <h6 class="text-uppercase section-title">Scope Summary</h6>
-                <p class="mb-0">{{ quote.scope_summary }}</p>
+                <p class="mb-0">{{ quote.scope_summary|autolink }}</p>
             </div>
             {% endif %}
 
@@ -175,6 +187,9 @@
             <div class="row justify-content-end page-break-avoid totals-table">
                 <div class="col-md-5">
                     <table class="table table-sm">
+                        {% if (quote.units_multiplier or 1) != 1 %}
+                        <tr><th>Units</th><td class="text-end">{{ quote.units_multiplier }}x</td></tr>
+                        {% endif %}
                         <tr><th>Subtotal</th><td class="text-end">{{ quote.subtotal|currency }}</td></tr>
                         <tr><th>Shipping</th><td class="text-end">{{ 'TBD' if quote.shipping_tbd else (quote.shipping_amount|currency) }}</td></tr>
                         {% if (quote.discount_percent or 0)|float > 0 %}
@@ -188,23 +203,52 @@
             {% if quote.notes and quote.notes|trim %}
             <div class="mb-3 page-break-avoid section-sep">
                 <h6 class="text-uppercase section-title">Notes</h6>
-                <p class="mb-0">{{ quote.notes }}</p>
+                <p class="mb-0">{{ quote.notes|autolink }}</p>
             </div>
             {% endif %}
 
-            {% if quote.terms %}
             <div class="page-break-avoid section-sep">
                 <h6 class="text-uppercase section-title">Terms</h6>
-                <p class="mb-0">{{ quote.terms }}</p>
+                {% if quote.terms and quote.terms|trim %}
+                <p class="mb-2">{{ quote.terms }}</p>
+                {% endif %}
+                <p class="mb-0">
+                    Products are subject to the Neurotech Hub Product User Agreement:
+                    <a href="https://neurotechhub.wustl.edu/store/neurotech-hub-product-user-agreement/" target="_blank" rel="noopener noreferrer">neurotechhub.wustl.edu/store/neurotech-hub-product-user-agreement/</a>
+                </p>
+            </div>
+
+            {% if quote.bill_type == 'quote' and not quote.approved_at and not is_preview %}
+            <div class="page-break-avoid section-sep">
+                <h6 class="text-uppercase section-title">Client Approval</h6>
+                <form method="POST" action="{{ url_for('public_quote_approve', public_token=quote.public_token) }}" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Approver Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="approved_by_name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Cost Center (optional)</label>
+                        <input type="text" class="form-control" name="approved_cost_center">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary btn-sm">Approve Quote</button>
+                    </div>
+                </form>
             </div>
             {% endif %}
 
-            <div class="mt-4 pt-3 border-top small text-muted page-break-avoid">
-                Products are subject to the Neurotech Hub Product User Agreement:
-                <a href="https://neurotechhub.wustl.edu/store/neurotech-hub-product-user-agreement/" target="_blank" rel="noopener noreferrer">
-                    neurotechhub.wustl.edu/store/neurotech-hub-product-user-agreement/
-                </a>
+            {% if quote.approved_by_name or quote.approved_at %}
+            <div class="page-break-avoid section-sep">
+                <h6 class="text-uppercase section-title">Approval</h6>
+                <div><strong>Approver:</strong> {{ quote.approved_by_name or '—' }}</div>
+                {% if quote.approved_cost_center %}
+                <div><strong>Cost Center:</strong> {{ quote.approved_cost_center }}</div>
+                {% endif %}
+                {% if quote.approved_at %}
+                <div><strong>Approved At:</strong> {{ quote.approved_at|central_time }}</div>
+                {% endif %}
             </div>
+            {% endif %}
         </div>
     </div>
 
@@ -212,7 +256,7 @@
         document.getElementById('copyLinkBtn').addEventListener('click', async () => {
             const url = {{ public_url|tojson }};
             if (!url) {
-                alert('Publish this quote first to copy a shareable link.');
+                alert('Save this bill first to copy a shareable link.');
                 return;
             }
             try {
