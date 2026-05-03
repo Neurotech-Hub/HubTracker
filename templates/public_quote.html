@@ -73,6 +73,21 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        .approved-lock-strip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--washu-green);
+            background: rgba(33, 87, 50, 0.12);
+            border: 1px solid rgba(33, 87, 50, 0.35);
+            border-radius: 999px;
+            padding: 0.25rem 0.65rem;
+        }
+
+        .approved-lock-strip i { font-size: 0.95rem; }
+
         @media print {
             body { background: #fff; font-size: 12px; }
             .action-bar { display: none !important; }
@@ -87,9 +102,19 @@
 </head>
 <body>
     <div class="container py-4">
-        <div class="action-bar d-flex justify-content-end gap-2 mb-3">
-            {% if is_preview %}
-            <span class="badge bg-secondary align-self-center me-auto">Admin Preview</span>
+        <div class="action-bar d-flex justify-content-end align-items-center gap-2 mb-3 flex-wrap">
+            {% if is_preview or (quote.bill_type == 'quote' and (quote.approved_by_name or quote.approved_at)) %}
+            <div class="d-flex align-items-center gap-2 flex-wrap me-auto">
+                {% if is_preview %}
+                <span class="badge bg-secondary">Admin Preview</span>
+                {% endif %}
+                {% if quote.bill_type == 'quote' and (quote.approved_by_name or quote.approved_at) %}
+                <span class="approved-lock-strip">
+                    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                    Approved — locked
+                </span>
+                {% endif %}
+            </div>
             {% endif %}
             <button type="button" class="btn btn-outline-primary btn-sm" id="copyLinkBtn">
                 <i class="bi bi-link-45deg me-1"></i>Copy Link
@@ -218,7 +243,7 @@
                 </p>
             </div>
 
-            {% if quote.bill_type == 'quote' and not quote.approved_at and not is_preview %}
+            {% if quote.bill_type == 'quote' and not quote.approved_by_name and not quote.approved_at and not is_preview %}
             <div class="page-break-avoid section-sep">
                 <h6 class="text-uppercase section-title">Client Approval</h6>
                 <form method="POST" action="{{ url_for('public_quote_approve', public_token=quote.public_token) }}" class="row g-3">

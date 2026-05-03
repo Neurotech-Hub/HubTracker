@@ -6,6 +6,7 @@ Create Date: 2026-05-01 09:28:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -16,8 +17,11 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('quotes', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('units_multiplier', sa.Numeric(10, 2), nullable=False, server_default='1'))
+    insp = inspect(op.get_bind())
+    quote_cols = {c['name'] for c in insp.get_columns('quotes')}
+    if 'units_multiplier' not in quote_cols:
+        with op.batch_alter_table('quotes', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('units_multiplier', sa.Numeric(10, 2), nullable=False, server_default='1'))
     op.execute("UPDATE quotes SET units_multiplier = 1 WHERE units_multiplier IS NULL")
 
 

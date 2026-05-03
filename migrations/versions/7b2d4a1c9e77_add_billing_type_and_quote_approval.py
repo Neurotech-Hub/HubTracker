@@ -7,6 +7,7 @@ Create Date: 2026-05-01 09:35:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -17,11 +18,21 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('quotes', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('bill_type', sa.String(length=20), nullable=False, server_default='quote'))
-        batch_op.add_column(sa.Column('approved_by_name', sa.String(length=255), nullable=True))
-        batch_op.add_column(sa.Column('approved_cost_center', sa.String(length=120), nullable=True))
-        batch_op.add_column(sa.Column('approved_at', sa.DateTime(timezone=True), nullable=True))
+    insp = inspect(op.get_bind())
+    quote_cols = {c['name'] for c in insp.get_columns('quotes')}
+    to_add = []
+    if 'bill_type' not in quote_cols:
+        to_add.append(sa.Column('bill_type', sa.String(length=20), nullable=False, server_default='quote'))
+    if 'approved_by_name' not in quote_cols:
+        to_add.append(sa.Column('approved_by_name', sa.String(length=255), nullable=True))
+    if 'approved_cost_center' not in quote_cols:
+        to_add.append(sa.Column('approved_cost_center', sa.String(length=120), nullable=True))
+    if 'approved_at' not in quote_cols:
+        to_add.append(sa.Column('approved_at', sa.DateTime(timezone=True), nullable=True))
+    if to_add:
+        with op.batch_alter_table('quotes', schema=None) as batch_op:
+            for col in to_add:
+                batch_op.add_column(col)
 
     op.execute("UPDATE quotes SET bill_type = 'quote' WHERE bill_type IS NULL")
 

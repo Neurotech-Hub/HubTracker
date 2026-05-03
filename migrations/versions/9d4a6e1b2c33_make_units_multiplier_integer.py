@@ -6,6 +6,7 @@ Create Date: 2026-05-01 09:31:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -16,6 +17,15 @@ depends_on = None
 
 
 def upgrade():
+    insp = inspect(op.get_bind())
+    qc = {c['name']: c for c in insp.get_columns('quotes')}
+    col_info = qc.get('units_multiplier')
+    if col_info is None:
+        return
+    # Already migrated (e.g. alembic lagged behind schema created elsewhere)
+    if isinstance(col_info['type'], sa.Integer):
+        return
+
     op.execute(
         "UPDATE quotes "
         "SET units_multiplier = GREATEST(1, ROUND(COALESCE(units_multiplier, 1))::int)"

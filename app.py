@@ -465,6 +465,15 @@ app.jinja_env.filters['duration_hours_central'] = duration_hours_central
 BILL_TYPE_OPTIONS = ('quote', 'invoice')
 
 
+def quote_is_client_locked(quote):
+    """Approved client quotes are read-only until an admin explicitly unlocks editing."""
+    if not quote:
+        return False
+    if (quote.bill_type or '').strip().lower() != 'quote':
+        return False
+    return bool(quote.approved_by_name or quote.approved_at)
+
+
 def require_admin():
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -2589,7 +2598,16 @@ def billing_edit(bill_db_id):
             selected_client_id=quote.client_id,
             selected_project_id=quote.project_id,
             line_items=sorted(list(quote.line_items), key=lambda x: x.sort_order or 0),
+            quote_edit_locked=quote_is_client_locked(quote),
         )
+
+    if quote_is_client_locked(quote):
+        flash(
+            'This quote is approved and locked. Use "Enable editing" to unlock - it clears approval '
+            'and will require client re-approval after you make changes.',
+            'warning',
+        )
+        return redirect(url_for('billing_edit', bill_db_id=quote.id))
 
     client_id = request.form.get('client_id', type=int)
     if not client_id:
@@ -2665,6 +2683,25 @@ def billing_edit(bill_db_id):
     recalculate_quote_totals(quote, parsed_line_items=parsed_line_items)
     db.session.commit()
     flash(f'Bill {quote.quote_id} updated.', 'success')
+    return redirect(url_for('billing_edit', bill_db_id=quote.id))
+
+
+@app.route('/billing/<int:bill_db_id>/unlock_edit', methods=['POST'])
+def billing_unlock_quote_edit(bill_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(bill_db_id)
+    if not quote_is_client_locked(quote):
+        flash('This bill is not locked for editing.', 'info')
+        return redirect(url_for('billing_edit', bill_db_id=quote.id))
+
+    quote.approved_by_name = None
+    quote.approved_cost_center = None
+    quote.approved_at = None
+    db.session.commit()
+    flash('Editing enabled. The previous approval was cleared; this quote will need to be approved again.', 'success')
     return redirect(url_for('billing_edit', bill_db_id=quote.id))
 
 
