@@ -195,7 +195,7 @@
                                 <option value="invoice" {% if bill_type_value == 'invoice' %}selected{% endif %}>Invoice</option>
                             </select>
                             {% if quote and edit_locked %}
-                            <p id="billTypeLockedHelp" class="form-text small mb-0">Change to Invoice and save to bill the client—other fields stay locked.</p>
+                            <p id="billTypeLockedHelp" class="form-text small mb-0">You can switch between Quote and Invoice here while the bill stays approved and locked. For other edits, use Enable editing.</p>
                             {% endif %}
                         </div>
                     </div>

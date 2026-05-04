@@ -103,14 +103,15 @@
 </head>
 <body>
     <div class="container py-4">
+        {% set public_bill_locked = quote.approved_by_name or quote.approved_at %}
         <div class="action-bar d-flex justify-content-end align-items-center gap-2 mb-3 flex-wrap">
-            {% if is_preview or (quote.bill_type == 'quote' and (quote.approved_by_name or quote.approved_at)) %}
+            {% if is_preview or public_bill_locked %}
             <div class="d-flex align-items-center gap-2 flex-wrap me-auto">
                 {% if is_preview %}
                 <span class="badge bg-secondary">Admin Preview</span>
                 {% endif %}
-                {% if quote.bill_type == 'quote' and (quote.approved_by_name or quote.approved_at) %}
-                <span class="approved-lock-strip">
+                {% if public_bill_locked %}
+                <span class="approved-lock-strip" title="This bill was approved and is read-only for clients.">
                     <i class="bi bi-lock-fill" aria-hidden="true"></i>
                     Approved — locked
                 </span>
@@ -246,8 +247,11 @@
 
             {% if quote.approved_by_name or quote.approved_at %}
             <div class="page-break-avoid section-sep">
-                <h6 class="text-uppercase section-title">Status</h6>
-                <p class="mb-0"><strong>Locked:</strong> This {{ (quote.bill_type or 'bill')|lower }} has been approved and is now read-only for clients.</p>
+                <h6 class="text-uppercase section-title d-flex align-items-center gap-2">
+                    <i class="bi bi-lock-fill text-success" aria-hidden="true"></i>
+                    <span>Locked</span>
+                </h6>
+                <p class="mb-0">This bill has been approved and is read-only for clients (quote or invoice).</p>
             </div>
             {% endif %}
 

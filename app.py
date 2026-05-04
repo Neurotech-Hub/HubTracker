@@ -2770,20 +2770,20 @@ def public_quote_approve(public_token):
         flash('This bill has already been approved and locked.', 'info')
         return redirect(url_for('public_quote', public_token=public_token))
 
-    if quote.bill_type != 'quote':
-        flash('Approval is only available for quote-type bills.', 'error')
+    if (quote.bill_type or '').strip().lower() != 'quote':
+        flash('Client approval is only available before this bill is issued as an invoice.', 'error')
         return redirect(url_for('public_quote', public_token=public_token))
 
     approver_name = request.form.get('approved_by_name', '').strip()
     if not approver_name:
-        flash('Approver Name is required to approve this quote.', 'error')
+        flash('Approver Name is required to approve this bill.', 'error')
         return redirect(url_for('public_quote', public_token=public_token))
 
     quote.approved_by_name = approver_name
     quote.approved_cost_center = request.form.get('approved_cost_center', '').strip() or None
     quote.approved_at = get_current_time()
     db.session.commit()
-    flash('Quote approved successfully.', 'success')
+    flash('Bill approved successfully.', 'success')
     return redirect(url_for('public_quote', public_token=public_token))
 
 
