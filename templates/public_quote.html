@@ -244,6 +244,13 @@
                 </p>
             </div>
 
+            {% if quote.approved_by_name or quote.approved_at %}
+            <div class="page-break-avoid section-sep">
+                <h6 class="text-uppercase section-title">Status</h6>
+                <p class="mb-0"><strong>Locked:</strong> This {{ (quote.bill_type or 'bill')|lower }} has been approved and is now read-only for clients.</p>
+            </div>
+            {% endif %}
+
             {% if quote.bill_type == 'quote' and not quote.approved_by_name and not quote.approved_at and not is_preview %}
             <div class="page-break-avoid section-sep">
                 <h6 class="text-uppercase section-title">Client Approval</h6>
@@ -278,18 +285,25 @@
         </div>
     </div>
 
+    <script id="publicUrlData" type="application/json">{{ public_url|tojson }}</script>
     <script>
-        document.getElementById('copyLinkBtn').addEventListener('click', async () => {
-            const url = {{ public_url|tojson }};
+        document.getElementById('copyLinkBtn').addEventListener('click', async function() {
+            var urlData = document.getElementById('publicUrlData');
+            var url = '';
+            try {
+                url = JSON.parse(urlData ? urlData.textContent : '""');
+            } catch (e) {
+                url = '';
+            }
             if (!url) {
                 alert('Save this bill first to copy a shareable link.');
                 return;
             }
             try {
                 await navigator.clipboard.writeText(url);
-                const btn = document.getElementById('copyLinkBtn');
+                var btn = document.getElementById('copyLinkBtn');
                 btn.textContent = 'Copied';
-                setTimeout(() => { btn.innerHTML = '<i class="bi bi-link-45deg me-1"></i>Copy Link'; }, 1200);
+                setTimeout(function() { btn.innerHTML = '<i class="bi bi-link-45deg me-1"></i>Copy Link'; }, 1200);
             } catch (err) {
                 alert('Could not copy the link from this browser context.');
             }

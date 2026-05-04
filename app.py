@@ -2766,12 +2766,12 @@ def public_quote_approve(public_token):
     if not quote or not quote.is_public:
         abort(404)
 
-    if quote.bill_type != 'quote':
-        flash('Approval is only available for quote-type bills.', 'error')
+    if quote.approved_by_name or quote.approved_at:
+        flash('This bill has already been approved and locked.', 'info')
         return redirect(url_for('public_quote', public_token=public_token))
 
-    if quote.approved_by_name or quote.approved_at:
-        flash('This quote has already been approved.', 'info')
+    if quote.bill_type != 'quote':
+        flash('Approval is only available for quote-type bills.', 'error')
         return redirect(url_for('public_quote', public_token=public_token))
 
     approver_name = request.form.get('approved_by_name', '').strip()
