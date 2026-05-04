@@ -2,6 +2,31 @@
 
 {% block title %}Billing - Hub Tracker{% endblock %}
 
+{% block extra_head %}
+<style>
+    /* Single-line rows; wide tables scroll horizontally inside .table-responsive */
+    .table-billing-list {
+        width: max-content;
+        min-width: 100%;
+    }
+    .table-billing-list thead th,
+    .table-billing-list tbody td {
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .table-billing-list .billing-title-cell {
+        max-width: 28rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .table-billing-list .billing-title-inner {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -15,7 +40,7 @@
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover table-sm mb-0">
+                <table class="table table-hover table-sm mb-0 table-billing-list">
                     <thead class="table-light">
                         <tr>
                             <th>Bill ID</th>
@@ -24,19 +49,28 @@
                             <th>Type</th>
                             <th>Issued</th>
                             <th>Total</th>
-                            <th class="text-end">Actions</th>
+                            <th class="text-end billing-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for quote in quotes %}
+                        {% set full_title = (quote.title or '—') ~ (' (' ~ quote.project.name ~ ')' if quote.project else '') %}
                         <tr>
-                            <td class="fw-semibold">{{ quote.quote_id }}</td>
-                            <td>{{ quote.client.name }}</td>
-                            <td>
-                                <span class="fw-medium">{{ quote.title or '—' }}</span>
-                                {% if quote.project %}
-                                <span class="text-muted">({{ quote.project.name }})</span>
+                            <td class="fw-semibold">
+                                {% if quote.public_token and quote.is_public %}
+                                <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" target="_blank" rel="noopener noreferrer">{{ quote.quote_id }}</a>
+                                {% else %}
+                                {{ quote.quote_id }}
                                 {% endif %}
+                            </td>
+                            <td>{{ quote.client.name }}</td>
+                            <td class="billing-title-cell" title="{{ full_title|e }}">
+                                <div class="billing-title-inner">
+                                    <span class="fw-medium">{{ quote.title or '—' }}</span>
+                                    {% if quote.project %}
+                                    <span class="text-muted">({{ quote.project.name }})</span>
+                                    {% endif %}
+                                </div>
                             </td>
                             <td>
                                 <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% else %}bg-success{% endif %}">
@@ -45,11 +79,8 @@
                             </td>
                             <td>{{ quote.issue_date.strftime('%Y-%m-%d') if quote.issue_date else '—' }}</td>
                             <td>{{ quote.total_amount|currency }}</td>
-                            <td class="text-end">
+                            <td class="text-end billing-actions">
                                 <a href="{{ url_for('billing_edit', bill_db_id=quote.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                {% if quote.public_token and quote.is_public %}
-                                <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" target="_blank" class="btn btn-sm btn-outline-success">View Public</a>
-                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
