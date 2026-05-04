@@ -19,7 +19,7 @@
                 Approved by {{ quote.approved_by_name or 'client' }}
                 {% if quote.approved_at %}on {{ quote.approved_at.strftime('%b %d, %Y') }}{% endif %}.
                 You can switch <strong>Bill Type</strong> to <strong>Invoice</strong> and click <strong>Save Changes</strong> to bill—approval details are preserved.
-                Use <strong>Enable editing</strong> only when you need to change line items, pricing, or other details (this clears approval and will require client re-approval).
+                The bill stays locked after conversion; use <strong>Enable editing</strong> only when you need to change line items, pricing, or other details (this clears approval and will require client re-approval).
             </p>
             <form method="POST" action="{{ url_for('billing_unlock_quote_edit', bill_db_id=quote.id) }}" class="mb-0 d-inline-block"
                   onsubmit="return confirm('This action will require re-approval. Any existing approval record will be removed. Continue?');">

@@ -466,10 +466,8 @@ BILL_TYPE_OPTIONS = ('quote', 'invoice')
 
 
 def quote_is_client_locked(quote):
-    """Approved quotes (while still type=quote) are mostly read-only; bill type may still be switched to invoice."""
+    """Approved bills remain read-only until an admin explicitly unlocks editing."""
     if not quote:
-        return False
-    if (quote.bill_type or '').strip().lower() != 'quote':
         return False
     return bool(quote.approved_by_name or quote.approved_at)
 
