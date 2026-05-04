@@ -466,7 +466,7 @@ BILL_TYPE_OPTIONS = ('quote', 'invoice')
 
 
 def quote_is_client_locked(quote):
-    """Approved client quotes are read-only until an admin explicitly unlocks editing."""
+    """Approved quotes (while still type=quote) are mostly read-only; bill type may still be switched to invoice."""
     if not quote:
         return False
     if (quote.bill_type or '').strip().lower() != 'quote':
@@ -2601,12 +2601,17 @@ def billing_edit(bill_db_id):
             quote_edit_locked=quote_is_client_locked(quote),
         )
 
+    # Locked approved quotes: allow only bill_type changes (e.g. Quote → Invoice) without altering approval or body.
     if quote_is_client_locked(quote):
-        flash(
-            'This quote is approved and locked. Use "Enable editing" to unlock - it clears approval '
-            'and will require client re-approval after you make changes.',
-            'warning',
-        )
+        bill_type = request.form.get('bill_type', quote.bill_type or 'quote').strip().lower()
+        if bill_type not in BILL_TYPE_OPTIONS:
+            bill_type = quote.bill_type or 'quote'
+        if quote.bill_type != bill_type:
+            quote.bill_type = bill_type
+            db.session.commit()
+            flash(f'Bill type updated to {bill_type.title()}.', 'success')
+        else:
+            flash('No changes to save.', 'info')
         return redirect(url_for('billing_edit', bill_db_id=quote.id))
 
     client_id = request.form.get('client_id', type=int)

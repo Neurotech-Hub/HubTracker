@@ -4,25 +4,22 @@
 
 {% block extra_head %}
 <style>
-    /* Single-line rows; wide tables scroll horizontally inside .table-responsive */
+    /* Full-width responsive table: only Title wraps; compact cols stay single-line. */
     .table-billing-list {
-        width: max-content;
-        min-width: 100%;
+        width: 100%;
+        max-width: 100%;
     }
-    .table-billing-list thead th,
-    .table-billing-list tbody td {
+    .table-billing-list .billing-col-compact {
         white-space: nowrap;
         vertical-align: middle;
     }
-    .table-billing-list .billing-title-cell {
-        max-width: 28rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .table-billing-list .billing-title-inner {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    .table-billing-list th.billing-col-title,
+    .table-billing-list td.billing-title-cell {
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        vertical-align: middle;
+        min-width: 8rem;
     }
 </style>
 {% endblock %}
@@ -43,43 +40,41 @@
                 <table class="table table-hover table-sm mb-0 table-billing-list">
                     <thead class="table-light">
                         <tr>
-                            <th>Bill ID</th>
-                            <th>Client</th>
-                            <th>Title</th>
-                            <th>Type</th>
-                            <th>Issued</th>
-                            <th>Total</th>
-                            <th class="text-end billing-actions">Actions</th>
+                            <th class="billing-col-compact">Bill ID</th>
+                            <th class="billing-col-compact">Client</th>
+                            <th class="billing-col-title">Title</th>
+                            <th class="billing-col-compact">Type</th>
+                            <th class="billing-col-compact">Issued</th>
+                            <th class="billing-col-compact">Total</th>
+                            <th class="text-end billing-actions billing-col-compact">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for quote in quotes %}
                         {% set full_title = (quote.title or '—') ~ (' (' ~ quote.project.name ~ ')' if quote.project else '') %}
                         <tr>
-                            <td class="fw-semibold">
+                            <td class="billing-col-compact fw-semibold">
                                 {% if quote.public_token and quote.is_public %}
                                 <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" target="_blank" rel="noopener noreferrer">{{ quote.quote_id }}</a>
                                 {% else %}
                                 {{ quote.quote_id }}
                                 {% endif %}
                             </td>
-                            <td>{{ quote.client.name }}</td>
+                            <td class="billing-col-compact">{{ quote.client.name }}</td>
                             <td class="billing-title-cell" title="{{ full_title|e }}">
-                                <div class="billing-title-inner">
-                                    <span class="fw-medium">{{ quote.title or '—' }}</span>
-                                    {% if quote.project %}
-                                    <span class="text-muted">({{ quote.project.name }})</span>
-                                    {% endif %}
-                                </div>
+                                <span class="fw-medium">{{ quote.title or '—' }}</span>
+                                {% if quote.project %}
+                                <span class="text-muted">({{ quote.project.name }})</span>
+                                {% endif %}
                             </td>
-                            <td>
+                            <td class="billing-col-compact">
                                 <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% else %}bg-success{% endif %}">
                                     {{ (quote.bill_type or 'quote').title() }}
                                 </span>
                             </td>
-                            <td>{{ quote.issue_date.strftime('%Y-%m-%d') if quote.issue_date else '—' }}</td>
-                            <td>{{ quote.total_amount|currency }}</td>
-                            <td class="text-end billing-actions">
+                            <td class="billing-col-compact">{{ quote.issue_date.strftime('%Y-%m-%d') if quote.issue_date else '—' }}</td>
+                            <td class="billing-col-compact">{{ quote.total_amount|currency }}</td>
+                            <td class="text-end billing-actions billing-col-compact">
                                 <a href="{{ url_for('billing_edit', bill_db_id=quote.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
                             </td>
                         </tr>

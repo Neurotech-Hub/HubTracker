@@ -14,11 +14,12 @@
     <div class="alert alert-secondary border d-flex gap-3 align-items-start mb-4" role="alert">
         <i class="bi bi-lock-fill fs-4 text-secondary flex-shrink-0 mt-1"></i>
         <div class="flex-grow-1">
-            <strong class="d-block mb-2">Approved — editing is disabled</strong>
+            <strong class="d-block mb-2">Approved — most fields are read-only</strong>
             <p class="mb-2 small">
                 Approved by {{ quote.approved_by_name or 'client' }}
                 {% if quote.approved_at %}on {{ quote.approved_at.strftime('%b %d, %Y') }}{% endif %}.
-                The client-facing quote is frozen while approved.
+                You can switch <strong>Bill Type</strong> to <strong>Invoice</strong> and click <strong>Save Changes</strong> to bill—approval details are preserved.
+                Use <strong>Enable editing</strong> only when you need to change line items, pricing, or other details (this clears approval and will require client re-approval).
             </p>
             <form method="POST" action="{{ url_for('billing_unlock_quote_edit', bill_db_id=quote.id) }}" class="mb-0 d-inline-block"
                   onsubmit="return confirm('This action will require re-approval. Any existing approval record will be removed. Continue?');">
@@ -185,28 +186,50 @@
             <div class="col-12 col-lg-4">
                 <div class="card">
                     <div class="card-header"><strong>Billing Settings</strong></div>
-                    <fieldset class="border-0 p-0 m-0 px-3 pt-3" style="min-width: 0" {% if quote and edit_locked %}disabled{% endif %}>
-                        <div class="mb-3">
+                    <div class="px-3 pt-3">
+                        <div class="mb-0">
                             {% set bill_type_value = quote.bill_type if quote and quote.bill_type else 'quote' %}
                             <label class="form-label">Bill Type</label>
-                            <select class="form-select" name="bill_type">
+                            <select class="form-select" id="billTypeSelect" name="bill_type" {% if quote and edit_locked %}aria-describedby="billTypeLockedHelp"{% endif %}>
                                 <option value="quote" {% if bill_type_value == 'quote' %}selected{% endif %}>Quote</option>
                                 <option value="invoice" {% if bill_type_value == 'invoice' %}selected{% endif %}>Invoice</option>
                             </select>
+                            {% if quote and edit_locked %}
+                            <p id="billTypeLockedHelp" class="form-text small mb-0">Change to Invoice and save to bill the client—other fields stay locked.</p>
+                            {% endif %}
                         </div>
+                    </div>
+                    {% if quote %}
+                    <fieldset class="border-0 p-0 m-0 px-3 pt-3" style="min-width: 0" {% if edit_locked %}disabled{% endif %}>
                         <div class="mb-3">
                             <label class="form-label">Approver Name</label>
-                            <input type="text" class="form-control" name="approved_by_name" value="{{ quote.approved_by_name if quote and quote.approved_by_name else '' }}" placeholder="Client approver name">
+                            <input type="text" class="form-control" name="approved_by_name" value="{{ quote.approved_by_name if quote.approved_by_name else '' }}" placeholder="Client approver name">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Cost Center</label>
-                            <input type="text" class="form-control" name="approved_cost_center" value="{{ quote.approved_cost_center if quote and quote.approved_cost_center else '' }}" placeholder="Optional">
+                            <input type="text" class="form-control" name="approved_cost_center" value="{{ quote.approved_cost_center if quote.approved_cost_center else '' }}" placeholder="Optional">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Approved At</label>
-                            <input type="datetime-local" class="form-control" name="approved_at" value="{{ quote.approved_at.strftime('%Y-%m-%dT%H:%M') if quote and quote.approved_at else '' }}">
+                            <input type="datetime-local" class="form-control" name="approved_at" value="{{ quote.approved_at.strftime('%Y-%m-%dT%H:%M') if quote.approved_at else '' }}">
                         </div>
                     </fieldset>
+                    {% else %}
+                    <fieldset class="border-0 p-0 m-0 px-3 pt-3" style="min-width: 0">
+                        <div class="mb-3">
+                            <label class="form-label">Approver Name</label>
+                            <input type="text" class="form-control" name="approved_by_name" value="" placeholder="Client approver name">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cost Center</label>
+                            <input type="text" class="form-control" name="approved_cost_center" value="" placeholder="Optional">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Approved At</label>
+                            <input type="datetime-local" class="form-control" name="approved_at" value="">
+                        </div>
+                    </fieldset>
+                    {% endif %}
                     {% if quote %}
                     <div class="card-body border-top pt-3">
                         <div class="d-grid gap-2">
@@ -229,15 +252,11 @@
                                 </button>
                             </div>
                             <div class="col-12 col-md-7">
-                                {% if edit_locked %}
-                                <button type="button" class="btn btn-secondary w-100" disabled>Save Changes</button>
-                                {% else %}
                                 <button type="submit" class="btn btn-primary w-100">Save Changes</button>
-                                {% endif %}
                             </div>
                         </div>
                         {% if edit_locked %}
-                        <p class="small text-muted mb-0 mt-2">Use <strong>Enable editing</strong> above to change this bill.</p>
+                        <p class="small text-muted mb-0 mt-2">While approved, saves only apply to <strong>Bill Type</strong> unless you enable full editing.</p>
                         {% endif %}
                     </div>
                     {% endif %}
