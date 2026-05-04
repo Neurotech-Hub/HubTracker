@@ -245,16 +245,6 @@
                 </p>
             </div>
 
-            {% if quote.approved_by_name or quote.approved_at %}
-            <div class="page-break-avoid section-sep">
-                <h6 class="text-uppercase section-title d-flex align-items-center gap-2">
-                    <i class="bi bi-lock-fill text-success" aria-hidden="true"></i>
-                    <span>Locked</span>
-                </h6>
-                <p class="mb-0">This bill has been approved and is read-only for clients (quote or invoice).</p>
-            </div>
-            {% endif %}
-
             {% if quote.bill_type == 'quote' and not quote.approved_by_name and not quote.approved_at and not is_preview %}
             <div class="page-break-avoid section-sep">
                 <h6 class="text-uppercase section-title">Client Approval</h6>
