@@ -20,7 +20,7 @@
                         <tr>
                             <th>Bill ID</th>
                             <th>Client</th>
-                            <th>Project</th>
+                            <th>Title</th>
                             <th>Type</th>
                             <th>Issued</th>
                             <th>Total</th>
@@ -32,7 +32,12 @@
                         <tr>
                             <td class="fw-semibold">{{ quote.quote_id }}</td>
                             <td>{{ quote.client.name }}</td>
-                            <td>{{ quote.project.name if quote.project else '—' }}</td>
+                            <td>
+                                <span class="fw-medium">{{ quote.title or '—' }}</span>
+                                {% if quote.project %}
+                                <span class="text-muted">({{ quote.project.name }})</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% else %}bg-success{% endif %}">
                                     {{ (quote.bill_type or 'quote').title() }}
