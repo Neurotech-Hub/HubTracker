@@ -89,6 +89,21 @@
 
         .approved-lock-strip i { font-size: 0.95rem; }
 
+        .quote-card-footer-terms {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e9ecef;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            color: #9ca3af;
+        }
+        .quote-card-footer-terms a {
+            color: #868e96;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .quote-card-footer-terms a:hover { color: var(--muted-ink); }
+
         @media print {
             body { background: #fff; font-size: 12px; }
             .action-bar { display: none !important; }
@@ -234,17 +249,6 @@
             </div>
             {% endif %}
 
-            <div class="page-break-avoid section-sep">
-                <h6 class="text-uppercase section-title">Terms</h6>
-                {% if quote.terms and quote.terms|trim %}
-                <p class="mb-2">{{ quote.terms }}</p>
-                {% endif %}
-                <p class="mb-0">
-                    Products are subject to the Neurotech Hub Product User Agreement:
-                    <a href="https://neurotechhub.wustl.edu/store/neurotech-hub-product-user-agreement/" target="_blank" rel="noopener noreferrer">neurotechhub.wustl.edu/store/neurotech-hub-product-user-agreement/</a>
-                </p>
-            </div>
-
             {% if quote.bill_type == 'quote' and not quote.approved_by_name and not quote.approved_at and not is_preview %}
             <div class="page-break-avoid section-sep">
                 <h6 class="text-uppercase section-title">Client Approval</h6>
@@ -276,6 +280,16 @@
                 {% endif %}
             </div>
             {% endif %}
+
+            <div class="quote-card-footer-terms">
+                {% if quote.terms and quote.terms|trim %}
+                <p class="mb-2">{{ quote.terms }}</p>
+                {% endif %}
+                <p class="mb-0">
+                    Products are subject to the Neurotech Hub Product User Agreement:
+                    <a href="https://neurotechhub.wustl.edu/store/neurotech-hub-product-user-agreement/" target="_blank" rel="noopener noreferrer">neurotechhub.wustl.edu/store/neurotech-hub-product-user-agreement/</a>
+                </p>
+            </div>
         </div>
     </div>
 
