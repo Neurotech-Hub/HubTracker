@@ -103,6 +103,13 @@
             text-underline-offset: 2px;
         }
         .quote-card-footer-terms a:hover { color: var(--muted-ink); }
+        .quote-card-footer-terms-label {
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            color: #adb5bd;
+            margin-bottom: 0.45rem;
+        }
 
         @media print {
             body { background: #fff; font-size: 12px; }
@@ -282,6 +289,7 @@
             {% endif %}
 
             <div class="quote-card-footer-terms">
+                <div class="quote-card-footer-terms-label">TERMS</div>
                 {% if quote.terms and quote.terms|trim %}
                 <p class="mb-2">{{ quote.terms }}</p>
                 {% endif %}
