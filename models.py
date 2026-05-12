@@ -357,6 +357,7 @@ class Quote(db.Model):
     approved_by_name = db.Column(db.String(255), nullable=True)
     approved_cost_center = db.Column(db.String(120), nullable=True)
     approved_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    admin_edit_unlocked = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
     public_token = db.Column(db.String(64), nullable=True, unique=True, index=True)
     is_public = db.Column(db.Boolean, default=False, nullable=False)
     published_at = db.Column(db.DateTime(timezone=True), nullable=True)

@@ -466,10 +466,17 @@ BILL_TYPE_OPTIONS = ('quote', 'invoice')
 
 
 def quote_is_client_locked(quote):
-    """Approved bills remain read-only until an admin explicitly unlocks editing."""
+    """True when the bill has client approval metadata (public view stays read-only for clients)."""
     if not quote:
         return False
     return bool(quote.approved_by_name or quote.approved_at)
+
+
+def quote_admin_form_locked(quote):
+    """Admin billing form is read-only for most fields when client-approved unless admin enabled editing."""
+    if not quote:
+        return False
+    return quote_is_client_locked(quote) and not bool(getattr(quote, 'admin_edit_unlocked', False))
 
 
 def require_admin():
@@ -2596,11 +2603,11 @@ def billing_edit(bill_db_id):
             selected_client_id=quote.client_id,
             selected_project_id=quote.project_id,
             line_items=sorted(list(quote.line_items), key=lambda x: x.sort_order or 0),
-            quote_edit_locked=quote_is_client_locked(quote),
+            quote_edit_locked=quote_admin_form_locked(quote),
         )
 
     # Locked approved quotes: allow only bill_type changes (e.g. Quote → Invoice) without altering approval or body.
-    if quote_is_client_locked(quote):
+    if quote_admin_form_locked(quote):
         bill_type = request.form.get('bill_type', quote.bill_type or 'quote').strip().lower()
         if bill_type not in BILL_TYPE_OPTIONS:
             bill_type = quote.bill_type or 'quote'
@@ -2684,6 +2691,8 @@ def billing_edit(bill_db_id):
     # Flush ensures deleted items are excluded before recomputing totals.
     db.session.flush()
     recalculate_quote_totals(quote, parsed_line_items=parsed_line_items)
+    if not quote_is_client_locked(quote):
+        quote.admin_edit_unlocked = False
     db.session.commit()
     flash(f'Bill {quote.quote_id} updated.', 'success')
     return redirect(url_for('billing_edit', bill_db_id=quote.id))
@@ -2700,11 +2709,16 @@ def billing_unlock_quote_edit(bill_db_id):
         flash('This bill is not locked for editing.', 'info')
         return redirect(url_for('billing_edit', bill_db_id=quote.id))
 
-    quote.approved_by_name = None
-    quote.approved_cost_center = None
-    quote.approved_at = None
+    if quote.admin_edit_unlocked:
+        flash('Editing is already enabled for this bill.', 'info')
+        return redirect(url_for('billing_edit', bill_db_id=quote.id))
+
+    quote.admin_edit_unlocked = True
     db.session.commit()
-    flash('Editing enabled. The previous approval was cleared; this quote will need to be approved again.', 'success')
+    flash(
+        'Editing enabled. Approver details were kept; the client view stays read-only while approval is on record.',
+        'success',
+    )
     return redirect(url_for('billing_edit', bill_db_id=quote.id))
 
 
@@ -2782,6 +2796,7 @@ def public_quote_approve(public_token):
     quote.approved_by_name = approver_name
     quote.approved_cost_center = request.form.get('approved_cost_center', '').strip() or None
     quote.approved_at = get_current_time()
+    quote.admin_edit_unlocked = False
     db.session.commit()
     flash('Bill approved successfully.', 'success')
     return redirect(url_for('public_quote', public_token=public_token))
