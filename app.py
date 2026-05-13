@@ -2722,6 +2722,27 @@ def billing_unlock_quote_edit(bill_db_id):
     return redirect(url_for('billing_edit', bill_db_id=quote.id))
 
 
+@app.route('/billing/<int:bill_db_id>/lock_edit', methods=['POST'])
+def billing_lock_quote_edit(bill_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(bill_db_id)
+    if not quote_is_client_locked(quote):
+        flash('Lock applies to bills with client approval on record.', 'info')
+        return redirect(url_for('billing_edit', bill_db_id=quote.id))
+
+    if not quote.admin_edit_unlocked:
+        flash('This bill is already in locked editing mode.', 'info')
+        return redirect(url_for('billing_edit', bill_db_id=quote.id))
+
+    quote.admin_edit_unlocked = False
+    db.session.commit()
+    flash('Bill locked. Most fields are read-only again until you enable editing.', 'success')
+    return redirect(url_for('billing_edit', bill_db_id=quote.id))
+
+
 @app.route('/billing/<int:bill_db_id>/delete', methods=['POST'])
 def billing_delete(bill_db_id):
     auth_error = require_admin()

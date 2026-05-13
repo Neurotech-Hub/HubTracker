@@ -10,24 +10,36 @@
         <a href="{{ url_for('billing') }}" class="btn btn-outline-secondary">Back to Billing</a>
     </div>
 
-    {% if edit_locked %}
-    <div class="alert alert-secondary border d-flex gap-3 align-items-start mb-4" role="alert">
-        <i class="bi bi-lock-fill fs-4 text-secondary flex-shrink-0 mt-1"></i>
-        <div class="flex-grow-1">
-            <strong class="d-block mb-2">Approved — most fields are read-only</strong>
-            <p class="mb-2 small">
-                Approved by {{ quote.approved_by_name or 'client' }}
-                {% if quote.approved_at %}on {{ quote.approved_at.strftime('%b %d, %Y') }}{% endif %}.
-                You can switch <strong>Bill Type</strong> to <strong>Invoice</strong> and click <strong>Save Changes</strong> to bill—approval details are preserved.
-                Use <strong>Enable editing</strong> when you need to change line items, pricing, or other details. Approver information stays on the bill; the client view remains read-only while that approval is present.
-            </p>
-            <form method="POST" action="{{ url_for('billing_unlock_quote_edit', bill_db_id=quote.id) }}" class="mb-0 d-inline-block"
-                  onsubmit="return confirm('Unlock all fields for editing? Approver details will be kept on the bill.');">
-                <button type="submit" class="btn btn-warning btn-sm">Enable editing</button>
-            </form>
-            <span class="small text-muted ms-2 d-inline-block align-middle">Unlocks line items and other fields; does not clear approval.</span>
+    {% if quote and (quote.approved_by_name or quote.approved_at) %}
+        {% if edit_locked %}
+        <div class="alert alert-secondary border d-flex gap-3 align-items-start mb-4" role="alert">
+            <i class="bi bi-lock-fill fs-4 text-secondary flex-shrink-0 mt-1"></i>
+            <div class="flex-grow-1">
+                <strong class="d-block mb-2">Approved — most fields are read-only</strong>
+                <p class="mb-2 small">
+                    Approved by {{ quote.approved_by_name or 'client' }}
+                    {% if quote.approved_at %}on {{ quote.approved_at.strftime('%b %d, %Y') }}{% endif %}.
+                    You can switch <strong>Bill Type</strong> to <strong>Invoice</strong> and click <strong>Save</strong> to bill—approval details are preserved.
+                    Use <strong>Enable editing</strong> when you need to change line items, pricing, or other details. Approver information stays on the bill; the client view remains read-only while that approval is present.
+                </p>
+                <form method="POST" action="{{ url_for('billing_unlock_quote_edit', bill_db_id=quote.id) }}" class="mb-0 d-inline-block"
+                      onsubmit="return confirm('Unlock all fields for editing? Approver details will be kept on the bill.');">
+                    <button type="submit" class="btn btn-warning btn-sm">Enable editing</button>
+                </form>
+                <span class="small text-muted ms-2 d-inline-block align-middle">Unlocks line items and other fields; does not clear approval.</span>
+            </div>
         </div>
-    </div>
+        {% else %}
+        <div class="alert alert-light border d-flex gap-3 align-items-start mb-4" role="alert">
+            <i class="bi bi-unlock fs-4 text-secondary flex-shrink-0 mt-1"></i>
+            <div class="flex-grow-1">
+                <strong class="d-block mb-2">Client approval on record</strong>
+                <p class="mb-0 small">
+                    The public bill stays read-only for the client. You can edit all fields here; use <strong>Lock</strong> in the row above when you want this form read-only again except for bill type.
+                </p>
+            </div>
+        </div>
+        {% endif %}
     {% endif %}
 
     <form method="POST" action="{{ url_for('billing_edit', bill_db_id=quote.id) if quote else url_for('billing_new') }}">
@@ -232,32 +244,24 @@
                     {% endif %}
                     {% if quote %}
                     <div class="card-body border-top pt-3">
-                        <div class="d-grid gap-2">
+                        {% set client_has_approval = quote.approved_by_name or quote.approved_at %}
+                        {% set lock_button_disabled = not client_has_approval or edit_locked %}
+                        <div class="d-flex gap-2">
                             {% if quote.public_token and quote.is_public %}
-                            <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" class="btn btn-outline-primary btn-sm w-100" target="_blank">Open Client View</a>
+                            <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" class="btn btn-outline-primary flex-fill" target="_blank" rel="noopener noreferrer">Client View</a>
                             {% else %}
-                            <a href="{{ url_for('billing_preview', bill_db_id=quote.id) }}" class="btn btn-outline-primary btn-sm w-100" target="_blank">Preview Client View</a>
+                            <a href="{{ url_for('billing_preview', bill_db_id=quote.id) }}" class="btn btn-outline-primary flex-fill" target="_blank" rel="noopener noreferrer">Client View</a>
                             {% endif %}
+                            <button type="submit" form="quoteLockForm" class="btn btn-outline-secondary flex-fill"
+                                {% if lock_button_disabled %}disabled{% endif %}
+                                {% if not client_has_approval %}title="Only bills with a client approval can use Lock."{% elif edit_locked %}title="Already in locked editing mode."{% endif %}
+                                {% if not lock_button_disabled %}onclick="return confirm('Lock editing mode again? Save any pending changes first—this reloads the page without saving the form.');"{% endif %}>Lock</button>
+                            <button type="submit" class="btn btn-primary flex-fill">Save</button>
                         </div>
-                    </div>
-                    <div class="card-body border-top pt-0">
-                        <div class="row g-2">
-                            <div class="col-12 col-md-5">
-                                <button
-                                    type="button"
-                                    class="btn btn-outline-danger w-100"
-                                    onclick="if (confirm('Delete this bill? This will only remove the bill and its line items.')) { document.getElementById('quoteDeleteForm').submit(); }"
-                                >
-                                    Delete Bill
-                                </button>
-                            </div>
-                            <div class="col-12 col-md-7">
-                                <button type="submit" class="btn btn-primary w-100">Save Changes</button>
-                            </div>
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-link text-danger btn-sm p-0 small text-decoration-none"
+                                    onclick="if (confirm('Delete this bill? This will only remove the bill and its line items.')) { document.getElementById('quoteDeleteForm').submit(); }">Delete</button>
                         </div>
-                        {% if edit_locked %}
-                        <p class="small text-muted mb-0 mt-2">While approved, saves only apply to <strong>Bill Type</strong> unless you enable full editing.</p>
-                        {% endif %}
                     </div>
                     {% endif %}
                     {% if not quote %}
@@ -274,6 +278,7 @@
         </div>
     </form>
     {% if quote %}
+    <form id="quoteLockForm" method="POST" action="{{ url_for('billing_lock_quote_edit', bill_db_id=quote.id) }}"></form>
     <form id="quoteDeleteForm" method="POST" action="{{ url_for('billing_delete', bill_db_id=quote.id) }}"></form>
     {% endif %}
 </div>
