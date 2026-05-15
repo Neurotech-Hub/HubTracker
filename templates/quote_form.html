@@ -10,6 +10,16 @@
         <a href="{{ url_for('billing') }}" class="btn btn-outline-secondary">Back to Billing</a>
     </div>
 
+    {% if quote and quote.status == 'archived' %}
+    <div class="alert alert-light border d-flex gap-3 align-items-start mb-4" role="status">
+        <i class="bi bi-archive flex-shrink-0 mt-1 text-secondary"></i>
+        <div class="small mb-0 text-body-secondary">
+            <strong class="text-body">Archived.</strong>
+            This bill is listed under <strong>Archived</strong> on the billing page. You can still edit it here; use <strong>Restore</strong> on that list to move it back to the active bills section.
+        </div>
+    </div>
+    {% endif %}
+
     {% if quote and (quote.approved_by_name or quote.approved_at) %}
         {% if edit_locked %}
         <div class="alert alert-secondary border d-flex gap-3 align-items-start mb-4" role="alert">

@@ -2452,7 +2452,13 @@ def billing():
         return auth_error
 
     bills = Quote.query.order_by(Quote.created_at.desc()).all()
-    return render_template('quotes.html', quotes=bills)
+    quotes_active = [b for b in bills if b.status != 'archived']
+    quotes_archived = [b for b in bills if b.status == 'archived']
+    return render_template(
+        'quotes.html',
+        quotes=quotes_active,
+        archived_quotes=quotes_archived,
+    )
 
 
 @app.route('/billing/new', methods=['GET', 'POST'])
@@ -2754,6 +2760,40 @@ def billing_delete(bill_db_id):
     db.session.delete(quote)
     db.session.commit()
     flash(f'Bill {quote_id_value} deleted.', 'success')
+    return redirect(url_for('billing'))
+
+
+@app.route('/billing/<int:bill_db_id>/archive', methods=['POST'])
+def billing_archive(bill_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(bill_db_id)
+    if quote.status == 'archived':
+        flash('This bill is already archived.', 'info')
+        return redirect(url_for('billing'))
+
+    quote.status = 'archived'
+    db.session.commit()
+    flash(f'Bill {quote.quote_id} archived.', 'success')
+    return redirect(url_for('billing'))
+
+
+@app.route('/billing/<int:bill_db_id>/unarchive', methods=['POST'])
+def billing_unarchive(bill_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(bill_db_id)
+    if quote.status != 'archived':
+        flash('This bill is not archived.', 'info')
+        return redirect(url_for('billing'))
+
+    quote.status = 'published'
+    db.session.commit()
+    flash(f'Bill {quote.quote_id} restored to the active list.', 'success')
     return redirect(url_for('billing'))
 
 
