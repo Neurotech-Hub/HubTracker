@@ -240,10 +240,13 @@
                         <tr><th>Units</th><td class="text-end">{{ quote.units_multiplier }}x</td></tr>
                         {% endif %}
                         <tr><th>Subtotal</th><td class="text-end">{{ quote.subtotal|currency }}</td></tr>
-                        <tr><th>Shipping</th><td class="text-end">{{ 'TBD' if quote.shipping_tbd else (quote.shipping_amount|currency) }}</td></tr>
                         {% if (quote.discount_percent or 0)|float > 0 %}
                         <tr><th>Discount %</th><td class="text-end">{{ quote.discount_percent }}%</td></tr>
                         {% endif %}
+                        {% if quote.external_customer_tax %}
+                        <tr><th>External Customer Tax (20%)</th><td class="text-end">{{ quote.tax_amount|currency }}</td></tr>
+                        {% endif %}
+                        <tr><th>Shipping</th><td class="text-end">{{ 'TBD' if quote.shipping_tbd else (quote.shipping_amount|currency) }}</td></tr>
                         <tr class="table-light"><th>Total</th><td class="text-end fw-bold">{{ quote.total_amount|currency }}</td></tr>
                     </table>
                 </div>
@@ -292,6 +295,9 @@
                 <div class="quote-card-footer-terms-label">TERMS</div>
                 {% if quote.terms and quote.terms|trim %}
                 <p class="mb-2">{{ quote.terms }}</p>
+                {% endif %}
+                {% if quote.external_customer_tax %}
+                <p class="mb-2">External customers incur a 20% tax on all products due to instituional overhead.</p>
                 {% endif %}
                 <p class="mb-0">
                     Products are subject to the Neurotech Hub Product User Agreement:

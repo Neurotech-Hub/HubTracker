@@ -350,6 +350,7 @@ class Quote(db.Model):
     shipping_tbd = db.Column(db.Boolean, nullable=False, default=False)
     units_multiplier = db.Column(db.Integer, nullable=False, default=1, server_default='1')
     discount_percent = db.Column(db.Numeric(5, 2), nullable=False, default=0)
+    external_customer_tax = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
     tax_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     notes = db.Column(db.Text, nullable=True)

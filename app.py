@@ -583,10 +583,14 @@ def recalculate_quote_totals(quote, parsed_line_items=None):
     quote.subtotal = (base_subtotal * Decimal(quote.units_multiplier or 1)).quantize(Decimal('0.01'))
     quote.shipping_amount = Decimal(quote.shipping_amount or 0).quantize(Decimal('0.01'))
     quote.discount_percent = parse_discount_percent(quote.discount_percent)
-    quote.tax_amount = Decimal('0.00')  # Tax removed from quote workflow.
     discount_amount = (quote.subtotal * (quote.discount_percent / Decimal('100'))).quantize(Decimal('0.01'))
     shipping_component = Decimal('0.00') if quote.shipping_tbd else quote.shipping_amount
-    quote.total_amount = (quote.subtotal - discount_amount + shipping_component).quantize(Decimal('0.01'))
+    pre_tax_total = (quote.subtotal - discount_amount + shipping_component).quantize(Decimal('0.01'))
+    if bool(getattr(quote, 'external_customer_tax', False)):
+        quote.tax_amount = (pre_tax_total * Decimal('0.20')).quantize(Decimal('0.01'))
+    else:
+        quote.tax_amount = Decimal('0.00')
+    quote.total_amount = (pre_tax_total + quote.tax_amount).quantize(Decimal('0.01'))
 
 @app.route('/')
 def index():
@@ -2537,6 +2541,7 @@ def billing_new():
         shipping_tbd=request.form.get('shipping_tbd') == 'on',
         units_multiplier=parse_units_multiplier(request.form.get('units_multiplier')),
         discount_percent=parse_discount_percent(request.form.get('discount_percent')),
+        external_customer_tax=request.form.get('external_customer_tax') == 'on',
         tax_amount=Decimal('0.00'),
         notes=request.form.get('notes', '').strip() or None,
         terms=request.form.get('terms', '').strip() or None,
@@ -2671,6 +2676,7 @@ def billing_edit(bill_db_id):
     quote.shipping_tbd = request.form.get('shipping_tbd') == 'on'
     quote.units_multiplier = parse_units_multiplier(request.form.get('units_multiplier'))
     quote.discount_percent = parse_discount_percent(request.form.get('discount_percent'))
+    quote.external_customer_tax = request.form.get('external_customer_tax') == 'on'
     quote.tax_amount = Decimal('0.00')
     quote.notes = request.form.get('notes', '').strip() or None
     quote.terms = request.form.get('terms', '').strip() or None
