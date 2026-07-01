@@ -196,6 +196,9 @@ hubtracker.db
 *.log
 logs/
 
+# Generated leadership snapshots (generate_report.py)
+reports/
+
 # Temporary files
 *.tmp
 *.bak
