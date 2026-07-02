@@ -2650,10 +2650,14 @@ def billing():
     bills = Quote.query.order_by(Quote.created_at.desc()).all()
     quotes_active = [b for b in bills if b.status != 'archived']
     quotes_archived = [b for b in bills if b.status == 'archived']
+    active_total = sum((Decimal(b.total_amount or 0) for b in quotes_active), Decimal('0'))
+    archived_total = sum((Decimal(b.total_amount or 0) for b in quotes_archived), Decimal('0'))
     return render_template(
         'quotes.html',
         quotes=quotes_active,
         archived_quotes=quotes_archived,
+        active_total=active_total,
+        archived_total=archived_total,
     )
 
 

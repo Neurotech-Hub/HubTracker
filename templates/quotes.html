@@ -85,6 +85,12 @@
                         </tr>
                         {% endfor %}
                     </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="6" class="text-end fw-semibold border-top">{{ active_total|currency }}</td>
+                            <td class="border-top"></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
@@ -150,6 +156,12 @@
                         </tr>
                         {% endfor %}
                     </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="6" class="text-end fw-semibold border-top">{{ archived_total|currency }}</td>
+                            <td class="border-top"></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
