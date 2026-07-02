@@ -1,0 +1,174 @@
+.time-grid-page .time-grid-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.time-grid {
+    display: grid;
+    grid-template-columns: 4.5rem repeat(7, minmax(5.5rem, 1fr));
+    gap: 4px;
+    min-width: 44rem;
+}
+
+.time-grid-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    color: #6c757d;
+    padding: 0.35rem 0.2rem;
+}
+
+.time-grid-hour-label {
+    font-size: 0.7rem;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 0.35rem;
+    white-space: nowrap;
+}
+
+.time-grid-cell {
+    min-height: 2.6rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.35rem;
+    background: #fff;
+    font-size: 0.65rem;
+    line-height: 1.2;
+    padding: 0.2rem;
+    text-align: center;
+    overflow: hidden;
+    cursor: default;
+    user-select: none;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.time-grid-cell.selectable {
+    cursor: pointer;
+}
+
+.time-grid-cell.selectable:hover {
+    border-color: #86b7fe;
+    background: #f8fbff;
+}
+
+.time-grid-cell.pending {
+    background: #d1e7dd;
+    border-color: #a3cfbb;
+    color: #0f5132;
+}
+
+.time-grid-cell.locked {
+    background: #e9ecef;
+    border-color: #ced4da;
+    color: #495057;
+    cursor: not-allowed;
+}
+
+.time-grid-cell.disabled {
+    background: #f8f9fa;
+    color: #adb5bd;
+}
+
+.time-grid-cell .cell-label {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.time-grid-total-cell {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 0.35rem 0.2rem;
+    color: #212529;
+    background: #f8f9fa;
+    border-radius: 0.35rem;
+}
+
+.time-grid-other-row .time-grid-cell {
+    min-height: 3rem;
+    text-align: left;
+    font-size: 0.68rem;
+}
+
+.time-grid-other-item {
+    margin-bottom: 0.25rem;
+}
+
+.time-grid-other-item:last-child {
+    margin-bottom: 0;
+}
+
+.time-grid-project-list {
+    max-height: 11rem;
+    overflow-y: auto;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+}
+
+.time-grid-project-item {
+    padding: 0.45rem 0.65rem;
+    border-bottom: 1px solid #f1f3f5;
+    cursor: pointer;
+}
+
+.time-grid-project-item:last-child {
+    border-bottom: none;
+}
+
+.time-grid-project-item:hover {
+    background: #f8f9fa;
+}
+
+.time-grid-project-item.selected {
+    background: #e7f1ff;
+    border-left: 3px solid #0d6efd;
+}
+
+.time-grid-project-item .project-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+}
+
+.time-grid-project-item .client-name {
+    font-size: 0.78rem;
+    color: #6c757d;
+}
+
+.time-grid-input-card .time-grid-notes-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+.time-grid-input-card .time-grid-notes-actions {
+    margin-top: auto;
+    padding-top: 0.5rem;
+}
+
+.time-grid-flow-highlight {
+    background-color: #f4f9ff !important;
+    border-color: #9ec5fe !important;
+    box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.1), 0 0 14px rgba(13, 110, 253, 0.14);
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.time-grid-section-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.35rem 0.2rem;
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+    .time-grid-cell {
+        min-height: 2.2rem;
+        font-size: 0.6rem;
+    }
+}

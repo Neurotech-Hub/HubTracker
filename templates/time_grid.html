@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Time Grid - Hub Tracker{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/time-grid.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 time-grid-page"
+     id="timeGridPage"
+     data-week-start="{{ week_start.isoformat() }}">
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <h2 class="mb-0">Time Grid <span class="badge bg-secondary align-middle fs-6">Beta</span></h2>
+                    <small class="text-muted">Click hour blocks to log effort for the week</small>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ url_for('time_grid', week=prev_week.isoformat()) }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-chevron-left"></i> Prev
+                    </a>
+                    <span class="text-muted small px-1" id="weekRangeLabel">
+                        {{ week_start.strftime('%b %d') }} – {{ week_end.strftime('%b %d, %Y') }}
+                    </span>
+                    {% if is_current_week %}
+                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Cannot log time in future weeks">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </button>
+                    {% else %}
+                    <a href="{{ url_for('time_grid', week=next_week.isoformat()) }}" class="btn btn-outline-secondary btn-sm">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3 time-grid-input-card">
+        <div class="card-body">
+            <div class="row g-3 align-items-stretch">
+                <div class="col-lg-5">
+                    <label class="form-label mb-1" for="timeGridProjectSearch">Project</label>
+                    <input type="text"
+                           class="form-control"
+                           id="timeGridProjectSearch"
+                           placeholder="Search projects..."
+                           autocomplete="off"
+                           autofocus>
+                    <div class="time-grid-project-list mt-2" id="timeGridProjectList">
+                        <div class="text-muted small py-2">Loading projects...</div>
+                    </div>
+                    <div class="small text-muted mt-2" id="timeGridSelectedProject">No project selected</div>
+                </div>
+                <div class="col-lg-7 time-grid-notes-col">
+                    <label class="form-label mb-1" for="timeGridNotes">Notes <span class="text-danger">*</span></label>
+                    <textarea class="form-control"
+                              id="timeGridNotes"
+                              rows="3"
+                              placeholder="What did you work on?"></textarea>
+                    <div class="time-grid-notes-actions">
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="timeGridClearBtn" disabled>
+                                Clear selection
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" id="timeGridSubmitBtn" disabled>
+                                Submit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fw-semibold mb-2" id="weekTotalLabel">Week total: — hrs</div>
+
+    <div class="card mb-3">
+        <div class="card-body p-2 p-md-3">
+            <div class="time-grid-scroll">
+                <div class="time-grid" id="timeGrid">
+                    <!-- Built by time-grid.js -->
+                </div>
+            </div>
+            <div class="small text-muted mt-2" id="timeGridMergePreview"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/time-grid.js') }}?v={{ range(1, 10000) | random }}"></script>
+{% endblock %}

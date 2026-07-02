@@ -479,6 +479,198 @@ def quote_admin_form_locked(quote):
     return quote_is_client_locked(quote) and not bool(getattr(quote, 'admin_edit_unlocked', False))
 
 
+TIME_GRID_HOUR_START = 6
+TIME_GRID_HOUR_END = 17
+
+
+def normalize_week_start(week_param=None):
+    """Return Monday (date) for the week containing week_param or today (Chicago)."""
+    if week_param:
+        try:
+            anchor = datetime.strptime(week_param.strip(), '%Y-%m-%d').date()
+        except ValueError:
+            anchor = get_current_time().date()
+    else:
+        anchor = get_current_time().date()
+    return anchor - timedelta(days=anchor.weekday())
+
+
+def log_created_at_chicago(log):
+    if not log.created_at:
+        return None
+    dt = log.created_at
+    if dt.tzinfo is None:
+        return TIMEZONE.localize(dt)
+    return dt.astimezone(TIMEZONE)
+
+
+def _log_project_names(log):
+    if not log.project:
+        return '', 'No project'
+    client_name = log.project.client.name if log.project.client else ''
+    return client_name, log.project.name
+
+
+def _log_project_label(log):
+    client_name, project_name = _log_project_names(log)
+    if client_name:
+        return f"{client_name} - {project_name}"
+    return project_name
+
+
+def merge_slots_into_ranges(slots):
+    """Collapse same-day adjacent hour slots into contiguous ranges."""
+    from collections import defaultdict
+
+    by_date = defaultdict(set)
+    for slot in slots:
+        date_str = slot.get('date')
+        hour = slot.get('hour')
+        if not date_str or hour is None:
+            continue
+        hour = int(hour)
+        if hour < TIME_GRID_HOUR_START or hour > TIME_GRID_HOUR_END:
+            continue
+        by_date[date_str].add(hour)
+
+    ranges = []
+    for date_str in sorted(by_date.keys()):
+        hours = sorted(by_date[date_str])
+        if not hours:
+            continue
+        range_start = hours[0]
+        prev = hours[0]
+        count = 1
+        for hour in hours[1:]:
+            if hour == prev + 1:
+                count += 1
+                prev = hour
+            else:
+                ranges.append({'date': date_str, 'start_hour': range_start, 'hours': count})
+                range_start = hour
+                prev = hour
+                count = 1
+        ranges.append({'date': date_str, 'start_hour': range_start, 'hours': count})
+    return ranges
+
+
+def slot_datetime_chicago(date_str, hour):
+    from datetime import time as time_cls
+
+    day = datetime.strptime(date_str, '%Y-%m-%d').date()
+    naive = datetime.combine(day, time_cls(hour=hour, minute=0))
+    return TIMEZONE.localize(naive)
+
+
+def build_week_grid_state(logs, week_start_date):
+    """Map user logs into locked grid cells and per-day other-hours entries."""
+    week_end_date = week_start_date + timedelta(days=6)
+    locked_cells = []
+    occupied = set()
+    other_by_day = {i: [] for i in range(7)}
+
+    for log in logs:
+        label = _log_project_label(log)
+        client_name, project_name = _log_project_names(log)
+
+        if log.is_touch:
+            dt = log_created_at_chicago(log)
+            if dt and week_start_date <= dt.date() <= week_end_date:
+                day_index = (dt.date() - week_start_date).days
+                other_by_day[day_index].append({
+                    'label': label,
+                    'hours': round(float(log.hours or 0), 2),
+                    'log_id': log.id,
+                })
+            continue
+
+        hours_val = float(log.hours or 0)
+        if hours_val <= 0:
+            continue
+
+        dt = log_created_at_chicago(log)
+        if not dt:
+            continue
+
+        start_dt = dt.replace(minute=0, second=0, microsecond=0)
+        full_hours = int(hours_val)
+        fractional = hours_val - full_hours
+
+        for i in range(full_hours):
+            chunk_dt = start_dt + timedelta(hours=i)
+            chunk_date = chunk_dt.date()
+            if chunk_date < week_start_date or chunk_date > week_end_date:
+                continue
+            day_index = (chunk_date - week_start_date).days
+            hour = chunk_dt.hour
+
+            if TIME_GRID_HOUR_START <= hour <= TIME_GRID_HOUR_END:
+                key = (chunk_date.isoformat(), hour)
+                if key not in occupied:
+                    occupied.add(key)
+                    locked_cells.append({
+                        'day_index': day_index,
+                        'hour': hour,
+                        'log_id': log.id,
+                        'client_name': client_name,
+                        'project_name': project_name,
+                        'status': 'locked',
+                    })
+            else:
+                other_by_day[day_index].append({
+                    'label': label,
+                    'hours': 1.0,
+                    'log_id': log.id,
+                })
+
+        if fractional > 0.001:
+            last_dt = start_dt + timedelta(hours=full_hours)
+            chunk_date = last_dt.date()
+            if week_start_date <= chunk_date <= week_end_date:
+                day_index = (chunk_date - week_start_date).days
+                other_by_day[day_index].append({
+                    'label': label,
+                    'hours': round(fractional, 2),
+                    'log_id': log.id,
+                })
+
+    return locked_cells, other_by_day, occupied
+
+
+def compute_day_totals_for_week(logs, week_start_date):
+    totals = [0.0] * 7
+    week_end_date = week_start_date + timedelta(days=6)
+    for log in logs:
+        dt = log_created_at_chicago(log)
+        if not dt:
+            continue
+        log_date = dt.date()
+        if week_start_date <= log_date <= week_end_date:
+            day_index = (log_date - week_start_date).days
+            totals[day_index] += float(log.hours or 0)
+    return [round(t, 1) for t in totals]
+
+
+def _week_logs_for_user(user_id, week_start_date):
+    from datetime import time as time_cls
+    from sqlalchemy.orm import joinedload
+
+    week_end_date = week_start_date + timedelta(days=6)
+    week_start_dt = TIMEZONE.localize(datetime.combine(week_start_date, time_cls.min))
+    week_end_exclusive = TIMEZONE.localize(
+        datetime.combine(week_end_date + timedelta(days=1), time_cls.min)
+    )
+    return (
+        Log.query.options(joinedload(Log.project).joinedload(Project.client))
+        .filter(
+            Log.user_id == user_id,
+            Log.created_at >= week_start_dt,
+            Log.created_at < week_end_exclusive,
+        )
+        .all()
+    )
+
+
 def require_admin():
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -3557,6 +3749,148 @@ def delete_log(log_id):
     db.session.commit()
     flash('Log entry deleted successfully', 'success')
     return redirect(url_for('logs'))
+
+
+@app.route('/time-grid')
+def time_grid():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    week_start = normalize_week_start(request.args.get('week'))
+    week_end = week_start + timedelta(days=6)
+    current_week_start = normalize_week_start()
+    return render_template(
+        'time_grid.html',
+        week_start=week_start,
+        week_end=week_end,
+        prev_week=week_start - timedelta(days=7),
+        next_week=week_start + timedelta(days=7),
+        is_current_week=week_start >= current_week_start,
+    )
+
+
+@app.route('/api/time_grid/week')
+def api_time_grid_week():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+
+    week_start = normalize_week_start(request.args.get('week'))
+    week_end = week_start + timedelta(days=6)
+    logs = _week_logs_for_user(session['user_id'], week_start)
+
+    locked_cells, other_by_day, _occupied = build_week_grid_state(logs, week_start)
+    week_total_hours = round(sum(float(log.hours or 0) for log in logs), 1)
+
+    return jsonify({
+        'week_start': week_start.isoformat(),
+        'week_end': week_end.isoformat(),
+        'week_total_hours': week_total_hours,
+        'day_totals': compute_day_totals_for_week(logs, week_start),
+        'cells': locked_cells,
+        'other_by_day': [other_by_day[i] for i in range(7)],
+    })
+
+
+@app.route('/api/time_grid/submit', methods=['POST'])
+def api_time_grid_submit():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+
+    data = request.get_json(silent=True) or {}
+    project_id = data.get('project_id')
+    slots = data.get('slots') or []
+    notes = (data.get('notes') or '').strip()
+
+    if not project_id:
+        return jsonify({'error': 'Project is required'}), 400
+    if not notes:
+        return jsonify({'error': 'Notes are required'}), 400
+    if not slots:
+        return jsonify({'error': 'Select at least one hour block'}), 400
+
+    project = db.session.get(Project, int(project_id))
+    if not project:
+        return jsonify({'error': 'Project not found'}), 404
+
+    try:
+        first_date = datetime.strptime(slots[0]['date'], '%Y-%m-%d').date()
+    except (ValueError, KeyError, TypeError):
+        return jsonify({'error': 'Invalid slot date'}), 400
+
+    week_start = first_date - timedelta(days=first_date.weekday())
+    week_end = week_start + timedelta(days=6)
+
+    seen_slots = set()
+    for slot in slots:
+        try:
+            date_str = slot['date']
+            hour = int(slot['hour'])
+            slot_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except (ValueError, KeyError, TypeError):
+            return jsonify({'error': 'Invalid slot'}), 400
+        if slot_date < week_start or slot_date > week_end:
+            return jsonify({'error': 'All slots must fall within the displayed week'}), 400
+        if hour < TIME_GRID_HOUR_START or hour > TIME_GRID_HOUR_END:
+            return jsonify({'error': 'Invalid hour slot'}), 400
+        key = (date_str, hour)
+        if key in seen_slots:
+            continue
+        seen_slots.add(key)
+
+    if not seen_slots:
+        return jsonify({'error': 'Select at least one hour block'}), 400
+
+    existing_logs = _week_logs_for_user(session['user_id'], week_start)
+    _locked, _other, occupied = build_week_grid_state(existing_logs, week_start)
+    for date_str, hour in seen_slots:
+        if (date_str, hour) in occupied:
+            return jsonify({'error': f'Hour already logged: {date_str} {hour}:00'}), 409
+
+    ranges = merge_slots_into_ranges([{'date': d, 'hour': h} for d, h in seen_slots])
+    created_count = 0
+    hours_logged = 0.0
+
+    for slot_range in ranges:
+        log_datetime = slot_datetime_chicago(slot_range['date'], slot_range['start_hour'])
+        log = Log(
+            is_touch=False,
+            hours=float(slot_range['hours']),
+            notes=notes,
+            user_id=session['user_id'],
+            project_id=int(project_id),
+            created_at=log_datetime,
+        )
+        db.session.add(log)
+        db.session.flush()
+
+        activity_log = ActivityLog.log_activity(
+            user_id=session['user_id'],
+            activity_type='time_logged',
+            entity_type='log',
+            entity_id=log.id,
+            new_value={
+                'is_touch': False,
+                'hours': log.hours,
+                'fixed_cost': None,
+                'project_id': log.project_id,
+            },
+        )
+        activity_log.created_at = log_datetime
+        created_count += 1
+        hours_logged += float(slot_range['hours'])
+
+    db.session.commit()
+
+    refreshed_logs = _week_logs_for_user(session['user_id'], week_start)
+    week_total_hours = round(sum(float(log.hours or 0) for log in refreshed_logs), 1)
+
+    return jsonify({
+        'success': True,
+        'created_count': created_count,
+        'hours_logged': round(hours_logged, 1),
+        'week_total_hours': week_total_hours,
+    })
+
 
 # LOGGING ROUTES
 @app.route('/add_touch_log', methods=['POST'])

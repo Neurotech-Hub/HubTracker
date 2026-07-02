@@ -55,6 +55,9 @@
                 <a href="{{ url_for('analytics') }}" class="mobile-nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                     <i class="bi bi-graph-up me-2"></i>Analytics
                 </a>
+                <a href="{{ url_for('time_grid') }}" class="mobile-nav-link {% if request.endpoint == 'time_grid' %}active{% endif %}">
+                    <i class="bi bi-calendar-week me-2"></i>Time Grid <span class="badge bg-secondary ms-1" style="font-size:0.65rem;">Beta</span>
+                </a>
             </nav>
             
             <!-- Pinned Projects Section -->
@@ -126,6 +129,9 @@
                 </a>
                 <a href="{{ url_for('analytics') }}" class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                     <i class="bi bi-graph-up me-2"></i>Analytics
+                </a>
+                <a href="{{ url_for('time_grid') }}" class="nav-link {% if request.endpoint == 'time_grid' %}active{% endif %}">
+                    <i class="bi bi-calendar-week me-2"></i>Time Grid <span class="badge bg-secondary ms-1" style="font-size:0.65rem;">Beta</span>
                 </a>
             </div>
             
