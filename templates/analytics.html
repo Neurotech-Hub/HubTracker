@@ -5,35 +5,90 @@
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-    .stat-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    .analytics-summary .stat-card {
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     }
-    
-    .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+
+    .analytics-summary .stat-card:hover {
+        transform: none;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     }
-    
-    .stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
+
+    .stat-icon-compact {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+        border-radius: 8px;
+    }
+
+    .analytics-summary .h4 {
+        font-size: 1.35rem;
+    }
+
+    .analytics-entity-card {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+    }
+
+    .analytics-entity-header {
+        padding: 0.65rem 0.85rem;
+        border-bottom: 1px solid #e9ecef;
+        background: #f8f9fa;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .analytics-entity-body {
+        padding: 0.75rem 0.85rem;
+    }
+
+    .analytics-metric-list {
+        margin: 0;
+    }
+
+    .analytics-metric-row {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.2rem 0;
+        font-size: 0.85rem;
     }
-    
+
+    .analytics-metric-row dt {
+        margin: 0;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .analytics-metric-row dd {
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        font-weight: 600;
+    }
+
+    .analytics-top-table th {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: #6c757d;
+        font-weight: 600;
+        padding-bottom: 0.25rem;
+    }
+
+    .analytics-top-table td {
+        font-size: 0.8rem;
+        padding: 0.2rem 0;
+        vertical-align: middle;
+    }
+
     /* Compact Export Date Selector */
     .export-date-selector {
         display: flex;
         justify-content: center;
         padding: 0.25rem;
     }
-    
+
     .selector-track-compact {
         background: #f1f5f9;
         border-radius: 999px;
@@ -42,7 +97,7 @@
         position: relative;
         min-width: 420px;
     }
-    
+
     .selector-pill-compact {
         position: absolute;
         top: 0.125rem;
@@ -53,19 +108,19 @@
         transition: all 0.3s ease;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
-    
+
     .selector-pill-compact.this-month {
         left: 0.125rem;
     }
-    
+
     .selector-pill-compact.last-month {
         left: calc(33.333% + 0.125rem);
     }
-    
+
     .selector-pill-compact.fiscal-year {
         left: calc(66.666% + 0.125rem);
     }
-    
+
     .selector-option-compact {
         flex: 1;
         padding: 0.5rem 1rem;
@@ -80,20 +135,20 @@
         border-radius: 999px;
         white-space: nowrap;
     }
-    
+
     .selector-option-compact:hover {
         color: #334155;
     }
-    
+
     .selector-option-compact.active {
         color: #1a1a1a;
     }
-    
+
     @media (max-width: 768px) {
         .selector-track-compact {
             min-width: 100%;
         }
-        
+
         .selector-option-compact {
             padding: 0.5rem 0.75rem;
             font-size: 0.75rem;
@@ -105,7 +160,7 @@
 {% block content %}
 <div class="container-fluid py-4">
     <!-- Page Header -->
-    <div class="row mb-4">
+    <div class="row mb-3">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
@@ -118,21 +173,18 @@
         </div>
     </div>
 
-    <!-- Top Metrics -->
-    {% include 'partials/metrics_grid.html' %}
-
-    <!-- Effort Trends Chart -->
-    <div class="row mb-4">
+    <!-- Hours Trends Chart -->
+    <div class="row mb-3">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header py-2">
                     <h5 class="mb-0">
                         <i class="bi bi-graph-up me-2"></i>Hours Trends
                     </h5>
                     <small class="text-muted">Last 30 days</small>
                 </div>
-                <div class="card-body">
-                    <div style="height: 300px;">
+                <div class="card-body py-2">
+                    <div style="height: 280px;">
                         <canvas id="taskCompletionChart" width="400" height="100"></canvas>
                     </div>
                 </div>
@@ -140,110 +192,13 @@
         </div>
     </div>
 
-    <!-- Project Activity Charts -->
-    <div class="row">
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-trophy me-2"></i>Most Active Projects by Task Completion
-                    </h5>
-                    <small class="text-muted">Last 30 days</small>
-                </div>
-                <div class="card-body">
-                    {% if most_active_projects %}
-                    <div class="text-center mb-3">
-                        <canvas id="taskCompletionPieChart" width="300" height="300"></canvas>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover table-sm mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="border-0">Rank</th>
-                                    <th class="border-0">Project</th>
-                                    <th class="border-0">Client</th>
-                                    <th class="border-0">Tasks</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for project in most_active_projects %}
-                                <tr>
-                                    <td>
-                                        {{ loop.index }}
-                                    </td>
-                                    <td class="fw-medium">{{ project.name }}</td>
-                                    <td class="text-muted">{{ project.client_name }}</td>
-                                    <td>
-                                        <span class="badge-clean badge-status-completed">{{ project.completed_tasks }}</span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-graph-up fs-1 mb-3 d-block"></i>
-                        <div class="fw-medium">No project activity</div>
-                        <div class="small">Complete some tasks to see project rankings</div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-clock me-2"></i>Most Active Projects by Logged Time
-                    </h5>
-                    <small class="text-muted">Last 30 days</small>
-                </div>
-                <div class="card-body">
-                    {% if most_logged_time_projects %}
-                    <div class="text-center mb-3">
-                        <canvas id="loggedTimePieChart" width="300" height="300"></canvas>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover table-sm mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="border-0">Rank</th>
-                                    <th class="border-0">Project</th>
-                                    <th class="border-0">Client</th>
-                                    <th class="border-0">Hours</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for project in most_logged_time_projects %}
-                                <tr>
-                                    <td>
-                                        {{ loop.index }}
-                                    </td>
-                                    <td class="fw-medium">{{ project.name }}</td>
-                                    <td class="text-muted">{{ project.client_name }}</td>
-                                    <td>
-                                        <span class="badge-clean badge-count">{{ "%.1f"|format(project.total_hours) }}h</span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-clock fs-1 mb-3 d-block"></i>
-                        <div class="fw-medium">No logging activity</div>
-                        <div class="small">Log some time to see project rankings</div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Summary Metrics -->
+    {% with compact=true %}
+    {% include 'partials/metrics_grid.html' %}
+    {% endwith %}
 
-
+    <!-- Entity Drill-down -->
+    {% include 'partials/analytics_entity_grid.html' %}
 </div>
 
 <!-- Create Report Modal -->
@@ -265,20 +220,20 @@
                             <div class="export-date-selector">
                                 <div class="selector-track-compact">
                                     <div class="selector-pill-compact" :class="dateRange"></div>
-                                    <button type="button" 
-                                            class="selector-option-compact" 
+                                    <button type="button"
+                                            class="selector-option-compact"
                                             :class="{ 'active': dateRange === 'this-month' }"
                                             @click="setDateRange('this-month')">
                                         This Month
                                     </button>
-                                    <button type="button" 
-                                            class="selector-option-compact" 
+                                    <button type="button"
+                                            class="selector-option-compact"
                                             :class="{ 'active': dateRange === 'last-month' }"
                                             @click="setDateRange('last-month')">
                                         Last Month
                                     </button>
-                                    <button type="button" 
-                                            class="selector-option-compact" 
+                                    <button type="button"
+                                            class="selector-option-compact"
                                             :class="{ 'active': dateRange === 'fiscal-year' }"
                                             @click="setDateRange('fiscal-year')">
                                         Fiscal Year
@@ -355,21 +310,20 @@ function exportForm() {
         filterValue: '',
         memberships: [],
         clients: [],
-        
+
         init() {
             this.loadData();
             this.setDateRange('this-month');
         },
-        
+
         loadData() {
-            // Load memberships and clients for dropdowns
             fetch('/api/memberships')
                 .then(response => response.json())
                 .then(data => {
                     this.memberships = data.memberships || [];
                 })
                 .catch(error => console.error('Error loading memberships:', error));
-                
+
             fetch('/api/clients')
                 .then(response => response.json())
                 .then(data => {
@@ -377,12 +331,12 @@ function exportForm() {
                 })
                 .catch(error => console.error('Error loading clients:', error));
         },
-        
+
         setDateRange(range) {
             this.dateRange = range;
             const today = new Date();
             let start, end;
-            
+
             switch(range) {
                 case 'this-month':
                     start = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -394,26 +348,25 @@ function exportForm() {
                     break;
                 case 'fiscal-year':
                     const currentYear = today.getMonth() >= 6 ? today.getFullYear() : today.getFullYear() - 1;
-                    start = new Date(currentYear, 6, 1); // July 1
+                    start = new Date(currentYear, 6, 1);
                     end = today;
                     break;
             }
-            
+
             this.startDate = start.toISOString().split('T')[0];
             this.endDate = end.toISOString().split('T')[0];
         },
-        
+
         onFilterTypeChange() {
             this.filterValue = '';
         },
-        
+
         exportData() {
-            // Show loading state
             const exportBtn = event.target;
             const originalText = exportBtn.innerHTML;
             exportBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating Report...';
             exportBtn.disabled = true;
-            
+
             fetch('/api/export-report', {
                 method: 'POST',
                 headers: {
@@ -434,7 +387,6 @@ function exportForm() {
                 return response.blob().then(blob => ({ blob, disposition }));
             })
             .then(({ blob, disposition }) => {
-                // Prefer filename from server headers when available
                 let filename = `hub_tracker_report_${this.startDate}_${this.endDate}.xlsx`;
                 const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(disposition);
                 if (match) {
@@ -446,7 +398,6 @@ function exportForm() {
                     }
                 }
 
-                // Prefer native save dialog if available (better filename support in some browsers like Arc)
                 if (window.showSaveFilePicker) {
                     (async () => {
                         try {
@@ -461,22 +412,18 @@ function exportForm() {
                             await writable.write(blob);
                             await writable.close();
                         } catch (e) {
-                            // If user cancels or API fails, fallback to native browser download via hidden form
                             this.submitFormDownload();
                         }
                     })();
                 } else {
-                    // Fallback: native browser download via hidden form (best for Chrome/Arc filename handling)
                     this.submitFormDownload();
                 }
-                
-                // Close modal
+
                 const modal = bootstrap.Modal.getInstance(document.getElementById('createReportModal'));
                 if (modal) {
                     modal.hide();
                 }
-                
-                // Show success message
+
                 alert('Report generated successfully!');
             })
             .catch(error => {
@@ -484,15 +431,12 @@ function exportForm() {
                 alert('Failed to generate report. Please try again.');
             })
             .finally(() => {
-                // Reset button state
                 exportBtn.innerHTML = originalText;
                 exportBtn.disabled = false;
             });
         },
 
-        // Fallback download method: submit a hidden form to let the browser handle Content-Disposition
         submitFormDownload() {
-            // Ensure a hidden iframe exists to target the form submission
             let iframe = document.getElementById('download_iframe');
             if (!iframe) {
                 iframe = document.createElement('iframe');
@@ -501,7 +445,6 @@ function exportForm() {
                 iframe.name = 'download_iframe';
                 document.body.appendChild(iframe);
             }
-            // Build a hidden form
             const form = document.createElement('form');
             form.style.display = 'none';
             form.method = 'POST';
@@ -523,36 +466,27 @@ function exportForm() {
 
             document.body.appendChild(form);
             form.submit();
-            // Cleanup the form after a short delay
             setTimeout(() => form.remove(), 1000);
         }
     }
 }
 
-// Effort Trends Chart
 document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('taskCompletionChart').getContext('2d');
-    
-    // Data from backend
     const completionData = {{ completion_data | tojson }};
     const chartUsers = {{ chart_users | tojson }};
-    
-    // The data is already in chronological order (oldest to newest)
-    // We want to reverse it so newest is on the right
     const reversedData = [...completionData].reverse();
-    
-    // Process labels and data together to ensure alignment
+
     const labels = [];
     const userSeries = {};
 
     chartUsers.forEach((user) => {
         userSeries[user.id] = [];
     });
-    
-    reversedData.forEach((d, index) => {
-        // Fix: Parse date as local date to avoid timezone issues
+
+    reversedData.forEach((d) => {
         const [year, month, day] = d.date.split('-').map(Number);
-        const date = new Date(year, month - 1, day); // month is 0-indexed
+        const date = new Date(year, month - 1, day);
         const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         labels.push(label);
         chartUsers.forEach((user) => {
@@ -573,7 +507,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tension: 0.4
         };
     });
-    
+
     new Chart(ctx, {
         type: 'line',
         data: {
@@ -622,94 +556,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-    
-    // Task Completion Pie Chart
-    const taskCompletionCtx = document.getElementById('taskCompletionPieChart');
-    if (taskCompletionCtx) {
-        const mostActiveProjects = {{ most_active_projects | tojson }};
-        
-        if (mostActiveProjects.length > 0) {
-            const labels = mostActiveProjects.map(p => p.name);
-            const data = mostActiveProjects.map(p => p.completed_tasks);
-            const colors = [
-                '#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6',
-                '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
-            ];
-            
-            new Chart(taskCompletionCtx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: colors.slice(0, data.length),
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                padding: 10,
-                                font: {
-                                    size: 10
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    }
-    
-    // Logged Time Pie Chart
-    const loggedTimeCtx = document.getElementById('loggedTimePieChart');
-    if (loggedTimeCtx) {
-        const mostLoggedTimeProjects = {{ most_logged_time_projects | tojson }};
-        
-        if (mostLoggedTimeProjects.length > 0) {
-            const labels = mostLoggedTimeProjects.map(p => p.name);
-            const data = mostLoggedTimeProjects.map(p => p.total_hours);
-            const colors = [
-                '#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6',
-                '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
-            ];
-            
-            new Chart(loggedTimeCtx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: colors.slice(0, data.length),
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                padding: 10,
-                                font: {
-                                    size: 10
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    }
 });
 </script>
-{% endblock %} 
+{% endblock %}

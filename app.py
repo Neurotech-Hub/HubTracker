@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, date
 import pytz
 import os
 import markdown
-from sqlalchemy import func, desc, text, or_, and_
+from sqlalchemy import func, desc, text, or_, and_, case
 import re
 from markupsafe import Markup, escape
 import json
@@ -3338,28 +3338,45 @@ def analytics():
     """Analytics page (formerly reports)"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     from datetime import timedelta
-    from sqlalchemy import func, desc
     import pytz
-    
-    # Last 30 days filter - get current time in Chicago timezone
+
     chicago_tz = pytz.timezone('America/Chicago')
     utc_tz = pytz.timezone('UTC')
     current_time_chicago = get_current_time()
-    
-    # Convert to UTC for database queries
     current_time_utc = current_time_chicago.astimezone(utc_tz)
     thirty_days_ago_utc = current_time_utc - timedelta(days=30)
-    
-    # Debug logging
-    print(f"\n=== DEBUG: Analytics Timezone Info ===")
-    print(f"Current time Chicago: {current_time_chicago}")
-    print(f"Current time UTC: {current_time_utc}")
-    print(f"Thirty days ago UTC: {thirty_days_ago_utc}")
-    
-    # Get basic stats for the top metrics
     now = get_current_time()
+
+    def log_hours_expr():
+        detailed = func.coalesce(
+            func.sum(case((Log.is_touch.is_(False), Log.hours), else_=0)),
+            0,
+        )
+        touch = func.coalesce(
+            func.sum(
+                case(
+                    (and_(Log.is_touch.is_(True), Log.hours.isnot(None)), Log.hours),
+                    else_=0,
+                )
+            ),
+            0,
+        )
+        return detailed + touch
+
+    def quote_totals(bill_type=None, extra_filters=None):
+        query = db.session.query(
+            func.count(Quote.id),
+            func.coalesce(func.sum(Quote.total_amount), 0),
+        )
+        if bill_type:
+            query = query.filter(Quote.bill_type == bill_type)
+        if extra_filters is not None:
+            query = query.filter(extra_filters)
+        return query.one()
+
+    # Top summary metrics
     total_members = db.session.query(Membership.id).join(
         MembershipFunding, MembershipFunding.membership_id == Membership.id
     ).filter(
@@ -3370,125 +3387,28 @@ def analytics():
     total_clients = Client.query.count()
     open_tasks = Task.query.filter_by(is_complete=False).count()
 
-    
-    # Get task completion data for last 30 days (including today)
-    twenty_nine_days_ago_utc = current_time_utc - timedelta(days=29)
-    
-    # Load admin users once so the chart can show one line per admin user
-    users_for_hours_chart = User.query.filter_by(role='admin').order_by(User.first_name.asc(), User.last_name.asc()).all()
+    # Hours trends chart (last 30 days, per admin user)
+    users_for_hours_chart = User.query.filter_by(role='admin').order_by(
+        User.first_name.asc(), User.last_name.asc()
+    ).all()
     admin_user_ids = [user.id for user in users_for_hours_chart]
 
-    # Generate date series for last 30 days (including today)
     completion_data = []
     for i in range(30):
-        # Calculate date in Chicago timezone for display
-        # We want to go back from today (i=0) to 29 days ago (i=29)
-        # So for i=0, we want today, for i=29, we want 29 days ago
         date_chicago = current_time_chicago - timedelta(days=i)
         date_start_chicago = date_chicago.replace(hour=0, minute=0, second=0, microsecond=0)
         date_end_chicago = date_start_chicago + timedelta(days=1)
-        
-        # Convert to UTC for database queries - handle timezone conversion properly
+
         if date_start_chicago.tzinfo is None:
             date_start_utc = chicago_tz.localize(date_start_chicago).astimezone(utc_tz)
         else:
             date_start_utc = date_start_chicago.astimezone(utc_tz)
-            
+
         if date_end_chicago.tzinfo is None:
             date_end_utc = chicago_tz.localize(date_end_chicago).astimezone(utc_tz)
         else:
             date_end_utc = date_end_chicago.astimezone(utc_tz)
-        
-        # Debug logging for August 6th specifically
-        debug_date = date_start_chicago.strftime('%Y-%m-%d')
-        if debug_date == '2025-08-06':
-            print(f"\n=== DEBUG: August 6th Hours Calculation ===")
-            print(f"Date Chicago: {date_start_chicago} to {date_end_chicago}")
-            print(f"Date UTC: {date_start_utc} to {date_end_utc}")
-            print(f"Days from current: {i}")
-            print(f"Current time Chicago: {current_time_chicago}")
-            print(f"Calculated date Chicago: {date_chicago}")
-        
-        # All users completions for this day
-        all_completions = Task.query.filter(
-            Task.completed_on >= date_start_utc,
-            Task.completed_on < date_end_utc,
-            Task.is_complete.is_(True)
-        ).count()
-        
-        # Current user completions for this day
-        my_completions = Task.query.filter(
-            Task.completed_on >= date_start_utc,
-            Task.completed_on < date_end_utc,
-            Task.completed_by_user_id == session['user_id'],
-            Task.is_complete.is_(True)
-        ).count()
-        
-        # All users hours for this day (including touch logs as 0.5 hours each)
-        all_detailed_hours = db.session.query(func.sum(Log.hours)).filter(
-            Log.created_at >= date_start_utc,
-            Log.created_at < date_end_utc,
-            Log.is_touch.is_(False),
-            Log.hours.isnot(None)
-        ).scalar() or 0
-        
-        # Get actual hours from touch logs
-        all_touch_hours = db.session.query(func.sum(Log.hours)).filter(
-            Log.created_at >= date_start_utc,
-            Log.created_at < date_end_utc,
-            Log.is_touch.is_(True),
-            Log.hours.isnot(None)
-        ).scalar() or 0
-        all_hours = float(all_detailed_hours) + all_touch_hours
-        
-        # Current user hours for this day (including touch logs as 0.5 hours each)
-        my_detailed_hours = db.session.query(func.sum(Log.hours)).filter(
-            Log.created_at >= date_start_utc,
-            Log.created_at < date_end_utc,
-            Log.user_id == session['user_id'],
-            Log.is_touch.is_(False),
-            Log.hours.isnot(None)
-        ).scalar() or 0
-        
-        # Get actual hours from touch logs for current user
-        my_touch_hours = db.session.query(func.sum(Log.hours)).filter(
-            Log.created_at >= date_start_utc,
-            Log.created_at < date_end_utc,
-            Log.user_id == session['user_id'],
-            Log.is_touch.is_(True),
-            Log.hours.isnot(None)
-        ).scalar() or 0
-        my_hours = float(my_detailed_hours) + my_touch_hours
-        
-        # Debug logging for August 6th specifically
-        if debug_date == '2025-08-06':
-            print(f"All detailed hours: {all_detailed_hours}")
-            print(f"All touch hours: {all_touch_hours}")
-            print(f"All hours total: {all_hours}")
-            print(f"My detailed hours: {my_detailed_hours}")
-            print(f"My touch hours: {my_touch_hours}")
-            print(f"My hours total: {my_hours}")
-            
-            # Let's also check what logs exist for this user on this date
-            user_logs = Log.query.filter(
-                Log.created_at >= date_start_utc,
-                Log.created_at < date_end_utc,
-                Log.user_id == session['user_id']
-            ).all()
-            print(f"Found {len(user_logs)} logs for user {session['user_id']} on {debug_date}:")
-            for log in user_logs:
-                print(f"  - Log ID: {log.id}, Hours: {log.hours}, Created: {log.created_at}, Is Touch: {log.is_touch}")
-                
-            # Let's also check all logs for this date range to see what's in the database
-            all_logs = Log.query.filter(
-                Log.created_at >= date_start_utc,
-                Log.created_at < date_end_utc
-            ).all()
-            print(f"Found {len(all_logs)} total logs on {debug_date}:")
-            for log in all_logs:
-                print(f"  - Log ID: {log.id}, User: {log.user_id}, Hours: {log.hours}, Created: {log.created_at}, Is Touch: {log.is_touch}")
-        
-        # Per-user hours for this day (used by Hours Trends chart)
+
         user_hours_rows = []
         if admin_user_ids:
             user_hours_rows = db.session.query(
@@ -3508,178 +3428,217 @@ def analytics():
 
         completion_data.append({
             'date': date_start_chicago.strftime('%Y-%m-%d'),
-            'all_tasks': all_completions,
-            'my_tasks': my_completions,
-            'all_hours': round(all_hours, 1),
-            'my_hours': round(my_hours, 1),
             'user_hours': user_hours
         })
-    
-    # Debug logging for the final completion_data
-    print(f"\n=== DEBUG: Final Completion Data ===")
-    print(f"Total entries: {len(completion_data)}")
-    aug6_entry = next((entry for entry in completion_data if entry['date'] == '2025-08-06'), None)
-    if aug6_entry:
-        print(f"August 6th entry: {aug6_entry}")
-    else:
-        print("August 6th entry not found!")
-        print("Available dates:", [entry['date'] for entry in completion_data])
-    
-    # Helper function to calculate total logged time for a project
-    def calculate_project_logged_time(project_id, start_date):
-        """Calculate total logged time for a project including actual touch log hours"""
-        from sqlalchemy import func, case
-        
-        # Get detailed logs with actual hours
-        detailed_hours = db.session.query(func.sum(Log.hours)).filter(
-            Log.project_id == project_id,
-            Log.created_at >= start_date,
-            Log.is_touch.is_(False)
-        ).scalar() or 0
-        
-        # Get actual hours from touch logs
-        touch_hours = db.session.query(func.sum(Log.hours)).filter(
-            Log.project_id == project_id,
-            Log.created_at >= start_date,
-            Log.is_touch.is_(True),
-            Log.hours.isnot(None)
-        ).scalar() or 0
-        
-        return float(detailed_hours) + touch_hours
-    
-    # Get most active projects by task completion (last 30 days)
-    most_active_projects_raw = db.session.query(
-        Project.name,
-        Client.name.label('client_name'),
-        func.count(Task.id).label('completed_tasks')
-    ).join(Client).join(Task).filter(
-        Task.is_complete.is_(True),
-        Task.completed_on >= twenty_nine_days_ago_utc
-    ).group_by(Project.id, Project.name, Client.name).order_by(desc('completed_tasks')).limit(8).all()
-    
-    # Convert to dictionaries for JSON serialization
-    most_active_projects = []
-    for project in most_active_projects_raw:
-        most_active_projects.append({
-            'name': project.name,
-            'client_name': project.client_name,
-            'completed_tasks': project.completed_tasks
-        })
-    
-    # Get most active projects by logged time (last 30 days)
-    most_logged_time_projects = []
-    projects_with_logs = db.session.query(
-        Project.id,
-        Project.name,
-        Client.name.label('client_name')
-    ).join(Client).join(Log).filter(
-        Log.created_at >= thirty_days_ago_utc
-    ).group_by(Project.id, Project.name, Client.name).all()
-    
-    for project in projects_with_logs:
-        total_hours = calculate_project_logged_time(project.id, thirty_days_ago_utc)
-        if total_hours > 0:  # Only include projects with actual logged time
-            most_logged_time_projects.append({
-                'name': project.name,
-                'client_name': project.client_name,
-                'total_hours': total_hours
-            })
-    
-    # Sort by total hours and limit to top 8
-    most_logged_time_projects.sort(key=lambda x: x['total_hours'], reverse=True)
-    most_logged_time_projects = most_logged_time_projects[:8]
-    
-    # LOG ANALYTICS (Last 30 Days)
-    
-    # Total log metrics
+
+    # Time & logs (30d)
     total_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago_utc).count()
-    touch_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago_utc, Log.is_touch.is_(True)).count()
-    detailed_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago_utc, Log.is_touch.is_(False)).count()
-    total_hours_last_30 = db.session.query(func.sum(Log.hours)).filter(Log.created_at >= thirty_days_ago_utc).scalar() or 0
-    
-    # Daily log activity for chart
-    log_activity_data = []
-    
-    # If there are no logs at all, just return empty data for today
-    if total_logs_last_30 == 0:
-        today = get_current_time()
-        log_activity_data.append({
-            'date': today.strftime('%Y-%m-%d'),
-            'touch_logs': 0,
-            'detailed_logs': 0,
-            'total_logs': 0
-        })
-    else:
-        for i in range(30):
-            # Calculate date in Chicago timezone for display
-            # We want to go back from today (i=0) to 29 days ago (i=29)
-            # So for i=0, we want today, for i=29, we want 29 days ago
-            date_chicago = current_time_chicago - timedelta(days=i)
-            date_start_chicago = date_chicago.replace(hour=0, minute=0, second=0, microsecond=0)
-            date_end_chicago = date_start_chicago + timedelta(days=1)
-            
-            # Convert to UTC for database queries - handle timezone conversion properly
-            if date_start_chicago.tzinfo is None:
-                date_start_utc = chicago_tz.localize(date_start_chicago).astimezone(utc_tz)
-            else:
-                date_start_utc = date_start_chicago.astimezone(utc_tz)
-                
-            if date_end_chicago.tzinfo is None:
-                date_end_utc = chicago_tz.localize(date_end_chicago).astimezone(utc_tz)
-            else:
-                date_end_utc = date_end_chicago.astimezone(utc_tz)
-            
-            touch_count = Log.query.filter(
-                Log.created_at >= date_start_utc,
-                Log.created_at < date_end_utc,
-                Log.is_touch.is_(True)
-            ).count()
-            
-            detailed_count = Log.query.filter(
-                Log.created_at >= date_start_utc,
-                Log.created_at < date_end_utc,
-                Log.is_touch.is_(False)
-            ).count()
-            
-            log_activity_data.append({
-                'date': date_start_chicago.strftime('%Y-%m-%d'),
-                'touch_logs': touch_count,
-                'detailed_logs': detailed_count,
-                'total_logs': touch_count + detailed_count
-            })
-    
-    # Most logged projects (last 30 days)
-    most_logged_projects = db.session.query(
+    touch_logs_last_30 = Log.query.filter(
+        Log.created_at >= thirty_days_ago_utc,
+        Log.is_touch.is_(True)
+    ).count()
+    detailed_logs_last_30 = Log.query.filter(
+        Log.created_at >= thirty_days_ago_utc,
+        Log.is_touch.is_(False)
+    ).count()
+    total_hours_last_30 = db.session.query(func.sum(Log.hours)).filter(
+        Log.created_at >= thirty_days_ago_utc
+    ).scalar() or 0
+
+    top_projects_by_hours = db.session.query(
         Project.name,
         Client.name.label('client_name'),
-        func.count(Log.id).label('log_count'),
-        func.sum(Log.hours).label('total_hours'),
-        func.sum(text('CASE WHEN is_touch IS TRUE THEN 1 ELSE 0 END')).label('touch_count'),
-        func.sum(text('CASE WHEN is_touch IS FALSE THEN 1 ELSE 0 END')).label('detailed_count')
-    ).join(Client).join(Log).filter(
-        Log.created_at >= thirty_days_ago_utc
-    ).group_by(Project.id, Project.name, Client.name).order_by(desc('log_count')).limit(8).all()
-    
+        log_hours_expr().label('hours'),
+    ).join(
+        Client, Client.id == Project.client_id
+    ).join(
+        Log, Log.project_id == Project.id
+    ).filter(
+        Log.created_at >= thirty_days_ago_utc,
+        Project.name != GENERAL_PROJECT_NAME,
+    ).group_by(
+        Project.id, Project.name, Client.name
+    ).order_by(desc('hours')).limit(5).all()
 
-    
-    return render_template('analytics.html',
-                         # Top metrics
-                         total_members=total_members,
-                         total_projects=total_projects,
-                         total_clients=total_clients,
-                         open_tasks=open_tasks,
+    # Projects
+    project_status_rows = db.session.query(
+        Project.status, func.count(Project.id)
+    ).group_by(Project.status).all()
+    project_status_counts = {status or 'Unknown': count for status, count in project_status_rows}
 
-                         # Task analytics
-                         completion_data=completion_data,
-                         chart_users=[{'id': user.id, 'name': user.full_name} for user in users_for_hours_chart],
-                         most_active_projects=most_active_projects,
-                         most_logged_time_projects=most_logged_time_projects,
-                         # Log analytics
-                         total_logs_last_30=total_logs_last_30,
-                         touch_logs_last_30=touch_logs_last_30,
-                         detailed_logs_last_30=detailed_logs_last_30,
-                         total_hours_last_30=round(total_hours_last_30, 1),
-                         log_activity_data=log_activity_data)
+    projects_with_time_30d = db.session.query(
+        func.count(func.distinct(Log.project_id))
+    ).filter(
+        Log.created_at >= thirty_days_ago_utc,
+        Log.project_id.isnot(None),
+    ).scalar() or 0
+
+    # Clients
+    clients_with_membership = Client.query.filter(Client.membership_id.isnot(None)).count()
+    clients_without_membership = total_clients - clients_with_membership
+
+    top_clients_billed = db.session.query(
+        Client.name,
+        func.coalesce(func.sum(Quote.total_amount), 0).label('billed'),
+    ).join(
+        Quote, Quote.client_id == Client.id
+    ).group_by(
+        Client.id, Client.name
+    ).order_by(desc('billed')).limit(5).all()
+
+    # Billing
+    awaiting_filter = and_(
+        Quote.bill_type == 'quote',
+        Quote.is_public.is_(True),
+        Quote.approved_by_name.is_(None),
+        Quote.approved_at.is_(None),
+    )
+    issued_cutoff = get_current_time().date() - timedelta(days=30)
+
+    quote_count, quote_total = quote_totals('quote')
+    invoice_count, invoice_total = quote_totals('invoice')
+    awaiting_count, awaiting_total = quote_totals(extra_filters=awaiting_filter)
+    issued_30_count, issued_30_total = quote_totals(extra_filters=Quote.issue_date >= issued_cutoff)
+
+    # Memberships
+    total_memberships = Membership.query.count()
+    active_funding_totals = db.session.query(
+        func.coalesce(func.sum(MembershipFunding.dollar_budget), 0),
+        func.coalesce(func.sum(MembershipFunding.time_budget), 0),
+    ).filter(
+        MembershipFunding.start_date <= now,
+        MembershipFunding.end_date >= now,
+    ).one()
+
+    top_memberships = db.session.query(
+        Membership.title,
+        func.count(Client.id).label('client_count'),
+    ).outerjoin(
+        Client, Client.membership_id == Membership.id
+    ).group_by(
+        Membership.id, Membership.title
+    ).order_by(desc('client_count')).limit(5).all()
+
+    def fmt_currency(value):
+        return currency_filter(value)
+
+    entity_panels = [
+        {
+            'title': 'Time & Logs',
+            'icon': 'bi-clock-history',
+            'link_url': url_for('logs'),
+            'metrics': [
+                {'label': 'Total hours (30d)', 'value': f'{round(float(total_hours_last_30), 1):.1f}'},
+                {'label': 'Touch logs (30d)', 'value': touch_logs_last_30},
+                {'label': 'Detailed logs (30d)', 'value': detailed_logs_last_30},
+                {'label': 'Log entries (30d)', 'value': total_logs_last_30},
+            ],
+            'top_label': 'Top projects by hours',
+            'top_columns': ['Project', 'Client', 'Hours'],
+            'top_items': [
+                {
+                    'col1': row.name,
+                    'col2': row.client_name,
+                    'col3': f'{float(row.hours):.1f}h',
+                }
+                for row in top_projects_by_hours
+            ],
+        },
+        {
+            'title': 'Projects',
+            'icon': 'bi-hash',
+            'link_url': url_for('projects'),
+            'metrics': [
+                {'label': 'Active', 'value': project_status_counts.get('Active', 0)},
+                {'label': 'Prospective', 'value': project_status_counts.get('Prospective', 0)},
+                {'label': 'Archived', 'value': project_status_counts.get('Archived', 0)},
+                {'label': 'With time logged (30d)', 'value': projects_with_time_30d},
+            ],
+            'top_label': 'Top projects by hours (30d)',
+            'top_columns': ['Project', 'Client', 'Hours'],
+            'top_items': [
+                {
+                    'col1': row.name,
+                    'col2': row.client_name,
+                    'col3': f'{float(row.hours):.1f}h',
+                }
+                for row in top_projects_by_hours
+            ],
+        },
+        {
+            'title': 'Clients',
+            'icon': 'bi-person-lines-fill',
+            'link_url': url_for('clients'),
+            'metrics': [
+                {'label': 'Total', 'value': total_clients},
+                {'label': 'With membership', 'value': clients_with_membership},
+                {'label': 'Without membership', 'value': clients_without_membership},
+            ],
+            'top_label': 'Top clients by billed amount',
+            'top_columns': ['Client', 'Billed'],
+            'top_items': [
+                {
+                    'col1': row.name,
+                    'col2': fmt_currency(row.billed),
+                    'col3': None,
+                }
+                for row in top_clients_billed
+            ],
+        },
+        {
+            'title': 'Billing',
+            'icon': 'bi-receipt',
+            'link_url': url_for('quotes'),
+            'metrics': [
+                {'label': 'Quotes', 'value': f'{quote_count} ({fmt_currency(quote_total)})'},
+                {'label': 'Invoices', 'value': f'{invoice_count} ({fmt_currency(invoice_total)})'},
+                {'label': 'Awaiting approval', 'value': f'{awaiting_count} ({fmt_currency(awaiting_total)})'},
+                {'label': 'Issued last 30d', 'value': f'{issued_30_count} ({fmt_currency(issued_30_total)})'},
+            ],
+            'top_label': 'Top clients by billed amount',
+            'top_columns': ['Client', 'Billed'],
+            'top_items': [
+                {
+                    'col1': row.name,
+                    'col2': fmt_currency(row.billed),
+                    'col3': None,
+                }
+                for row in top_clients_billed
+            ],
+        },
+        {
+            'title': 'Memberships',
+            'icon': 'bi-people',
+            'link_url': url_for('memberships'),
+            'metrics': [
+                {'label': 'Total', 'value': total_memberships},
+                {'label': 'Currently active', 'value': total_members},
+                {'label': 'Active dollar budget', 'value': fmt_currency(active_funding_totals[0])},
+                {'label': 'Active hour budget', 'value': f'{int(active_funding_totals[1] or 0)} hrs'},
+            ],
+            'top_label': 'Top memberships by client count',
+            'top_columns': ['Membership', 'Clients'],
+            'top_items': [
+                {
+                    'col1': row.title,
+                    'col2': row.client_count,
+                    'col3': None,
+                }
+                for row in top_memberships
+            ],
+        },
+    ]
+
+    return render_template(
+        'analytics.html',
+        total_members=total_members,
+        total_projects=total_projects,
+        total_clients=total_clients,
+        open_tasks=open_tasks,
+        completion_data=completion_data,
+        chart_users=[{'id': user.id, 'name': user.full_name} for user in users_for_hours_chart],
+        entity_panels=entity_panels,
+    )
 
 # LOGS ROUTES
 @app.route('/logs')

@@ -1,0 +1,55 @@
+<div class="row g-3 analytics-entity-grid">
+    {% for panel in entity_panels %}
+    <div class="col-lg-6 col-xl-4">
+        <div class="analytics-entity-card h-100">
+            <div class="analytics-entity-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi {{ panel.icon }} me-2"></i>{{ panel.title }}
+                </h6>
+                <a href="{{ panel.link_url }}" class="small text-decoration-none">View all</a>
+            </div>
+            <div class="analytics-entity-body">
+                <dl class="analytics-metric-list mb-3">
+                    {% for metric in panel.metrics %}
+                    <div class="analytics-metric-row">
+                        <dt>{{ metric.label }}</dt>
+                        <dd>{{ metric.value }}</dd>
+                    </div>
+                    {% endfor %}
+                </dl>
+                {% if panel.top_items %}
+                <div class="analytics-top-list">
+                    <div class="small text-muted mb-1">{{ panel.top_label }}</div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless analytics-top-table mb-0">
+                            <thead>
+                                <tr>
+                                    {% for col in panel.top_columns %}
+                                    <th class="{% if loop.last %}text-end{% endif %}">{{ col }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in panel.top_items %}
+                                <tr>
+                                    <td class="fw-medium text-truncate" style="max-width: 8rem;" title="{{ item.col1 }}">{{ item.col1 }}</td>
+                                    {% if item.col3 is not none %}
+                                    <td class="text-muted text-truncate" style="max-width: 6rem;" title="{{ item.col2 }}">{{ item.col2 }}</td>
+                                    <td class="text-end text-nowrap">{{ item.col3 }}</td>
+                                    {% else %}
+                                    <td class="text-end text-nowrap">{{ item.col2 }}</td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="small text-muted">No data yet</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
