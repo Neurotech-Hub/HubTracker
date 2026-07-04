@@ -17,7 +17,26 @@
                     </div>
                     {% endfor %}
                 </dl>
-                {% if panel.top_items %}
+
+                {% if panel.top_style == 'user_hours' and panel.user_hours_items %}
+                <div class="analytics-top-list">
+                    <div class="small text-muted mb-1">{{ panel.top_label }}</div>
+                    <div class="analytics-user-hours-list">
+                        {% for user in panel.user_hours_items %}
+                        <div class="analytics-user-hours-block">
+                            <div class="analytics-user-hours-name">{{ user.name }}</div>
+                            {% for period in user.periods %}
+                            <div class="analytics-user-hours-period">
+                                <span>{{ period.label }}</span>
+                                <span>{{ '%.1f'|format(period.hours) }}h</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% elif panel.top_items %}
                 <div class="analytics-top-list">
                     <div class="small text-muted mb-1">{{ panel.top_label }}</div>
                     <div class="table-responsive">

@@ -3365,17 +3365,6 @@ def analytics():
         )
         return detailed + touch
 
-    def quote_totals(bill_type=None, extra_filters=None):
-        query = db.session.query(
-            func.count(Quote.id),
-            func.coalesce(func.sum(Quote.total_amount), 0),
-        )
-        if bill_type:
-            query = query.filter(Quote.bill_type == bill_type)
-        if extra_filters is not None:
-            query = query.filter(extra_filters)
-        return query.one()
-
     # Top summary metrics
     total_members = db.session.query(Membership.id).join(
         MembershipFunding, MembershipFunding.membership_id == Membership.id
@@ -3431,19 +3420,57 @@ def analytics():
             'user_hours': user_hours
         })
 
-    # Time & logs (30d)
-    total_logs_last_30 = Log.query.filter(Log.created_at >= thirty_days_ago_utc).count()
-    touch_logs_last_30 = Log.query.filter(
-        Log.created_at >= thirty_days_ago_utc,
-        Log.is_touch.is_(True)
-    ).count()
-    detailed_logs_last_30 = Log.query.filter(
-        Log.created_at >= thirty_days_ago_utc,
-        Log.is_touch.is_(False)
-    ).count()
+    # Time & logs
+    total_logs = Log.query.count()
+    total_hours_all_time = db.session.query(func.sum(Log.hours)).scalar() or 0
     total_hours_last_30 = db.session.query(func.sum(Log.hours)).filter(
         Log.created_at >= thirty_days_ago_utc
     ).scalar() or 0
+
+    from datetime import time as time_cls
+
+    def hours_by_user(start_utc=None, end_utc=None):
+        query = db.session.query(
+            Log.user_id,
+            func.coalesce(func.sum(Log.hours), 0).label('hours'),
+        ).filter(Log.hours.isnot(None))
+        if start_utc is not None:
+            query = query.filter(Log.created_at >= start_utc)
+        if end_utc is not None:
+            query = query.filter(Log.created_at < end_utc)
+        return {row.user_id: round(float(row.hours), 1) for row in query.group_by(Log.user_id).all()}
+
+    def chicago_date_range_to_utc(start_date, end_date):
+        start_chicago = TIMEZONE.localize(datetime.combine(start_date, time_cls.min))
+        end_chicago = TIMEZONE.localize(datetime.combine(end_date, time_cls.min))
+        return start_chicago.astimezone(utc_tz), end_chicago.astimezone(utc_tz)
+
+    this_week_start = normalize_week_start()
+    last_week_start = this_week_start - timedelta(days=7)
+    this_week_start_utc, this_week_end_utc = chicago_date_range_to_utc(
+        this_week_start, this_week_start + timedelta(days=7)
+    )
+    last_week_start_utc, last_week_end_utc = chicago_date_range_to_utc(
+        last_week_start, this_week_start
+    )
+
+    all_time_hours_by_user = hours_by_user()
+    this_week_hours_by_user = hours_by_user(this_week_start_utc, this_week_end_utc)
+    last_week_hours_by_user = hours_by_user(last_week_start_utc, last_week_end_utc)
+
+    admin_users = User.query.filter_by(role='admin').order_by(
+        User.first_name.asc(), User.last_name.asc()
+    ).all()
+    user_hours_breakdown = []
+    for user in admin_users:
+        user_hours_breakdown.append({
+            'name': user.full_name,
+            'periods': [
+                {'label': 'Last Week', 'hours': last_week_hours_by_user.get(user.id, 0)},
+                {'label': 'This Week', 'hours': this_week_hours_by_user.get(user.id, 0)},
+                {'label': 'All Time', 'hours': all_time_hours_by_user.get(user.id, 0)},
+            ],
+        })
 
     top_projects_by_hours = db.session.query(
         Project.name,
@@ -3465,11 +3492,11 @@ def analytics():
         Project.status, func.count(Project.id)
     ).group_by(Project.status).all()
     project_status_counts = {status or 'Unknown': count for status, count in project_status_rows}
+    total_projects_all = Project.query.count()
 
-    projects_with_time_30d = db.session.query(
+    projects_with_time = db.session.query(
         func.count(func.distinct(Log.project_id))
     ).filter(
-        Log.created_at >= thirty_days_ago_utc,
         Log.project_id.isnot(None),
     ).scalar() or 0
 
@@ -3477,28 +3504,58 @@ def analytics():
     clients_with_membership = Client.query.filter(Client.membership_id.isnot(None)).count()
     clients_without_membership = total_clients - clients_with_membership
 
-    top_clients_billed = db.session.query(
+    top_clients_by_hours = db.session.query(
         Client.name,
-        func.coalesce(func.sum(Quote.total_amount), 0).label('billed'),
+        log_hours_expr().label('hours'),
     ).join(
-        Quote, Quote.client_id == Client.id
+        Project, Project.client_id == Client.id
+    ).join(
+        Log, Log.project_id == Project.id
     ).group_by(
         Client.id, Client.name
-    ).order_by(desc('billed')).limit(5).all()
+    ).order_by(desc('hours')).limit(5).all()
 
     # Billing
-    awaiting_filter = and_(
-        Quote.bill_type == 'quote',
+    def quote_totals_filtered(bill_type=None, archived=None, extra_filters=None):
+        query = db.session.query(
+            func.count(Quote.id),
+            func.coalesce(func.sum(Quote.total_amount), 0),
+        )
+        if bill_type:
+            query = query.filter(Quote.bill_type == bill_type)
+        if archived is True:
+            query = query.filter(Quote.status == 'archived')
+        elif archived is False:
+            query = query.filter(Quote.status != 'archived')
+        if extra_filters is not None:
+            query = query.filter(extra_filters)
+        return query.one()
+
+    invoice_awaiting_filter = and_(
+        Quote.bill_type == 'invoice',
         Quote.is_public.is_(True),
         Quote.approved_by_name.is_(None),
         Quote.approved_at.is_(None),
     )
-    issued_cutoff = get_current_time().date() - timedelta(days=30)
 
-    quote_count, quote_total = quote_totals('quote')
-    invoice_count, invoice_total = quote_totals('invoice')
-    awaiting_count, awaiting_total = quote_totals(extra_filters=awaiting_filter)
-    issued_30_count, issued_30_total = quote_totals(extra_filters=Quote.issue_date >= issued_cutoff)
+    total_bills_count, total_bills_amount = quote_totals_filtered()
+    active_quotes_count, active_quotes_amount = quote_totals_filtered('quote', archived=False)
+    active_invoices_count, active_invoices_amount = quote_totals_filtered('invoice', archived=False)
+    archived_invoices_count, archived_invoices_amount = quote_totals_filtered('invoice', archived=True)
+    invoices_awaiting_count, invoices_awaiting_amount = quote_totals_filtered(
+        'invoice', extra_filters=invoice_awaiting_filter
+    )
+
+    top_clients_invoiced = db.session.query(
+        Client.name,
+        func.coalesce(func.sum(Quote.total_amount), 0).label('billed'),
+    ).join(
+        Quote, Quote.client_id == Client.id
+    ).filter(
+        Quote.bill_type == 'invoice',
+    ).group_by(
+        Client.id, Client.name
+    ).order_by(desc('billed')).limit(5).all()
 
     # Memberships
     total_memberships = Membership.query.count()
@@ -3510,14 +3567,41 @@ def analytics():
         MembershipFunding.end_date >= now,
     ).one()
 
-    top_memberships = db.session.query(
+    active_membership_ids = db.session.query(MembershipFunding.membership_id).filter(
+        MembershipFunding.start_date <= now,
+        MembershipFunding.end_date >= now,
+    ).distinct()
+
+    upcoming_renewals = db.session.query(
         Membership.title,
-        func.count(Client.id).label('client_count'),
-    ).outerjoin(
-        Client, Client.membership_id == Membership.id
+        func.max(MembershipFunding.end_date).label('funding_end_date'),
+    ).join(
+        MembershipFunding, MembershipFunding.membership_id == Membership.id
+    ).filter(
+        Membership.id.in_(active_membership_ids)
     ).group_by(
         Membership.id, Membership.title
-    ).order_by(desc('client_count')).limit(5).all()
+    ).order_by('funding_end_date').limit(5).all()
+
+    # Appointments (exclude admin users)
+    non_admin_user_filter = User.role != 'admin'
+    total_equipment = Equipment.query.count()
+    total_trainees = User.query.filter_by(role='trainee').count()
+    total_appointments = EquipmentAppointment.query.join(User).filter(
+        non_admin_user_filter
+    ).count()
+
+    top_scheduled_trainees = db.session.query(
+        User.first_name,
+        User.last_name,
+        func.count(EquipmentAppointment.id).label('appointment_count'),
+    ).join(
+        EquipmentAppointment, EquipmentAppointment.user_id == User.id
+    ).filter(
+        User.role == 'trainee',
+    ).group_by(
+        User.id, User.first_name, User.last_name
+    ).order_by(desc('appointment_count')).limit(5).all()
 
     def fmt_currency(value):
         return currency_filter(value)
@@ -3527,32 +3611,25 @@ def analytics():
             'title': 'Time & Logs',
             'icon': 'bi-clock-history',
             'link_url': url_for('logs'),
+            'top_style': 'user_hours',
             'metrics': [
-                {'label': 'Total hours (30d)', 'value': f'{round(float(total_hours_last_30), 1):.1f}'},
-                {'label': 'Touch logs (30d)', 'value': touch_logs_last_30},
-                {'label': 'Detailed logs (30d)', 'value': detailed_logs_last_30},
-                {'label': 'Log entries (30d)', 'value': total_logs_last_30},
+                {'label': 'Total hours (all time)', 'value': f'{round(float(total_hours_all_time), 1):.1f}'},
+                {'label': 'Total hours (last 30d)', 'value': f'{round(float(total_hours_last_30), 1):.1f}'},
+                {'label': 'Total logs', 'value': total_logs},
             ],
-            'top_label': 'Top projects by hours',
-            'top_columns': ['Project', 'Client', 'Hours'],
-            'top_items': [
-                {
-                    'col1': row.name,
-                    'col2': row.client_name,
-                    'col3': f'{float(row.hours):.1f}h',
-                }
-                for row in top_projects_by_hours
-            ],
+            'top_label': 'Hours by user',
+            'user_hours_items': user_hours_breakdown,
         },
         {
             'title': 'Projects',
             'icon': 'bi-hash',
             'link_url': url_for('projects'),
             'metrics': [
+                {'label': 'Total projects', 'value': total_projects_all},
                 {'label': 'Active', 'value': project_status_counts.get('Active', 0)},
                 {'label': 'Prospective', 'value': project_status_counts.get('Prospective', 0)},
                 {'label': 'Archived', 'value': project_status_counts.get('Archived', 0)},
-                {'label': 'With time logged (30d)', 'value': projects_with_time_30d},
+                {'label': 'With time logged (all time)', 'value': projects_with_time},
             ],
             'top_label': 'Top projects by hours (30d)',
             'top_columns': ['Project', 'Client', 'Hours'],
@@ -3574,28 +3651,29 @@ def analytics():
                 {'label': 'With membership', 'value': clients_with_membership},
                 {'label': 'Without membership', 'value': clients_without_membership},
             ],
-            'top_label': 'Top clients by billed amount',
-            'top_columns': ['Client', 'Billed'],
+            'top_label': 'Top all time hours',
+            'top_columns': ['Client', 'Hours'],
             'top_items': [
                 {
                     'col1': row.name,
-                    'col2': fmt_currency(row.billed),
+                    'col2': f'{float(row.hours):.1f}h',
                     'col3': None,
                 }
-                for row in top_clients_billed
+                for row in top_clients_by_hours
             ],
         },
         {
             'title': 'Billing',
             'icon': 'bi-receipt',
-            'link_url': url_for('quotes'),
+            'link_url': url_for('billing'),
             'metrics': [
-                {'label': 'Quotes', 'value': f'{quote_count} ({fmt_currency(quote_total)})'},
-                {'label': 'Invoices', 'value': f'{invoice_count} ({fmt_currency(invoice_total)})'},
-                {'label': 'Awaiting approval', 'value': f'{awaiting_count} ({fmt_currency(awaiting_total)})'},
-                {'label': 'Issued last 30d', 'value': f'{issued_30_count} ({fmt_currency(issued_30_total)})'},
+                {'label': 'Total bills', 'value': f'{total_bills_count} ({fmt_currency(total_bills_amount)})'},
+                {'label': 'Active quotes', 'value': f'{active_quotes_count} ({fmt_currency(active_quotes_amount)})'},
+                {'label': 'Active invoices', 'value': f'{active_invoices_count} ({fmt_currency(active_invoices_amount)})'},
+                {'label': 'Archived invoices', 'value': f'{archived_invoices_count} ({fmt_currency(archived_invoices_amount)})'},
+                {'label': 'Invoices awaiting approval', 'value': f'{invoices_awaiting_count} ({fmt_currency(invoices_awaiting_amount)})'},
             ],
-            'top_label': 'Top clients by billed amount',
+            'top_label': 'Top clients by billed amount (invoices)',
             'top_columns': ['Client', 'Billed'],
             'top_items': [
                 {
@@ -3603,7 +3681,7 @@ def analytics():
                     'col2': fmt_currency(row.billed),
                     'col3': None,
                 }
-                for row in top_clients_billed
+                for row in top_clients_invoiced
             ],
         },
         {
@@ -3616,15 +3694,35 @@ def analytics():
                 {'label': 'Active dollar budget', 'value': fmt_currency(active_funding_totals[0])},
                 {'label': 'Active hour budget', 'value': f'{int(active_funding_totals[1] or 0)} hrs'},
             ],
-            'top_label': 'Top memberships by client count',
-            'top_columns': ['Membership', 'Clients'],
+            'top_label': 'Ending soonest (top 5)',
+            'top_columns': ['Membership', 'End of funding'],
             'top_items': [
                 {
                     'col1': row.title,
-                    'col2': row.client_count,
+                    'col2': row.funding_end_date.astimezone(TIMEZONE).strftime('%Y-%m-%d') if row.funding_end_date else '—',
                     'col3': None,
                 }
-                for row in top_memberships
+                for row in upcoming_renewals
+            ],
+        },
+        {
+            'title': 'Appointments',
+            'icon': 'bi-calendar-check',
+            'link_url': url_for('admin'),
+            'metrics': [
+                {'label': 'Total equipment', 'value': total_equipment},
+                {'label': 'Total trainees', 'value': total_trainees},
+                {'label': 'Total appointments', 'value': total_appointments},
+            ],
+            'top_label': 'Most scheduled trainees (top 5)',
+            'top_columns': ['Trainee', 'Appointments'],
+            'top_items': [
+                {
+                    'col1': f"{row.first_name} {row.last_name or ''}".strip(),
+                    'col2': row.appointment_count,
+                    'col3': None,
+                }
+                for row in top_scheduled_trainees
             ],
         },
     ]

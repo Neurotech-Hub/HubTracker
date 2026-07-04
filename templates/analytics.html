@@ -82,6 +82,41 @@
         vertical-align: middle;
     }
 
+    .analytics-user-hours-list {
+        max-height: 16rem;
+        overflow-y: auto;
+    }
+
+    .analytics-user-hours-block {
+        padding: 0.35rem 0;
+        border-bottom: 1px solid #f1f3f5;
+    }
+
+    .analytics-user-hours-block:last-child {
+        border-bottom: none;
+    }
+
+    .analytics-user-hours-name {
+        font-size: 0.82rem;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+    }
+
+    .analytics-user-hours-period {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.1rem 0 0.1rem 0.75rem;
+        font-size: 0.78rem;
+        color: #6c757d;
+    }
+
+    .analytics-user-hours-period span:last-child {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        color: #212529;
+    }
+
     /* Compact Export Date Selector */
     .export-date-selector {
         display: flex;
