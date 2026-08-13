@@ -7,7 +7,31 @@
                         {{ membership.title }}
                     </a>
                 </div>
-                <small class="text-muted">Funding entries: {{ membership.funding_entries.count() }}</small>
+                {% set funding_list = membership.funding_entries.all()|sort(attribute='start_date', reverse=true) %}
+                {% if funding_list %}
+                <div class="membership-funding-preview mt-1">
+                    <table class="table table-sm table-borderless mb-0 membership-funding-preview-table">
+                        <thead>
+                            <tr>
+                                <th class="text-muted fw-normal">Start</th>
+                                <th class="text-muted fw-normal">End</th>
+                                <th class="text-muted fw-normal text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for funding in funding_list %}
+                            <tr>
+                                <td class="text-muted">{{ funding.start_date.strftime('%b %d, %Y') }}</td>
+                                <td class="text-muted">{{ funding.end_date.strftime('%b %d, %Y') }}</td>
+                                <td class="text-end">{{ funding.amount|currency }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <small class="text-muted">No funding entries</small>
+                {% endif %}
             </div>
         </div>
     </td>
