@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}{{ checklist.name }} - Hub Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('checklists') }}">Checklists</a></li>
+            <li class="breadcrumb-item active">{{ checklist.name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Checklist Name / Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form action="{{ url_for('update_checklist', checklist_id=checklist.id) }}" method="POST" class="d-flex align-items-center gap-2">
+                        <input type="text" class="form-control form-control-lg" name="name" value="{{ checklist.name }}" required>
+                        <button type="submit" class="btn btn-outline-primary flex-shrink-0" title="Rename Checklist">
+                            <i class="bi bi-check-lg me-1"></i>Rename
+                        </button>
+                        <button type="button" class="btn btn-outline-danger flex-shrink-0" data-bs-toggle="modal" data-bs-target="#deleteChecklistModal" title="Delete Checklist">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Item -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form action="{{ url_for('add_checklist_item', checklist_id=checklist.id) }}" method="POST" class="row g-2 align-items-end">
+                        <div class="col-12 col-md">
+                            <label for="newItemName" class="form-label mb-1 small text-muted">New Item</label>
+                            <input type="text" class="form-control" id="newItemName" name="name" placeholder="What needs to happen every week or month?" required>
+                        </div>
+                        <div class="col-6 col-md-auto">
+                            <label for="newItemOccurrence" class="form-label mb-1 small text-muted">Occurrence</label>
+                            <select class="form-select" id="newItemOccurrence" name="occurrence">
+                                <option value="weekly" selected>Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-auto">
+                            <label for="newItemAssignedTo" class="form-label mb-1 small text-muted">Assigned To</label>
+                            <select class="form-select" id="newItemAssignedTo" name="assigned_to">
+                                <option value="" selected>Unassigned</option>
+                                {% for user in admin_users %}
+                                <option value="{{ user.id }}">{{ user.full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-auto">
+                            <label for="newItemClient" class="form-label mb-1 small text-muted">Client</label>
+                            <select class="form-select" id="newItemClient" name="assigned_client_id">
+                                <option value="" selected>None</option>
+                                {% for client in clients %}
+                                <option value="{{ client.id }}">{{ client.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-auto">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-plus-circle me-1"></i>Add Item
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items (drag to reorder, click to edit) -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-list-check me-2"></i>Items
+                        <span class="badge-clean badge-count">{{ checklist.items|length }}</span>
+                    </h5>
+                    <small class="text-muted">Drag to reorder &bull; Click to edit</small>
+                </div>
+                <div class="card-body">
+                    {% if checklist.items %}
+                    <div id="checklistItemsEditor" class="checklist-editor-list">
+                        {% for item in checklist.items %}
+                        <div class="checklist-editor-item d-flex align-items-center{% if item.completed %} checklist-item-completed{% endif %}"
+                             data-item-id="{{ item.id }}"
+                             data-item-name="{{ item.name }}"
+                             data-item-occurrence="{{ item.occurrence }}"
+                             data-item-assigned-to="{{ item.assigned_to or '' }}"
+                             data-item-client-id="{{ item.assigned_client_id or '' }}"
+                             data-bs-toggle="modal" data-bs-target="#checklistItemModal"
+                             onclick="editChecklistItemFromData(this)">
+                            <span class="checklist-drag-handle me-2" title="Drag to reorder" onclick="event.stopPropagation()">
+                                <i class="bi bi-grip-vertical"></i>
+                            </span>
+                            <div class="flex-grow-1">
+                                <div class="checklist-item-name">{{ item.name }}</div>
+                                <div class="checklist-item-meta">
+                                    <span class="checklist-chip checklist-chip-{{ item.occurrence }}">
+                                        <i class="bi bi-arrow-repeat me-1"></i>{{ item.occurrence | capitalize }}
+                                    </span>
+                                    {% if item.assignee %}
+                                    <span class="checklist-chip checklist-chip-user">
+                                        <i class="bi bi-person me-1"></i>{{ item.assignee.full_name }}
+                                    </span>
+                                    {% endif %}
+                                    {% if item.assigned_client %}
+                                    <span class="checklist-chip checklist-chip-client">
+                                        <i class="bi bi-person-lines-fill me-1"></i>{{ item.assigned_client.name }}
+                                    </span>
+                                    {% endif %}
+                                    {% if item.completed %}
+                                    <span class="checklist-completed-meta">
+                                        Completed by {{ item.completed_by.full_name if item.completed_by else 'Unknown' }}{% if item.completed_at %} &bull; {{ item.completed_at.strftime('%b %-d, %-I:%M %p') }}{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <i class="bi bi-pencil text-muted ms-2"></i>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-list-check fs-1 mb-3 d-block"></i>
+                        <div class="fw-medium">No items yet</div>
+                        <div class="small">Add the first item above</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Checklist Modal -->
+<div class="modal fade" id="deleteChecklistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Delete Checklist
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Delete <strong>{{ checklist.name }}</strong> and all of its items? This cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('delete_checklist', checklist_id=checklist.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Delete Checklist</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Item Edit Modal -->
+{% include 'partials/checklist_item_modal.html' %}
+
+<!-- Include SortableJS -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const list = document.getElementById('checklistItemsEditor');
+    if (!list || typeof Sortable === 'undefined') return;
+
+    new Sortable(list, {
+        animation: 150,
+        handle: '.checklist-drag-handle',
+        ghostClass: 'checklist-item-ghost',
+        chosenClass: 'checklist-item-chosen',
+        onEnd: function() {
+            const itemIds = Array.from(list.querySelectorAll('.checklist-editor-item'))
+                .map(el => parseInt(el.dataset.itemId));
+
+            fetch('{{ url_for("reorder_checklist_items", checklist_id=checklist.id) }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item_ids: itemIds })
+            }).then(response => {
+                if (!response.ok) {
+                    console.error('Failed to save item order');
+                }
+            }).catch(error => {
+                console.error('Failed to save item order:', error);
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

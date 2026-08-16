@@ -331,6 +331,79 @@ class Task(db.Model):
             self.mark_complete(user_id)
 
 
+class Checklist(db.Model):
+    __tablename__ = 'checklists'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+
+    # Relationships
+    items = db.relationship(
+        'ChecklistItem',
+        backref='checklist',
+        lazy='selectin',
+        cascade='all, delete-orphan',
+        passive_deletes=True,
+        order_by='ChecklistItem.sort_order'
+    )
+
+    def __repr__(self):
+        return f'<Checklist {self.name}>'
+
+
+class ChecklistItem(db.Model):
+    __tablename__ = 'checklist_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    checklist_id = db.Column(db.Integer, db.ForeignKey('checklists.id', ondelete='CASCADE'), nullable=False, index=True)
+    name = db.Column(db.String(255), nullable=False)
+    completed = db.Column(db.Boolean, default=False, nullable=False)
+    completed_user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    occurrence = db.Column(db.String(10), nullable=False, default='weekly')  # weekly, monthly
+    assigned_client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='SET NULL'), nullable=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    reset_at = db.Column(db.DateTime(timezone=True), nullable=True)  # start of the period this completion cycle belongs to
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+
+    # Relationships
+    completed_by = db.relationship('User', foreign_keys=[completed_user_id], lazy='joined')
+    assignee = db.relationship('User', foreign_keys=[assigned_to], lazy='joined')
+    assigned_client = db.relationship('Client', foreign_keys=[assigned_client_id], lazy='joined')
+
+    def __repr__(self):
+        return f'<ChecklistItem {self.name[:30]}>'
+
+    @staticmethod
+    def period_start(occurrence, now=None):
+        """Return the start of the current period (Chicago time) for an occurrence."""
+        if now is None:
+            now = get_current_time()
+        if occurrence == 'monthly':
+            naive = datetime(now.year, now.month, 1)
+        else:  # weekly: Monday 00:00
+            monday = now.date() - timedelta(days=now.weekday())
+            naive = datetime(monday.year, monday.month, monday.day)
+        return TIMEZONE.localize(naive)
+
+    def reset_if_due(self, now=None):
+        """Lazily reset the item if the current period has rolled over. Returns True if changed."""
+        period_start = ChecklistItem.period_start(self.occurrence, now)
+        reset_at = self.reset_at
+        if reset_at is not None and reset_at.tzinfo is None:
+            # SQLite may return naive datetimes even for timezone-aware columns
+            reset_at = TIMEZONE.localize(reset_at)
+        if reset_at is None or reset_at < period_start:
+            self.completed = False
+            self.completed_user_id = None
+            self.completed_at = None
+            self.reset_at = period_start
+            return True
+        return False
+
+
 class Quote(db.Model):
     __tablename__ = 'quotes'
 

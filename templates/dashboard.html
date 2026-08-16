@@ -34,9 +34,11 @@
                     <h2 class="mb-0">Happy Sunday, <span class="dashboard-name-colorful">{{ user.first_name }}</span>.</h2>
                     {% endif %}
                 </div>
+                {# Tasks deprecated in favor of Checklists
                 <button type="button" class="btn dashboard-task-btn" data-bs-toggle="modal" data-bs-target="#taskModal" title="Quick Add Task">
                     <i class="bi bi-plus-circle me-2"></i>Add Task
                 </button>
+                #}
             </div>
         </div>
     </div>
@@ -162,17 +164,22 @@
                                     <small class="text-muted">{{ project.client.name }}</small>
                                 </div>
                                 <div class="kanban-card-footer">
+                                    {# Tasks deprecated in favor of Checklists
                                     <small class="text-muted">
                                         {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
                                         <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
                                     </small>
+                                    #}
+                                    <small class="text-muted"></small>
                                     <div class="d-flex align-items-center">
                                         {% if project.project_leader %}
                                         <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
                                         {% endif %}
+                                        {# Tasks deprecated in favor of Checklists
                                         <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
                                             <i class="bi bi-plus"></i>
                                         </button>
+                                        #}
                                     </div>
                                 </div>
                             </div>
@@ -209,17 +216,22 @@
                                     <small class="text-muted">{{ project.client.name }}</small>
                                 </div>
                                 <div class="kanban-card-footer">
+                                    {# Tasks deprecated in favor of Checklists
                                     <small class="text-muted">
                                         {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
                                         <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
                                     </small>
+                                    #}
+                                    <small class="text-muted"></small>
                                     <div class="d-flex align-items-center">
                                         {% if project.project_leader %}
                                         <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
                                         {% endif %}
+                                        {# Tasks deprecated in favor of Checklists
                                         <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
                                             <i class="bi bi-plus"></i>
                                         </button>
+                                        #}
                                     </div>
                                 </div>
                             </div>
@@ -256,17 +268,22 @@
                                     <small class="text-muted">{{ project.client.name }}</small>
                                 </div>
                                 <div class="kanban-card-footer">
+                                    {# Tasks deprecated in favor of Checklists
                                     <small class="text-muted">
                                         {% set open_tasks = project.tasks.filter_by(is_complete=False).count() %}
                                         <i class="bi bi-list-task me-1"></i>{{ open_tasks }}
                                     </small>
+                                    #}
+                                    <small class="text-muted"></small>
                                     <div class="d-flex align-items-center">
                                         {% if project.project_leader %}
                                         <span class="badge bg-light text-dark me-1">{{ project.project_leader.first_name }}</span>
                                         {% endif %}
+                                        {# Tasks deprecated in favor of Checklists
                                         <button class="project-add-task-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add task to {{ project.name }}">
                                             <i class="bi bi-plus"></i>
                                         </button>
+                                        #}
                                     </div>
                                 </div>
                             </div>
@@ -302,6 +319,7 @@
         </div>
     </div>
 
+    {# Tasks deprecated in favor of Checklists
     <!-- Tasks for Me -->
     <div class="row mb-4 task-section" :class="{ 'loaded': loaded }">
         <div class="col-12">
@@ -315,6 +333,7 @@
             </div>
         </div>
     </div>
+    #}
 
     <!-- Quick Actions -->
     <div class="row mb-4 fade-in" :class="{ 'loaded': loaded }">
@@ -351,8 +370,10 @@
 <!-- Add Membership Modal -->
 {% include 'partials/membership_form.html' %}
 
+{# Tasks deprecated in favor of Checklists
 <!-- Include Task Modal -->
 {% include 'partials/task_modal.html' %}
+#}
 
 <!-- Include SortableJS -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>

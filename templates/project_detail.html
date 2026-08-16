@@ -36,7 +36,9 @@
                                             <th class="border-0">Project</th>
                                             <th class="border-0">Client</th>
                                             <th class="border-0">Lead</th>
+                                            {# Tasks deprecated in favor of Checklists
                                             <th class="border-0">Tasks</th>
+                                            #}
                                             <th class="border-0">Status</th>
                                             <th class="border-0 text-end">Actions</th>
                                         </tr>
@@ -76,6 +78,7 @@
             </div>
             {% endif %}
             
+            {# Tasks deprecated in favor of Checklists
             <!-- Open Tasks -->
             <div class="row mb-4">
                 <div class="col-12">
@@ -177,6 +180,7 @@
                 </div>
             </div>
             {% endif %}
+            #}
             
             <!-- Logs -->
             <div class="row">
@@ -213,7 +217,9 @@
 <!-- Include Project Form (contains both add and edit modals) -->
 {% include 'partials/project_form.html' %}
 
+{# Tasks deprecated in favor of Checklists
 <!-- Include Task Modal -->
 {% include 'partials/task_modal.html' %}
+#}
 {% include 'partials/logs_modals_and_scripts.html' %}
 {% endblock %}

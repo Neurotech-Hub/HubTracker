@@ -86,7 +86,9 @@
                                     <th class="border-0">Project</th>
                                     <th class="border-0">Client</th>
                                     <th class="border-0">Lead</th>
+                                    {# Tasks deprecated in favor of Checklists
                                     <th class="border-0">Tasks</th>
+                                    #}
                                     <th class="border-0">Status</th>
                                     <th class="border-0 text-end">Actions</th>
                                 </tr>
@@ -118,6 +120,7 @@
         </div>
     </div>
 
+    {# Tasks deprecated in favor of Checklists
     <!-- Recent Tasks Section -->
     <div class="row">
         <div class="col-12">
@@ -167,6 +170,7 @@
             </div>
         </div>
     </div>
+    #}
 
     <!-- Logs Section -->
     <div class="row mt-4">
@@ -204,7 +208,9 @@
 <!-- Include Project Form (contains project edit/delete modals) -->
 {% include 'partials/project_form.html' %}
 
+{# Tasks deprecated in favor of Checklists
 <!-- Include Task Modal -->
 {% include 'partials/task_modal.html' %}
+#}
 {% include 'partials/logs_modals_and_scripts.html' %}
 {% endblock %} 

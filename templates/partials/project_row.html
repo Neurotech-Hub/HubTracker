@@ -35,9 +35,11 @@
             <span class="text-muted">Unassigned</span>
         {% endif %}
     </td>
+    {# Tasks deprecated in favor of Checklists
     <td>
         <span class="badge-clean badge-count">{{ project_open_tasks_count if project_open_tasks_count is not none else (project.open_tasks_count if project.open_tasks_count is not none else 0) }}</span>
     </td>
+    #}
     <td>
         {% if project.status == 'Active' %}
             <span class="badge-clean badge-status-active">{{ project.status }}</span>

@@ -1,9 +1,12 @@
 <!-- Top Metrics Grid Partial -->
 {% set is_compact = compact|default(false) %}
+{# Tasks deprecated in favor of Checklists: pass show_open_tasks=false to hide the Open Tasks card #}
+{% set show_open_tasks_card = show_open_tasks|default(true) %}
+{% set card_col = 'col-xl-3 col-md-6' if show_open_tasks_card else 'col-xl-4 col-md-6' %}
 <div class="row mb-4{% if is_compact %} analytics-summary{% endif %}">
     <div class="col-12">
         <div class="row {{ 'g-2' if is_compact else 'g-3' }}">
-            <div class="col-xl-3 col-md-6">
+            <div class="{{ card_col }}">
                 <div class="stat-card {{ 'p-3' if is_compact else 'p-4' }} h-100">
                     <div class="d-flex align-items-center">
                         <div class="stat-icon bg-primary-gradient text-white me-3{% if is_compact %} stat-icon-compact{% endif %}">
@@ -17,7 +20,7 @@
                 </div>
             </div>
             
-            <div class="col-xl-3 col-md-6">
+            <div class="{{ card_col }}">
                 <div class="stat-card {{ 'p-3' if is_compact else 'p-4' }} h-100">
                     <div class="d-flex align-items-center">
                         <div class="stat-icon bg-success-gradient text-white me-3{% if is_compact %} stat-icon-compact{% endif %}">
@@ -31,7 +34,7 @@
                 </div>
             </div>
             
-            <div class="col-xl-3 col-md-6">
+            <div class="{{ card_col }}">
                 <div class="stat-card {{ 'p-3' if is_compact else 'p-4' }} h-100">
                     <div class="d-flex align-items-center">
                         <div class="stat-icon bg-warning-gradient text-white me-3{% if is_compact %} stat-icon-compact{% endif %}">
@@ -45,6 +48,7 @@
                 </div>
             </div>
             
+            {% if show_open_tasks_card %}
             <div class="col-xl-3 col-md-6">
                 <div class="stat-card {{ 'p-3' if is_compact else 'p-4' }} h-100">
                     <div class="d-flex align-items-center">
@@ -58,6 +62,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div> 

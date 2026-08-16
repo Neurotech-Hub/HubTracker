@@ -1,0 +1,80 @@
+<!-- Checklist Item Edit Modal
+     Expects in context: admin_users, clients
+     Opened from checklist_edit.html rows via editChecklistItemFromData(el)
+-->
+<div class="modal fade" id="checklistItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="checklistItemForm" method="POST" action="">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil me-2"></i>Edit Item
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="checklistItemName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="checklistItemName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="checklistItemOccurrence" class="form-label">Occurrence</label>
+                        <select class="form-select" id="checklistItemOccurrence" name="occurrence">
+                            <option value="weekly">Weekly (resets Monday morning)</option>
+                            <option value="monthly">Monthly (resets on the 1st)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="checklistItemAssignedTo" class="form-label">Assigned To <span class="text-muted small">(reference only)</span></label>
+                        <select class="form-select" id="checklistItemAssignedTo" name="assigned_to">
+                            <option value="">Unassigned</option>
+                            {% for user in admin_users %}
+                            <option value="{{ user.id }}">{{ user.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="checklistItemClient" class="form-label">Client <span class="text-muted small">(reference only)</span></label>
+                        <select class="form-select" id="checklistItemClient" name="assigned_client_id">
+                            <option value="">None</option>
+                            {% for client in clients %}
+                            <option value="{{ client.id }}">{{ client.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-outline-danger" id="checklistItemDeleteBtn">
+                        <i class="bi bi-trash me-1"></i>Delete
+                    </button>
+                    <div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </div>
+            </form>
+            <!-- Hidden delete form (separate action from the edit form) -->
+            <form id="checklistItemDeleteForm" method="POST" action="" class="d-none"></form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editChecklistItemFromData(el) {
+    const itemId = el.dataset.itemId;
+    document.getElementById('checklistItemForm').action = `/checklist-item/${itemId}/edit`;
+    document.getElementById('checklistItemDeleteForm').action = `/checklist-item/${itemId}/delete`;
+    document.getElementById('checklistItemName').value = el.dataset.itemName || '';
+    document.getElementById('checklistItemOccurrence').value = el.dataset.itemOccurrence || 'weekly';
+    document.getElementById('checklistItemAssignedTo').value = el.dataset.itemAssignedTo || '';
+    document.getElementById('checklistItemClient').value = el.dataset.itemClientId || '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('checklistItemDeleteBtn').addEventListener('click', function() {
+        if (confirm('Delete this item?')) {
+            document.getElementById('checklistItemDeleteForm').submit();
+        }
+    });
+});
+</script>

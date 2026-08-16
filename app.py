@@ -56,7 +56,7 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
 # Import models and db
-from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME, Quote, QuoteLineItem
+from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME, Quote, QuoteLineItem, Checklist, ChecklistItem
 
 # Initialize extensions
 db.init_app(app)
@@ -2194,6 +2194,211 @@ def tasks():
                          tasks_i_created=tasks_i_created, 
                          all_tasks=all_tasks, 
                          completed_tasks=completed_tasks)
+
+# CHECKLISTS ROUTES
+
+def reset_due_checklist_items(items):
+    """Lazily reset weekly/monthly checklist items whose period has rolled over.
+
+    Runs wherever checklist items are loaded, since there is no cron job.
+    Commits only if something changed.
+    """
+    now = get_current_time()
+    changed = False
+    for item in items:
+        if item.reset_if_due(now):
+            changed = True
+    if changed:
+        db.session.commit()
+
+def get_checklist_form_data():
+    """Admin users and clients for checklist item forms."""
+    admin_users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
+    clients = Client.query.order_by(Client.name.asc()).all()
+    return admin_users, clients
+
+@app.route('/checklists')
+def checklists():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    all_checklists = Checklist.query.order_by(Checklist.name.asc()).all()
+    all_items = [item for checklist in all_checklists for item in checklist.items]
+    reset_due_checklist_items(all_items)
+
+    return render_template('checklists.html', checklists=all_checklists)
+
+@app.route('/checklists/add', methods=['POST'])
+def add_checklist():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Checklist name is required', 'error')
+        return redirect(url_for('checklists'))
+
+    checklist = Checklist(name=name)
+    db.session.add(checklist)
+    db.session.commit()
+
+    return redirect(url_for('edit_checklist', checklist_id=checklist.id))
+
+@app.route('/checklists/<int:checklist_id>/edit')
+def edit_checklist(checklist_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    checklist = Checklist.query.get_or_404(checklist_id)
+    reset_due_checklist_items(checklist.items)
+    admin_users, clients = get_checklist_form_data()
+
+    return render_template('checklist_edit.html',
+                         checklist=checklist,
+                         admin_users=admin_users,
+                         clients=clients)
+
+@app.route('/checklists/<int:checklist_id>/update', methods=['POST'])
+def update_checklist(checklist_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    checklist = Checklist.query.get_or_404(checklist_id)
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Checklist name is required', 'error')
+    else:
+        checklist.name = name
+        db.session.commit()
+        flash('Checklist renamed', 'success')
+
+    return redirect(url_for('edit_checklist', checklist_id=checklist.id))
+
+@app.route('/checklists/<int:checklist_id>/delete', methods=['POST'])
+def delete_checklist(checklist_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    checklist = Checklist.query.get_or_404(checklist_id)
+    db.session.delete(checklist)
+    db.session.commit()
+    flash('Checklist deleted', 'success')
+
+    return redirect(url_for('checklists'))
+
+@app.route('/checklists/<int:checklist_id>/items/add', methods=['POST'])
+def add_checklist_item(checklist_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    checklist = Checklist.query.get_or_404(checklist_id)
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Item name is required', 'error')
+        return redirect(url_for('edit_checklist', checklist_id=checklist.id))
+
+    occurrence = request.form.get('occurrence', 'weekly')
+    if occurrence not in ('weekly', 'monthly'):
+        occurrence = 'weekly'
+    assigned_to = request.form.get('assigned_to') or None
+    assigned_client_id = request.form.get('assigned_client_id') or None
+
+    max_sort = db.session.query(func.max(ChecklistItem.sort_order)).filter_by(checklist_id=checklist.id).scalar()
+    item = ChecklistItem(
+        checklist_id=checklist.id,
+        name=name,
+        occurrence=occurrence,
+        assigned_to=int(assigned_to) if assigned_to else None,
+        assigned_client_id=int(assigned_client_id) if assigned_client_id else None,
+        sort_order=(max_sort + 1) if max_sort is not None else 0,
+        reset_at=ChecklistItem.period_start(occurrence)
+    )
+    db.session.add(item)
+    db.session.commit()
+
+    return redirect(url_for('edit_checklist', checklist_id=checklist.id))
+
+@app.route('/checklist-item/<int:item_id>/edit', methods=['POST'])
+def edit_checklist_item(item_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    item = ChecklistItem.query.get_or_404(item_id)
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Item name is required', 'error')
+        return redirect(url_for('edit_checklist', checklist_id=item.checklist_id))
+
+    occurrence = request.form.get('occurrence', item.occurrence)
+    if occurrence not in ('weekly', 'monthly'):
+        occurrence = item.occurrence
+    assigned_to = request.form.get('assigned_to') or None
+    assigned_client_id = request.form.get('assigned_client_id') or None
+
+    item.name = name
+    if occurrence != item.occurrence:
+        # Re-anchor the reset cycle to the new occurrence's current period
+        item.occurrence = occurrence
+        item.reset_at = ChecklistItem.period_start(occurrence)
+    item.assigned_to = int(assigned_to) if assigned_to else None
+    item.assigned_client_id = int(assigned_client_id) if assigned_client_id else None
+    db.session.commit()
+
+    return redirect(url_for('edit_checklist', checklist_id=item.checklist_id))
+
+@app.route('/checklist-item/<int:item_id>/delete', methods=['POST'])
+def delete_checklist_item(item_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    item = ChecklistItem.query.get_or_404(item_id)
+    checklist_id = item.checklist_id
+    db.session.delete(item)
+    db.session.commit()
+
+    return redirect(url_for('edit_checklist', checklist_id=checklist_id))
+
+@app.route('/checklist-item/<int:item_id>/toggle', methods=['POST'])
+def toggle_checklist_item(item_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    item = ChecklistItem.query.get_or_404(item_id)
+    # Apply any pending period reset before toggling so a stale page can't
+    # "uncomplete" an item that already reset
+    item.reset_if_due()
+
+    if item.completed:
+        item.completed = False
+        item.completed_user_id = None
+        item.completed_at = None
+    else:
+        item.completed = True
+        item.completed_user_id = session['user_id']
+        item.completed_at = get_current_time()
+    db.session.commit()
+
+    return redirect(request.referrer or url_for('checklists'))
+
+@app.route('/api/checklist/<int:checklist_id>/reorder', methods=['POST'])
+def reorder_checklist_items(checklist_id):
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+
+    checklist = Checklist.query.get_or_404(checklist_id)
+    data = request.get_json() or {}
+    item_ids = data.get('item_ids')
+    if not isinstance(item_ids, list):
+        return jsonify({'success': False, 'error': 'item_ids list required'}), 400
+
+    items_by_id = {item.id: item for item in checklist.items}
+    for position, item_id in enumerate(item_ids):
+        item = items_by_id.get(int(item_id))
+        if item:
+            item.sort_order = position
+    db.session.commit()
+
+    return jsonify({'success': True})
 
 # PROJECTS ROUTES
 @app.route('/projects')

@@ -37,8 +37,8 @@
                 <a href="{{ url_for('dashboard') }}" class="mobile-nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
                     <i class="bi bi-house me-2"></i>Dashboard
                 </a>
-                <a href="{{ url_for('tasks') }}" class="mobile-nav-link {% if request.endpoint == 'tasks' %}active{% endif %}">
-                    <i class="bi bi-list-check me-2"></i>Tasks
+                <a href="{{ url_for('checklists') }}" class="mobile-nav-link {% if request.endpoint == 'checklists' %}active{% endif %}">
+                    <i class="bi bi-list-check me-2"></i>Checklists
                 </a>
                 <a href="{{ url_for('projects') }}" class="mobile-nav-link {% if request.endpoint == 'projects' %}active{% endif %}">
                     <i class="bi bi-hash me-2"></i>Projects
@@ -52,11 +52,11 @@
                 <a href="{{ url_for('billing') }}" class="mobile-nav-link {% if request.endpoint in ['billing', 'billing_new', 'billing_edit'] %}active{% endif %}">
                     <i class="bi bi-receipt me-2"></i>Billing
                 </a>
+                <a href="{{ url_for('time_grid') }}" class="mobile-nav-link {% if request.endpoint == 'time_grid' %}active{% endif %}">
+                    <i class="bi bi-calendar-week me-2"></i>Time Grid
+                </a>
                 <a href="{{ url_for('analytics') }}" class="mobile-nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                     <i class="bi bi-graph-up me-2"></i>Analytics
-                </a>
-                <a href="{{ url_for('time_grid') }}" class="mobile-nav-link {% if request.endpoint == 'time_grid' %}active{% endif %}">
-                    <i class="bi bi-calendar-week me-2"></i>Time Grid <span class="badge bg-secondary ms-1" style="font-size:0.65rem;">Beta</span>
                 </a>
             </nav>
             
@@ -73,7 +73,9 @@
                             <div class="mobile-project-name">{{ project.name }}</div>
                             <small class="mobile-project-client">{{ project.client.name }}</small>
                         </div>
+                        {# Tasks deprecated in favor of Checklists
                         <span class="mobile-task-count">{{ project.open_tasks_count }}</span>
+                        #}
                     </a>
                     {% endfor %}
                 </div>
@@ -112,8 +114,8 @@
                 <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
                     <i class="bi bi-house me-2"></i>Dashboard
                 </a>
-                <a href="{{ url_for('tasks') }}" class="nav-link {% if request.endpoint == 'tasks' %}active{% endif %}">
-                    <i class="bi bi-list-check me-2"></i>Tasks
+                <a href="{{ url_for('checklists') }}" class="nav-link {% if request.endpoint == 'checklists' %}active{% endif %}">
+                    <i class="bi bi-list-check me-2"></i>Checklists
                 </a>
                 <a href="{{ url_for('projects') }}" class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}">
                     <i class="bi bi-hash me-2"></i>Projects
@@ -127,11 +129,11 @@
                 <a href="{{ url_for('billing') }}" class="nav-link {% if request.endpoint in ['billing', 'billing_new', 'billing_edit'] %}active{% endif %}">
                     <i class="bi bi-receipt me-2"></i>Billing
                 </a>
+                <a href="{{ url_for('time_grid') }}" class="nav-link {% if request.endpoint == 'time_grid' %}active{% endif %}">
+                    <i class="bi bi-calendar-week me-2"></i>Time Grid
+                </a>
                 <a href="{{ url_for('analytics') }}" class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
                     <i class="bi bi-graph-up me-2"></i>Analytics
-                </a>
-                <a href="{{ url_for('time_grid') }}" class="nav-link {% if request.endpoint == 'time_grid' %}active{% endif %}">
-                    <i class="bi bi-calendar-week me-2"></i>Time Grid <span class="badge bg-secondary ms-1" style="font-size:0.65rem;">Beta</span>
                 </a>
             </div>
             
@@ -150,7 +152,9 @@
                             <div class="project-name">{{ project.name }}</div>
                             <small class="text-muted">{{ project.client.name }}</small>
                         </div>
+                        {# Tasks deprecated in favor of Checklists
                         <span class="task-count-bubble">{{ project.open_tasks_count }}</span>
+                        #}
                     </a>
                     {% endfor %}
                 </div>

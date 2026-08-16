@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Checklists - Hub Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">Checklists</h2>
+                </div>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addChecklistModal">
+                    <i class="bi bi-plus-circle me-2"></i>New Checklist
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% if checklists %}
+    <div class="row">
+        <div class="col-12">
+            {% for checklist in checklists %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-check me-2"></i>{{ checklist.name }}
+                    </h5>
+                    <a href="{{ url_for('edit_checklist', checklist_id=checklist.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit Checklist">
+                        <i class="bi bi-pencil me-1"></i>Edit
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% set open_items = checklist.items | rejectattr('completed') | list %}
+                    {% set done_items = checklist.items | selectattr('completed') | list %}
+
+                    {% if not checklist.items %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-list-check fs-1 mb-3 d-block"></i>
+                        <div class="fw-medium">No items yet</div>
+                        <div class="small">Add items from the <a href="{{ url_for('edit_checklist', checklist_id=checklist.id) }}">editor</a></div>
+                    </div>
+                    {% else %}
+
+                    {% for item in open_items %}
+                    <div class="checklist-item d-flex align-items-start">
+                        <form action="{{ url_for('toggle_checklist_item', item_id=item.id) }}" method="POST" class="checklist-checkbox-form">
+                            <button type="submit" class="checklist-checkbox" title="Mark Complete"></button>
+                        </form>
+                        <div class="checklist-item-content flex-grow-1">
+                            <div class="checklist-item-name">{{ item.name }}</div>
+                            <div class="checklist-item-meta">
+                                <span class="checklist-chip checklist-chip-{{ item.occurrence }}">
+                                    <i class="bi bi-arrow-repeat me-1"></i>{{ item.occurrence | capitalize }}
+                                </span>
+                                {% if item.assignee %}
+                                <span class="checklist-chip checklist-chip-user">
+                                    <i class="bi bi-person me-1"></i>{{ item.assignee.full_name }}
+                                </span>
+                                {% endif %}
+                                {% if item.assigned_client %}
+                                <span class="checklist-chip checklist-chip-client">
+                                    <i class="bi bi-person-lines-fill me-1"></i>{{ item.assigned_client.name }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if open_items and done_items %}
+                    <hr class="checklist-divider">
+                    {% endif %}
+
+                    {% for item in done_items %}
+                    <div class="checklist-item checklist-item-completed d-flex align-items-start">
+                        <form action="{{ url_for('toggle_checklist_item', item_id=item.id) }}" method="POST" class="checklist-checkbox-form">
+                            <button type="submit" class="checklist-checkbox checked" title="Mark Incomplete">
+                                <i class="bi bi-check"></i>
+                            </button>
+                        </form>
+                        <div class="checklist-item-content flex-grow-1">
+                            <div class="checklist-item-name">{{ item.name }}</div>
+                            <div class="checklist-item-meta">
+                                <span class="checklist-chip checklist-chip-{{ item.occurrence }}">
+                                    <i class="bi bi-arrow-repeat me-1"></i>{{ item.occurrence | capitalize }}
+                                </span>
+                                <span class="checklist-completed-meta">
+                                    Completed by {{ item.completed_by.full_name if item.completed_by else 'Unknown' }}{% if item.completed_at %} &bull; {{ item.completed_at.strftime('%b %-d, %-I:%M %p') }}{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center text-muted py-5">
+                    <i class="bi bi-list-check fs-1 mb-3 d-block"></i>
+                    <div class="fw-medium">No checklists yet</div>
+                    <div class="small">Create your first recurring checklist</div>
+                    <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addChecklistModal">
+                        <i class="bi bi-plus me-1"></i>New Checklist
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Checklist Modal -->
+<div class="modal fade" id="addChecklistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('add_checklist') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-list-check me-2"></i>New Checklist
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newChecklistName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="newChecklistName" name="name" placeholder="e.g. 0. Lab-wide Checklist" required>
+                        <div class="form-text">Checklists are ordered by name on this page.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
