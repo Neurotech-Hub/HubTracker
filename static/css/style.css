@@ -3449,6 +3449,24 @@ textarea:focus::placeholder {
     color: #9333ea;
 }
 
+.checklist-chip-never {
+    background: #f3f4f6;
+    color: #9ca3af;
+}
+
+/* One-time (never-repeating) items stand out from recurring ones */
+.checklist-item-once {
+    background: rgba(59, 130, 246, 0.07);
+}
+
+.checklist-item-once:hover {
+    background: rgba(59, 130, 246, 0.12);
+}
+
+.checklist-editor-item.checklist-item-once {
+    border-color: rgba(59, 130, 246, 0.25);
+}
+
 .checklist-chip-user {
     background: rgba(16, 185, 129, 0.1);
     color: #059669;

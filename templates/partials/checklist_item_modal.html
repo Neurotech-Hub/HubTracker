@@ -18,10 +18,11 @@
                         <input type="text" class="form-control" id="checklistItemName" name="name" required>
                     </div>
                     <div class="mb-3">
-                        <label for="checklistItemOccurrence" class="form-label">Occurrence</label>
-                        <select class="form-select" id="checklistItemOccurrence" name="occurrence">
+                        <label for="checklistItemRepeats" class="form-label">Repeats</label>
+                        <select class="form-select" id="checklistItemRepeats" name="repeats">
                             <option value="weekly">Weekly (resets Monday morning)</option>
                             <option value="monthly">Monthly (resets on the 1st)</option>
+                            <option value="never">Never (removed next Monday after completion)</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -65,7 +66,7 @@ function editChecklistItemFromData(el) {
     document.getElementById('checklistItemForm').action = `/checklist-item/${itemId}/edit`;
     document.getElementById('checklistItemDeleteForm').action = `/checklist-item/${itemId}/delete`;
     document.getElementById('checklistItemName').value = el.dataset.itemName || '';
-    document.getElementById('checklistItemOccurrence').value = el.dataset.itemOccurrence || 'weekly';
+    document.getElementById('checklistItemRepeats').value = el.dataset.itemRepeats || 'weekly';
     document.getElementById('checklistItemAssignedTo').value = el.dataset.itemAssignedTo || '';
     document.getElementById('checklistItemClient').value = el.dataset.itemClientId || '';
 }

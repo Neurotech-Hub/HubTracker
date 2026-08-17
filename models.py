@@ -362,7 +362,7 @@ class ChecklistItem(db.Model):
     completed_user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     assigned_to = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
-    occurrence = db.Column(db.String(10), nullable=False, default='weekly')  # weekly, monthly
+    repeats = db.Column(db.String(10), nullable=False, default='weekly')  # weekly, monthly, never
     assigned_client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='SET NULL'), nullable=True)
     sort_order = db.Column(db.Integer, nullable=False, default=0)
     reset_at = db.Column(db.DateTime(timezone=True), nullable=True)  # start of the period this completion cycle belongs to
@@ -377,24 +377,42 @@ class ChecklistItem(db.Model):
         return f'<ChecklistItem {self.name[:30]}>'
 
     @staticmethod
-    def period_start(occurrence, now=None):
-        """Return the start of the current period (Chicago time) for an occurrence."""
+    def period_start(repeats, now=None):
+        """Return the start of the current period (Chicago time) for a repeat interval.
+
+        Returns None for 'never' (one-time items have no reset cycle).
+        """
+        if repeats == 'never':
+            return None
         if now is None:
             now = get_current_time()
-        if occurrence == 'monthly':
+        if repeats == 'monthly':
             naive = datetime(now.year, now.month, 1)
         else:  # weekly: Monday 00:00
             monday = now.date() - timedelta(days=now.weekday())
             naive = datetime(monday.year, monday.month, monday.day)
         return TIMEZONE.localize(naive)
 
+    def _aware(self, dt):
+        """SQLite may return naive datetimes even for timezone-aware columns."""
+        if dt is not None and dt.tzinfo is None:
+            return TIMEZONE.localize(dt)
+        return dt
+
+    def should_expire(self, now=None):
+        """Completed one-time items are removed when the weekly period rolls (Monday)."""
+        if self.repeats != 'never' or not self.completed:
+            return False
+        weekly_start = ChecklistItem.period_start('weekly', now)
+        completed_at = self._aware(self.completed_at)
+        return completed_at is None or completed_at < weekly_start
+
     def reset_if_due(self, now=None):
         """Lazily reset the item if the current period has rolled over. Returns True if changed."""
-        period_start = ChecklistItem.period_start(self.occurrence, now)
-        reset_at = self.reset_at
-        if reset_at is not None and reset_at.tzinfo is None:
-            # SQLite may return naive datetimes even for timezone-aware columns
-            reset_at = TIMEZONE.localize(reset_at)
+        period_start = ChecklistItem.period_start(self.repeats, now)
+        if period_start is None:
+            return False
+        reset_at = self._aware(self.reset_at)
         if reset_at is None or reset_at < period_start:
             self.completed = False
             self.completed_user_id = None

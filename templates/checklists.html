@@ -44,15 +44,15 @@
                     {% else %}
 
                     {% for item in open_items %}
-                    <div class="checklist-item d-flex align-items-start">
+                    <div class="checklist-item d-flex align-items-start{% if item.repeats == 'never' %} checklist-item-once{% endif %}">
                         <form action="{{ url_for('toggle_checklist_item', item_id=item.id) }}" method="POST" class="checklist-checkbox-form">
                             <button type="submit" class="checklist-checkbox" title="Mark Complete"></button>
                         </form>
                         <div class="checklist-item-content flex-grow-1">
                             <div class="checklist-item-name">{{ item.name }}</div>
                             <div class="checklist-item-meta">
-                                <span class="checklist-chip checklist-chip-{{ item.occurrence }}">
-                                    <i class="bi bi-arrow-repeat me-1"></i>{{ item.occurrence | capitalize }}
+                                <span class="checklist-chip checklist-chip-{{ item.repeats }}">
+                                    <i class="bi bi-arrow-repeat me-1"></i>{{ item.repeats | capitalize }}
                                 </span>
                                 {% if item.assignee %}
                                 <span class="checklist-chip checklist-chip-user">
@@ -74,7 +74,7 @@
                     {% endif %}
 
                     {% for item in done_items %}
-                    <div class="checklist-item checklist-item-completed d-flex align-items-start">
+                    <div class="checklist-item checklist-item-completed d-flex align-items-start{% if item.repeats == 'never' %} checklist-item-once{% endif %}">
                         <form action="{{ url_for('toggle_checklist_item', item_id=item.id) }}" method="POST" class="checklist-checkbox-form">
                             <button type="submit" class="checklist-checkbox checked" title="Mark Incomplete">
                                 <i class="bi bi-check"></i>
@@ -83,8 +83,8 @@
                         <div class="checklist-item-content flex-grow-1">
                             <div class="checklist-item-name">{{ item.name }}</div>
                             <div class="checklist-item-meta">
-                                <span class="checklist-chip checklist-chip-{{ item.occurrence }}">
-                                    <i class="bi bi-arrow-repeat me-1"></i>{{ item.occurrence | capitalize }}
+                                <span class="checklist-chip checklist-chip-{{ item.repeats }}">
+                                    <i class="bi bi-arrow-repeat me-1"></i>{{ item.repeats | capitalize }}
                                 </span>
                                 <span class="checklist-completed-meta">
                                     Completed by {{ item.completed_by.full_name if item.completed_by else 'Unknown' }}{% if item.completed_at %} &bull; {{ item.completed_at.strftime('%b %-d, %-I:%M %p') }}{% endif %}

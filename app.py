@@ -2198,15 +2198,25 @@ def tasks():
 # CHECKLISTS ROUTES
 
 def reset_due_checklist_items(items):
-    """Lazily reset weekly/monthly checklist items whose period has rolled over.
+    """Lazily reset weekly/monthly items, and delete completed one-time items
+    once the weekly period has rolled over (Monday morning).
 
     Runs wherever checklist items are loaded, since there is no cron job.
     Commits only if something changed.
     """
     now = get_current_time()
     changed = False
-    for item in items:
-        if item.reset_if_due(now):
+    for item in list(items):
+        if item.should_expire(now):
+            parent = item.checklist
+            db.session.delete(item)
+            if parent is not None:
+                try:
+                    parent.items.remove(item)
+                except ValueError:
+                    pass
+            changed = True
+        elif item.reset_if_due(now):
             changed = True
     if changed:
         db.session.commit()
@@ -2297,9 +2307,9 @@ def add_checklist_item(checklist_id):
         flash('Item name is required', 'error')
         return redirect(url_for('edit_checklist', checklist_id=checklist.id))
 
-    occurrence = request.form.get('occurrence', 'weekly')
-    if occurrence not in ('weekly', 'monthly'):
-        occurrence = 'weekly'
+    repeats = request.form.get('repeats', 'weekly')
+    if repeats not in ('weekly', 'monthly', 'never'):
+        repeats = 'weekly'
     assigned_to = request.form.get('assigned_to') or None
     assigned_client_id = request.form.get('assigned_client_id') or None
 
@@ -2307,11 +2317,11 @@ def add_checklist_item(checklist_id):
     item = ChecklistItem(
         checklist_id=checklist.id,
         name=name,
-        occurrence=occurrence,
+        repeats=repeats,
         assigned_to=int(assigned_to) if assigned_to else None,
         assigned_client_id=int(assigned_client_id) if assigned_client_id else None,
         sort_order=(max_sort + 1) if max_sort is not None else 0,
-        reset_at=ChecklistItem.period_start(occurrence)
+        reset_at=ChecklistItem.period_start(repeats)
     )
     db.session.add(item)
     db.session.commit()
@@ -2329,22 +2339,24 @@ def edit_checklist_item(item_id):
         flash('Item name is required', 'error')
         return redirect(url_for('edit_checklist', checklist_id=item.checklist_id))
 
-    occurrence = request.form.get('occurrence', item.occurrence)
-    if occurrence not in ('weekly', 'monthly'):
-        occurrence = item.occurrence
+    repeats = request.form.get('repeats', item.repeats)
+    if repeats not in ('weekly', 'monthly', 'never'):
+        repeats = item.repeats
     assigned_to = request.form.get('assigned_to') or None
     assigned_client_id = request.form.get('assigned_client_id') or None
 
+    checklist_id = item.checklist_id
+
     item.name = name
-    if occurrence != item.occurrence:
-        # Re-anchor the reset cycle to the new occurrence's current period
-        item.occurrence = occurrence
-        item.reset_at = ChecklistItem.period_start(occurrence)
+    if repeats != item.repeats:
+        # Re-anchor the reset cycle to the new interval's current period
+        item.repeats = repeats
+        item.reset_at = ChecklistItem.period_start(repeats)
     item.assigned_to = int(assigned_to) if assigned_to else None
     item.assigned_client_id = int(assigned_client_id) if assigned_client_id else None
     db.session.commit()
 
-    return redirect(url_for('edit_checklist', checklist_id=item.checklist_id))
+    return redirect(url_for('edit_checklist', checklist_id=checklist_id))
 
 @app.route('/checklist-item/<int:item_id>/delete', methods=['POST'])
 def delete_checklist_item(item_id):
@@ -2364,9 +2376,12 @@ def toggle_checklist_item(item_id):
         return redirect(url_for('login'))
 
     item = ChecklistItem.query.get_or_404(item_id)
-    # Apply any pending period reset before toggling so a stale page can't
-    # "uncomplete" an item that already reset
-    item.reset_if_due()
+    # Apply any pending period reset / one-time expiry before toggling so a
+    # stale page can't uncomplete an item that already rolled over
+    reset_due_checklist_items([item])
+    item = db.session.get(ChecklistItem, item_id)
+    if item is None:
+        return redirect(request.referrer or url_for('checklists'))
 
     if item.completed:
         item.completed = False

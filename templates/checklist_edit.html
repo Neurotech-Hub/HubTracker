@@ -42,10 +42,11 @@
                             <input type="text" class="form-control" id="newItemName" name="name" placeholder="What needs to happen every week or month?" required>
                         </div>
                         <div class="col-6 col-md-auto">
-                            <label for="newItemOccurrence" class="form-label mb-1 small text-muted">Occurrence</label>
-                            <select class="form-select" id="newItemOccurrence" name="occurrence">
+                            <label for="newItemRepeats" class="form-label mb-1 small text-muted">Repeats</label>
+                            <select class="form-select" id="newItemRepeats" name="repeats">
                                 <option value="weekly" selected>Weekly</option>
                                 <option value="monthly">Monthly</option>
+                                <option value="never">Never</option>
                             </select>
                         </div>
                         <div class="col-6 col-md-auto">
@@ -92,10 +93,10 @@
                     {% if checklist.items %}
                     <div id="checklistItemsEditor" class="checklist-editor-list">
                         {% for item in checklist.items %}
-                        <div class="checklist-editor-item d-flex align-items-center{% if item.completed %} checklist-item-completed{% endif %}"
+                        <div class="checklist-editor-item d-flex align-items-center{% if item.completed %} checklist-item-completed{% endif %}{% if item.repeats == 'never' %} checklist-item-once{% endif %}"
                              data-item-id="{{ item.id }}"
                              data-item-name="{{ item.name }}"
-                             data-item-occurrence="{{ item.occurrence }}"
+                             data-item-repeats="{{ item.repeats }}"
                              data-item-assigned-to="{{ item.assigned_to or '' }}"
                              data-item-client-id="{{ item.assigned_client_id or '' }}"
                              data-bs-toggle="modal" data-bs-target="#checklistItemModal"
@@ -106,8 +107,8 @@
                             <div class="flex-grow-1">
                                 <div class="checklist-item-name">{{ item.name }}</div>
                                 <div class="checklist-item-meta">
-                                    <span class="checklist-chip checklist-chip-{{ item.occurrence }}">
-                                        <i class="bi bi-arrow-repeat me-1"></i>{{ item.occurrence | capitalize }}
+                                    <span class="checklist-chip checklist-chip-{{ item.repeats }}">
+                                        <i class="bi bi-arrow-repeat me-1"></i>{{ item.repeats | capitalize }}
                                     </span>
                                     {% if item.assignee %}
                                     <span class="checklist-chip checklist-chip-user">
