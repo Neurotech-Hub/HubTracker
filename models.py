@@ -45,6 +45,7 @@ class User(db.Model):
     email = db.Column(db.String(120), nullable=False, unique=True)
     role = db.Column(db.String(20), nullable=False, default='trainee')  # admin, trainee, finance
     password = db.Column(db.String(255), nullable=True)  # Will implement hashing later
+    annual_salary = db.Column(db.Numeric(12, 2), nullable=True)  # Used by Finances page (monthly drain = salary / 12)
     
     # Relationships
     created_tasks = db.relationship('Task', foreign_keys='Task.created_by', backref='creator', lazy='dynamic')
@@ -208,6 +209,7 @@ class MembershipFunding(db.Model):
     start_date = db.Column(db.DateTime(timezone=True), nullable=False)
     end_date = db.Column(db.DateTime(timezone=True), nullable=False)
     scope = db.Column(db.Text, nullable=True)  # Markdown scope/details for this funding entry
+    payout = db.Column(db.String(10), nullable=False, default='monthly', server_default='monthly')  # monthly, upfront, exclude
     time_budget = db.Column(db.Integer, nullable=True)  # Time budget in hours
     dollar_budget = db.Column(db.Float, nullable=True)  # Consumables/hardware budget
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
@@ -435,7 +437,8 @@ class Quote(db.Model):
     bill_type = db.Column(db.String(20), nullable=False, default='quote', server_default='quote')  # quote, invoice
     issue_date = db.Column(db.Date, nullable=False)
     valid_until = db.Column(db.Date, nullable=True)
-    status = db.Column(db.String(20), nullable=False, default='draft', server_default='draft')  # draft, published, archived
+    status = db.Column(db.String(20), nullable=False, default='draft', server_default='draft')  # draft, published, paid, archived
+    paid_at = db.Column(db.DateTime(timezone=True), nullable=True)  # Set when status becomes 'paid'
     subtotal = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     shipping_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     shipping_tbd = db.Column(db.Boolean, nullable=False, default=False)
@@ -588,6 +591,19 @@ class ActivityLog(db.Model):
         return log
 
 # Equipment Scheduling Models
+
+class FinanceSettings(db.Model):
+    """Singleton row backing the Finances FY snapshot page."""
+    __tablename__ = 'finance_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    fy_start_year = db.Column(db.Integer, nullable=False)  # e.g. 2026 for FY27 (Jul 1, 2026 - Jun 30, 2027)
+    fixed_costs = db.Column(db.JSON, nullable=False, default=list)  # 12 monthly amounts, Jul -> Jun
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+
+    def __repr__(self):
+        return f'<FinanceSettings FY{(self.fy_start_year + 1) % 100}>'
 
 class SchedulingSettings(db.Model):
     __tablename__ = 'scheduling_settings'

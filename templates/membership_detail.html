@@ -203,6 +203,11 @@
                                             <td>{{ funding.end_date.strftime('%b %d, %Y') }}</td>
                                             <td>
                                                 <span class="badge-clean badge-cost">{{ funding.amount|currency }}</span>
+                                                {% if funding.payout == 'exclude' %}
+                                                <span class="badge-clean text-muted ms-1">Excluded</span>
+                                                {% elif funding.payout == 'upfront' %}
+                                                <span class="text-muted small ms-1">Upfront</span>
+                                                {% endif %}
                                             </td>
                                             <td>
                                                 {% if funding.time_budget is not none %}
@@ -471,11 +476,26 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="fundingAmount" class="form-label">Amount <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" id="fundingAmount" name="amount" step="0.01" min="0" value="0" required>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fundingAmount" class="form-label">Amount <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="fundingAmount" name="amount" step="0.01" min="0" value="0" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fundingPayout" class="form-label">Payout</label>
+                                <select class="form-select" id="fundingPayout" name="payout">
+                                    <option value="monthly" selected>Monthly</option>
+                                    <option value="upfront">Upfront</option>
+                                    <option value="exclude">Exclude</option>
+                                </select>
+                                <div class="form-text">Exclude omits this amount from the Finances page.</div>
+                            </div>
                         </div>
                     </div>
                     <div class="row">
@@ -556,11 +576,26 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="editFundingDollarBudget" class="form-label">Dollar Budget</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" id="editFundingDollarBudget" name="dollar_budget" step="0.01" min="0">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editFundingDollarBudget" class="form-label">Dollar Budget</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="editFundingDollarBudget" name="dollar_budget" step="0.01" min="0">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editFundingPayout" class="form-label">Payout</label>
+                                <select class="form-select" id="editFundingPayout" name="payout">
+                                    <option value="monthly">Monthly</option>
+                                    <option value="upfront">Upfront</option>
+                                    <option value="exclude">Exclude</option>
+                                </select>
+                                <div class="form-text">Exclude omits this amount from the Finances page.</div>
+                            </div>
                         </div>
                     </div>
                     <div class="row">
@@ -650,6 +685,7 @@ function editFunding(fundingId) {
             document.getElementById('editFundingStartDate').value = data.start_date || '';
             document.getElementById('editFundingEndDate').value = data.end_date || '';
             document.getElementById('editFundingScope').value = data.scope || '';
+            document.getElementById('editFundingPayout').value = data.payout || 'monthly';
             document.getElementById('editFundingTimeBudget').value = data.time_budget ?? '';
             document.getElementById('editFundingDollarBudget').value = data.dollar_budget ?? '';
             

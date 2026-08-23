@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}Finances - Hub Tracker{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .finances-table td,
+    .finances-table th {
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .finances-table .fixed-cost-input {
+        max-width: 8rem;
+        margin-left: auto;
+        text-align: right;
+    }
+    .finances-net-positive { color: #215732; }
+    .finances-net-negative { color: #BA0C2F; }
+    .finances-chart-wrap {
+        position: relative;
+        height: 320px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Finances <span class="badge-clean badge-count align-middle">{{ fy_label }}</span></h2>
+    </div>
+
+    {% if needs_restart %}
+    <div class="alert alert-warning d-flex justify-content-between align-items-center gap-3 flex-wrap" role="alert">
+        <div>
+            <strong>New fiscal year detected.</strong>
+            The saved fixed costs are from {{ settings_fy_label }}. Restart the fiscal year to clear the 12 monthly fixed-cost inputs for {{ fy_label }}.
+        </div>
+        <form method="POST" action="{{ url_for('finances_restart_fy') }}"
+              onsubmit="return confirm('Restart the fiscal year? This clears all 12 fixed-cost inputs.');">
+            <button type="submit" class="btn btn-warning btn-sm">Restart fiscal year?</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Monthly P/L chart (hero) -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 d-inline-flex align-items-center gap-1">
+                <i class="bi bi-bar-chart-line me-2"></i>Monthly Profit / Loss
+            </h5>
+            <span class="text-muted small">Green is surplus, red is a gap to fill. Line is year-to-date net.</span>
+        </div>
+        <div class="card-body">
+            <div class="finances-chart-wrap">
+                <canvas id="financesPlChart" aria-label="Monthly profit and loss for {{ fy_label }}"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- FY Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small">In (Funding + Paid Bills)</div>
+                    <div class="fs-4 fw-semibold">{{ totals.inflow|currency }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Out (Salaries + Fixed Costs)</div>
+                    <div class="fs-4 fw-semibold">{{ totals.outflow|currency }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Net</div>
+                    <div class="fs-4 fw-semibold {{ 'finances-net-negative' if totals.net < 0 else 'finances-net-positive' }}">
+                        {{ totals.net|currency }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Table -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 d-inline-flex align-items-center gap-1">
+                <i class="bi bi-cash-stack me-2"></i>Monthly Snapshot
+            </h5>
+            <span class="text-muted small">Fixed costs are entered manually; log costs are ignored.</span>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('finances_fixed_costs') }}">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0 finances-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="border-0">Month</th>
+                                <th class="border-0 text-end">Funding</th>
+                                <th class="border-0 text-end">Paid Bills</th>
+                                <th class="border-0 text-end">Salaries</th>
+                                <th class="border-0 text-end">Fixed Costs</th>
+                                <th class="border-0 text-end">Net</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month in months %}
+                            <tr>
+                                <td class="fw-medium">{{ month.label }}</td>
+                                <td class="text-end">{{ month.funding|currency }}</td>
+                                <td class="text-end">{{ month.paid_bills|currency }}</td>
+                                <td class="text-end">{{ month.salaries|currency }}</td>
+                                <td class="text-end">
+                                    <input type="number" class="form-control form-control-sm fixed-cost-input"
+                                           name="fixed_cost_{{ month.index }}" step="0.01" min="0"
+                                           value="{{ '%.2f'|format(month.fixed_cost) if month.fixed_cost else '' }}"
+                                           placeholder="0.00">
+                                </td>
+                                <td class="text-end fw-medium {{ 'finances-net-negative' if month.net < 0 else 'finances-net-positive' }}">
+                                    {{ month.net|currency }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <td class="fw-semibold">Total</td>
+                                <td class="text-end fw-semibold">{{ totals.funding|currency }}</td>
+                                <td class="text-end fw-semibold">{{ totals.paid_bills|currency }}</td>
+                                <td class="text-end fw-semibold">{{ totals.salaries|currency }}</td>
+                                <td class="text-end fw-semibold">{{ totals.fixed_costs|currency }}</td>
+                                <td class="text-end fw-semibold {{ 'finances-net-negative' if totals.net < 0 else 'finances-net-positive' }}">
+                                    {{ totals.net|currency }}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <div class="text-end mt-3">
+                    <button type="submit" class="btn btn-primary btn-sm">Save Fixed Costs</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Salaries -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0 d-inline-flex align-items-center gap-1">
+                <i class="bi bi-people me-2"></i>Salaries
+                <span class="badge-clean badge-count">{{ salary_monthly_total|currency }}/mo</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if salary_people %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0">User</th>
+                            <th class="border-0 text-end">Annual Salary</th>
+                            <th class="border-0 text-end">Monthly</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for person in salary_people %}
+                        <tr>
+                            <td class="fw-medium">{{ person.name }}</td>
+                            <td class="text-end">{{ person.annual|currency }}</td>
+                            <td class="text-end">{{ person.monthly|currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-people fs-1 mb-3 d-block"></i>
+                <div class="fw-medium">No salaries set</div>
+                <div class="small">Add an annual salary to admin users on the Admin page to include a monthly drain here</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('financesPlChart');
+    if (!ctx) return;
+
+    const labels = {{ months|map(attribute='label')|list|tojson }};
+    const nets = {{ months|map(attribute='net')|list|tojson }};
+    const cumulative = [];
+    nets.reduce((running, value) => {
+        const next = running + (Number(value) || 0);
+        cumulative.push(next);
+        return next;
+    }, 0);
+
+    const profitColor = 'rgba(33, 87, 50, 0.82)';
+    const lossColor = 'rgba(186, 12, 47, 0.82)';
+    const barColors = nets.map((value) => (Number(value) >= 0 ? profitColor : lossColor));
+
+    const currencyTick = (value) => {
+        const amount = Number(value) || 0;
+        const abs = Math.abs(amount);
+        const formatted = abs.toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            maximumFractionDigits: abs >= 1000 ? 0 : 2
+        });
+        return amount < 0 ? `-${formatted}` : formatted;
+    };
+
+    new Chart(ctx, {
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'Monthly net',
+                    data: nets,
+                    backgroundColor: barColors,
+                    borderColor: barColors,
+                    borderWidth: 0,
+                    borderRadius: 4,
+                    order: 2
+                },
+                {
+                    type: 'line',
+                    label: 'Year-to-date net',
+                    data: cumulative,
+                    borderColor: '#6c757d',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [6, 4],
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    tension: 0.25,
+                    order: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `${context.dataset.label}: ${currencyTick(context.parsed.y)}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    grid: {
+                        color: (context) => context.tick.value === 0 ? 'rgba(33, 37, 41, 0.45)' : 'rgba(0, 0, 0, 0.08)',
+                        lineWidth: (context) => context.tick.value === 0 ? 1.5 : 1
+                    },
+                    ticks: {
+                        callback: currencyTick
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

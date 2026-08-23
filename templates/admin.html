@@ -400,6 +400,14 @@
                         <div class="form-text password-help">Password is only required for admin users.</div>
                     </div>
                     <div class="mb-3">
+                        <label for="annualSalary" class="form-label">Annual Salary</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="annualSalary" name="annual_salary" step="0.01" min="0" placeholder="Optional">
+                        </div>
+                        <div class="form-text">Used by the Finances page as a monthly drain (salary / 12). Admin users only.</div>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Equipment Access</label>
                         <div class="equipment-checkboxes">
                             {% for equipment in equipment_list %}
@@ -463,6 +471,14 @@
                             Password is only required when promoting to admin role.
                             {% endif %}
                         </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="annualSalary{{ user.id }}" class="form-label">Annual Salary</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="annualSalary{{ user.id }}" name="annual_salary" step="0.01" min="0" placeholder="Optional" value="{{ user.annual_salary or '' }}">
+                        </div>
+                        <div class="form-text">Used by the Finances page as a monthly drain (salary / 12). Admin users only.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Equipment Access</label>

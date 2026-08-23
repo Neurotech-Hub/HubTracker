@@ -10,6 +10,16 @@
         <a href="{{ url_for('billing') }}" class="btn btn-outline-secondary">Back to Billing</a>
     </div>
 
+    {% if quote and quote.status == 'paid' %}
+    <div class="alert alert-light border d-flex gap-3 align-items-start mb-4" role="status">
+        <i class="bi bi-check-circle-fill flex-shrink-0 mt-1 text-success"></i>
+        <div class="small mb-0 text-body-secondary">
+            <strong class="text-body">Paid{% if quote.paid_at %} on {{ quote.paid_at.strftime('%B %d, %Y') }}{% endif %}.</strong>
+            This bill is listed under <strong>Paid</strong> on the billing page and counts as income on the Finances page. Use <strong>Restore</strong> on that list to move it back to the open bills section.
+        </div>
+    </div>
+    {% endif %}
+
     {% if quote and quote.status == 'archived' %}
     <div class="alert alert-light border d-flex gap-3 align-items-start mb-4" role="status">
         <i class="bi bi-archive flex-shrink-0 mt-1 text-secondary"></i>

@@ -33,7 +33,7 @@
         </a>
     </div>
 
-    {% if quotes or (archived_quotes|default([])) %}
+    {% if quotes or (paid_quotes|default([])) or (archived_quotes|default([])) %}
     {% if quotes %}
     <div class="card mb-4">
         <div class="card-body">
@@ -76,6 +76,10 @@
                             <td class="billing-col-compact">{{ quote.issue_date.strftime('%Y-%m-%d') if quote.issue_date else '—' }}</td>
                             <td class="billing-col-compact">{{ quote.total_amount|currency }}</td>
                             <td class="text-end billing-actions billing-col-compact">
+                                <form method="POST" action="{{ url_for('billing_mark_paid', bill_db_id=quote.id) }}" class="d-inline me-1"
+                                      onsubmit="return confirm('Mark this bill as paid? It will move to the Paid section below.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-success">Mark Paid</button>
+                                </form>
                                 <form method="POST" action="{{ url_for('billing_archive', bill_db_id=quote.id) }}" class="d-inline me-1"
                                       onsubmit="return confirm('Archive this bill? It will move to the Archived section below.');">
                                     <button type="submit" class="btn btn-sm btn-outline-secondary">Archive</button>
@@ -95,10 +99,79 @@
             </div>
         </div>
     </div>
-    {% elif archived_quotes|default([]) %}
+    {% elif (paid_quotes|default([])) or (archived_quotes|default([])) %}
     <div class="card mb-4">
         <div class="card-body py-4 text-muted small">
-            No active bills. Use <strong>Restore</strong> on a row in the Archived section below to move a bill back here.
+            No open bills. Use <strong>Restore</strong> on a row in the Paid or Archived sections below to move a bill back here.
+        </div>
+    </div>
+    {% endif %}
+
+    {% if paid_quotes|default([]) %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>Paid</strong>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0 table-billing-list">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="billing-col-compact">Bill ID</th>
+                            <th class="billing-col-compact">Client</th>
+                            <th class="billing-col-title">Title</th>
+                            <th class="billing-col-compact">Type</th>
+                            <th class="billing-col-compact">Paid</th>
+                            <th class="billing-col-compact">Total</th>
+                            <th class="text-end billing-actions billing-col-compact">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for quote in paid_quotes %}
+                        {% set full_title = (quote.title or '—') ~ (' (' ~ quote.project.name ~ ')' if quote.project else '') %}
+                        <tr>
+                            <td class="billing-col-compact fw-semibold">
+                                {% if quote.public_token and quote.is_public %}
+                                <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" target="_blank" rel="noopener noreferrer">{{ quote.quote_id }}</a>
+                                {% else %}
+                                {{ quote.quote_id }}
+                                {% endif %}
+                            </td>
+                            <td class="billing-col-compact">{{ quote.client.name }}</td>
+                            <td class="billing-title-cell" title="{{ full_title|e }}">
+                                <span class="fw-medium">{{ quote.title or '—' }}</span>
+                                {% if quote.project %}
+                                <span class="text-muted">({{ quote.project.name }})</span>
+                                {% endif %}
+                            </td>
+                            <td class="billing-col-compact">
+                                <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% else %}bg-success{% endif %}">
+                                    {{ (quote.bill_type or 'quote').title() }}
+                                </span>
+                            </td>
+                            <td class="billing-col-compact">{{ quote.paid_at.strftime('%Y-%m-%d') if quote.paid_at else '—' }}</td>
+                            <td class="billing-col-compact">{{ quote.total_amount|currency }}</td>
+                            <td class="text-end billing-actions billing-col-compact">
+                                <form method="POST" action="{{ url_for('billing_unpay', bill_db_id=quote.id) }}" class="d-inline me-1">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Restore</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('billing_archive', bill_db_id=quote.id) }}" class="d-inline me-1"
+                                      onsubmit="return confirm('Archive this bill? It will no longer count as paid.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Archive</button>
+                                </form>
+                                <a href="{{ url_for('billing_edit', bill_db_id=quote.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="6" class="text-end fw-semibold border-top">{{ paid_total|currency }}</td>
+                            <td class="border-top"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         </div>
     </div>
     {% endif %}
@@ -148,6 +221,10 @@
                             <td class="billing-col-compact">{{ quote.issue_date.strftime('%Y-%m-%d') if quote.issue_date else '—' }}</td>
                             <td class="billing-col-compact">{{ quote.total_amount|currency }}</td>
                             <td class="text-end billing-actions billing-col-compact">
+                                <form method="POST" action="{{ url_for('billing_mark_paid', bill_db_id=quote.id) }}" class="d-inline me-1"
+                                      onsubmit="return confirm('Mark this bill as paid? It will move to the Paid section.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-success">Mark Paid</button>
+                                </form>
                                 <form method="POST" action="{{ url_for('billing_unarchive', bill_db_id=quote.id) }}" class="d-inline me-1">
                                     <button type="submit" class="btn btn-sm btn-outline-secondary">Restore</button>
                                 </form>

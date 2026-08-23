@@ -52,6 +52,9 @@
                 <a href="{{ url_for('billing') }}" class="mobile-nav-link {% if request.endpoint in ['billing', 'billing_new', 'billing_edit'] %}active{% endif %}">
                     <i class="bi bi-receipt me-2"></i>Billing
                 </a>
+                <a href="{{ url_for('finances') }}" class="mobile-nav-link {% if request.endpoint == 'finances' %}active{% endif %}">
+                    <i class="bi bi-cash-stack me-2"></i>Finances
+                </a>
                 <a href="{{ url_for('time_grid') }}" class="mobile-nav-link {% if request.endpoint == 'time_grid' %}active{% endif %}">
                     <i class="bi bi-calendar-week me-2"></i>Time Grid
                 </a>
@@ -128,6 +131,9 @@
                 </a>
                 <a href="{{ url_for('billing') }}" class="nav-link {% if request.endpoint in ['billing', 'billing_new', 'billing_edit'] %}active{% endif %}">
                     <i class="bi bi-receipt me-2"></i>Billing
+                </a>
+                <a href="{{ url_for('finances') }}" class="nav-link {% if request.endpoint == 'finances' %}active{% endif %}">
+                    <i class="bi bi-cash-stack me-2"></i>Finances
                 </a>
                 <a href="{{ url_for('time_grid') }}" class="nav-link {% if request.endpoint == 'time_grid' %}active{% endif %}">
                     <i class="bi bi-calendar-week me-2"></i>Time Grid

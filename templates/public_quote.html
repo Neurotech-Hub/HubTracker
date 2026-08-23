@@ -89,6 +89,29 @@
 
         .approved-lock-strip i { font-size: 0.95rem; }
 
+        .paid-notice {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            color: var(--washu-green);
+            background: rgba(33, 87, 50, 0.10);
+            border: 1px solid rgba(33, 87, 50, 0.35);
+            border-radius: 0.5rem;
+            padding: 0.65rem 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .paid-notice i { font-size: 1.2rem; }
+        .paid-notice .paid-notice-date {
+            margin-left: auto;
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: normal;
+            color: var(--muted-ink);
+        }
+
         .quote-card-footer-terms {
             margin-top: 1.5rem;
             padding-top: 1rem;
@@ -152,6 +175,15 @@
         </div>
 
         <div class="quote-paper brand-bar border shadow-sm p-4 p-md-5">
+            {% if quote.status == 'paid' %}
+            <div class="paid-notice page-break-avoid" role="status">
+                <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                PAID
+                {% if quote.paid_at %}
+                <span class="paid-notice-date">Received {{ quote.paid_at.strftime('%B %d, %Y') }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
             <div class="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom">
                 <div>
                     <div class="brand-title">Neurotech Hub</div>

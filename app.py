@@ -56,7 +56,7 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
 # Import models and db
-from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME, Quote, QuoteLineItem, Checklist, ChecklistItem
+from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME, Quote, QuoteLineItem, Checklist, ChecklistItem, FinanceSettings
 
 # Initialize extensions
 db.init_app(app)
@@ -2889,15 +2889,19 @@ def billing():
         return auth_error
 
     bills = Quote.query.order_by(Quote.created_at.desc()).all()
-    quotes_active = [b for b in bills if b.status != 'archived']
+    quotes_active = [b for b in bills if b.status not in ('archived', 'paid')]
+    quotes_paid = [b for b in bills if b.status == 'paid']
     quotes_archived = [b for b in bills if b.status == 'archived']
     active_total = sum((Decimal(b.total_amount or 0) for b in quotes_active), Decimal('0'))
+    paid_total = sum((Decimal(b.total_amount or 0) for b in quotes_paid), Decimal('0'))
     archived_total = sum((Decimal(b.total_amount or 0) for b in quotes_archived), Decimal('0'))
     return render_template(
         'quotes.html',
         quotes=quotes_active,
+        paid_quotes=quotes_paid,
         archived_quotes=quotes_archived,
         active_total=active_total,
+        paid_total=paid_total,
         archived_total=archived_total,
     )
 
@@ -3218,6 +3222,7 @@ def billing_archive(bill_db_id):
         return redirect(url_for('billing'))
 
     quote.status = 'archived'
+    quote.paid_at = None
     db.session.commit()
     flash(f'Bill {quote.quote_id} archived.', 'success')
     return redirect(url_for('billing'))
@@ -3237,6 +3242,42 @@ def billing_unarchive(bill_db_id):
     quote.status = 'published'
     db.session.commit()
     flash(f'Bill {quote.quote_id} restored to the active list.', 'success')
+    return redirect(url_for('billing'))
+
+
+@app.route('/billing/<int:bill_db_id>/mark_paid', methods=['POST'])
+def billing_mark_paid(bill_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(bill_db_id)
+    if quote.status == 'paid':
+        flash('This bill is already marked as paid.', 'info')
+        return redirect(url_for('billing'))
+
+    quote.status = 'paid'
+    quote.paid_at = get_current_time()
+    db.session.commit()
+    flash(f'Bill {quote.quote_id} marked as paid.', 'success')
+    return redirect(url_for('billing'))
+
+
+@app.route('/billing/<int:bill_db_id>/unpay', methods=['POST'])
+def billing_unpay(bill_db_id):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    quote = Quote.query.get_or_404(bill_db_id)
+    if quote.status != 'paid':
+        flash('This bill is not marked as paid.', 'info')
+        return redirect(url_for('billing'))
+
+    quote.status = 'published'
+    quote.paid_at = None
+    db.session.commit()
+    flash(f'Bill {quote.quote_id} moved back to the open list.', 'success')
     return redirect(url_for('billing'))
 
 
@@ -3327,6 +3368,175 @@ def quote_delete(quote_db_id):
 @app.route('/quotes/<int:quote_db_id>/preview')
 def quote_preview(quote_db_id):
     return redirect(url_for('billing_preview', bill_db_id=quote_db_id))
+
+
+# FINANCES ROUTES
+FY_MONTH_LABELS = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+
+
+def calendar_fy_start_year(now=None):
+    """FY runs Jul 1 - Jun 30. Returns the calendar year the current FY started in."""
+    now = now or get_current_time()
+    return now.year if now.month >= 7 else now.year - 1
+
+
+def get_or_create_finance_settings():
+    settings = FinanceSettings.query.first()
+    if settings is None:
+        settings = FinanceSettings(
+            fy_start_year=calendar_fy_start_year(),
+            fixed_costs=[0] * 12,
+        )
+        db.session.add(settings)
+        db.session.commit()
+    return settings
+
+
+def fy_month_index(year, month, fy_start_year):
+    """0-11 position of (year, month) within the FY starting Jul of fy_start_year, else None."""
+    index = (year - fy_start_year) * 12 + (month - 7)
+    return index if 0 <= index < 12 else None
+
+
+def months_between(start, end):
+    """Inclusive count of calendar months from start month through end month."""
+    return max(1, (end.year - start.year) * 12 + (end.month - start.month) + 1)
+
+
+@app.route('/finances')
+def finances():
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    settings = get_or_create_finance_settings()
+    fy_start_year = calendar_fy_start_year()
+    needs_restart = settings.fy_start_year < fy_start_year
+
+    fixed_costs = list(settings.fixed_costs or [])
+    fixed_costs = [float(v or 0) for v in fixed_costs[:12]] + [0.0] * max(0, 12 - len(fixed_costs))
+
+    funding_monthly = [0.0] * 12
+    paid_monthly = [0.0] * 12
+
+    # Membership funding: upfront lands in the start month; monthly splits evenly
+    # across calendar months from start through end (inclusive).
+    for funding in MembershipFunding.query.all():
+        if (funding.payout or 'monthly') == 'exclude':
+            continue
+        amount = float(funding.amount or 0)
+        if amount == 0 or not funding.start_date:
+            continue
+        start_local = funding.start_date.astimezone(TIMEZONE)
+        if (funding.payout or 'monthly') == 'upfront':
+            idx = fy_month_index(start_local.year, start_local.month, fy_start_year)
+            if idx is not None:
+                funding_monthly[idx] += amount
+        else:
+            end_local = (funding.end_date or funding.start_date).astimezone(TIMEZONE)
+            n_months = months_between(start_local, end_local)
+            share = amount / n_months
+            for i in range(n_months):
+                total_month = start_local.month - 1 + i
+                year = start_local.year + total_month // 12
+                month = total_month % 12 + 1
+                idx = fy_month_index(year, month, fy_start_year)
+                if idx is not None:
+                    funding_monthly[idx] += share
+
+    # Paid bills land in the month they were marked paid (fallback: issue date).
+    for quote in Quote.query.filter(Quote.status == 'paid').all():
+        if quote.paid_at:
+            paid_local = quote.paid_at.astimezone(TIMEZONE)
+            year, month = paid_local.year, paid_local.month
+        elif quote.issue_date:
+            year, month = quote.issue_date.year, quote.issue_date.month
+        else:
+            continue
+        idx = fy_month_index(year, month, fy_start_year)
+        if idx is not None:
+            paid_monthly[idx] += float(quote.total_amount or 0)
+
+    salaried_admins = User.query.filter(
+        User.role == 'admin',
+        User.annual_salary.isnot(None),
+        User.annual_salary > 0,
+    ).order_by(User.first_name.asc()).all()
+    salary_people = [
+        {'name': u.full_name, 'annual': float(u.annual_salary), 'monthly': float(u.annual_salary) / 12}
+        for u in salaried_admins
+    ]
+    salary_monthly_total = sum(p['monthly'] for p in salary_people)
+
+    months = []
+    for i in range(12):
+        month_number = (6 + i) % 12 + 1
+        year = fy_start_year + (1 if month_number < 7 else 0)
+        net = funding_monthly[i] + paid_monthly[i] - salary_monthly_total - fixed_costs[i]
+        months.append({
+            'index': i,
+            'label': f'{FY_MONTH_LABELS[i]} {year}',
+            'funding': funding_monthly[i],
+            'paid_bills': paid_monthly[i],
+            'salaries': salary_monthly_total,
+            'fixed_cost': fixed_costs[i],
+            'net': net,
+        })
+
+    totals = {
+        'funding': sum(m['funding'] for m in months),
+        'paid_bills': sum(m['paid_bills'] for m in months),
+        'salaries': salary_monthly_total * 12,
+        'fixed_costs': sum(fixed_costs),
+    }
+    totals['inflow'] = totals['funding'] + totals['paid_bills']
+    totals['outflow'] = totals['salaries'] + totals['fixed_costs']
+    totals['net'] = totals['inflow'] - totals['outflow']
+
+    return render_template(
+        'finances.html',
+        fy_label=f'FY{(fy_start_year + 1) % 100}',
+        fy_start_year=fy_start_year,
+        needs_restart=needs_restart,
+        settings_fy_label=f'FY{(settings.fy_start_year + 1) % 100}',
+        months=months,
+        totals=totals,
+        salary_people=salary_people,
+        salary_monthly_total=salary_monthly_total,
+    )
+
+
+@app.route('/finances/fixed-costs', methods=['POST'])
+def finances_fixed_costs(): 
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    settings = get_or_create_finance_settings()
+    fixed_costs = []
+    for i in range(12):
+        value = request.form.get(f'fixed_cost_{i}', type=float)
+        fixed_costs.append(round(value, 2) if value and value > 0 else 0)
+    settings.fixed_costs = fixed_costs
+    db.session.commit()
+    flash('Fixed costs saved.', 'success')
+    return redirect(url_for('finances'))
+
+
+@app.route('/finances/restart-fy', methods=['POST'])
+def finances_restart_fy():
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    settings = get_or_create_finance_settings()
+    fy_start_year = calendar_fy_start_year()
+    settings.fy_start_year = fy_start_year
+    settings.fixed_costs = [0] * 12
+    db.session.commit()
+    flash(f'Fiscal year restarted for FY{(fy_start_year + 1) % 100}. Fixed costs were cleared.', 'success')
+    return redirect(url_for('finances'))
+
 
 # MEMBERSHIPS ROUTES
 @app.route('/memberships')
@@ -4598,6 +4808,9 @@ def add_funding(membership_id):
     start_date_str = request.form.get('start_date', '').strip()
     end_date_str = request.form.get('end_date', '').strip()
     scope = request.form.get('scope', '').strip()
+    payout = request.form.get('payout', 'monthly')
+    if payout not in ('monthly', 'upfront', 'exclude'):
+        payout = 'monthly'
     time_budget = request.form.get('time_budget', type=int)
     dollar_budget = request.form.get('dollar_budget', type=float)
     
@@ -4625,6 +4838,7 @@ def add_funding(membership_id):
         start_date=start_date,
         end_date=end_date,
         scope=scope,
+        payout=payout,
         time_budget=time_budget,
         dollar_budget=dollar_budget
     )
@@ -4661,6 +4875,9 @@ def edit_funding(funding_id):
     start_date_str = request.form.get('start_date', '').strip()
     end_date_str = request.form.get('end_date', '').strip()
     scope = request.form.get('scope', '').strip()
+    payout = request.form.get('payout', 'monthly')
+    if payout not in ('monthly', 'upfront', 'exclude'):
+        payout = 'monthly'
     time_budget = request.form.get('time_budget', type=int)
     dollar_budget = request.form.get('dollar_budget', type=float)
     
@@ -4686,6 +4903,7 @@ def edit_funding(funding_id):
     funding.start_date = start_date
     funding.end_date = end_date
     funding.scope = scope
+    funding.payout = payout
     funding.time_budget = time_budget
     funding.dollar_budget = dollar_budget
     db.session.commit()
@@ -4719,6 +4937,7 @@ def get_funding(funding_id):
         'start_date': funding.start_date.strftime('%Y-%m-%d') if funding.start_date else '',
         'end_date': funding.end_date.strftime('%Y-%m-%d') if funding.end_date else '',
         'scope': funding.scope,
+        'payout': funding.payout or 'monthly',
         'time_budget': funding.time_budget,
         'dollar_budget': funding.dollar_budget
     }
@@ -4955,6 +5174,7 @@ def add_user():
     email = request.form.get('email', '').strip()
     password = request.form.get('password', '').strip()
     role = request.form.get('role', 'trainee')  # Default to trainee if not specified
+    annual_salary = request.form.get('annual_salary', type=float)
     equipment_ids = request.form.getlist('equipment[]')
     
     if not first_name or not email:
@@ -4980,7 +5200,8 @@ def add_user():
     user = User(
         first_name=first_name,
         email=email,
-        role=role
+        role=role,
+        annual_salary=annual_salary
     )
     user.set_last_name(last_name)
     if password:  # Only set password if provided
@@ -5030,6 +5251,7 @@ def edit_user(user_id):
     email = request.form.get('email', '').strip()
     password = request.form.get('password', '').strip()
     role = request.form.get('role', 'trainee')  # Default to trainee if not specified
+    annual_salary = request.form.get('annual_salary', type=float)
     equipment_ids = request.form.getlist('equipment[]')
     
     if not first_name or not email:
@@ -5056,6 +5278,7 @@ def edit_user(user_id):
     user.set_last_name(last_name)
     user.email = email
     user.role = role
+    user.annual_salary = annual_salary
     
     # Only update password if provided
     if password:
