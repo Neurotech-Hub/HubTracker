@@ -2517,6 +2517,26 @@ def project_detail(project_id):
     
     # Get all logs for this project
     logs = project.logs.order_by(Log.created_at.desc()).all()
+
+    effort_rows = db.session.query(
+        User.first_name,
+        User.last_name,
+        func.coalesce(func.sum(Log.hours), 0).label('hours'),
+        func.count(Log.id).label('log_count'),
+    ).join(Log, Log.user_id == User.id).filter(
+        Log.project_id == project.id
+    ).group_by(User.id, User.first_name, User.last_name).order_by(
+        desc(func.coalesce(func.sum(Log.hours), 0)),
+        User.first_name.asc(),
+    ).all()
+
+    effort_by_user = []
+    for row in effort_rows:
+        effort_by_user.append({
+            'name': f"{row.first_name} {row.last_name or ''}".strip(),
+            'hours': float(row.hours or 0),
+            'log_count': row.log_count,
+        })
     
     # Check if current user has pinned this project
     is_pinned = UserProjectPin.query.filter_by(
@@ -2537,6 +2557,7 @@ def project_detail(project_id):
                          tasks=serialized_open_tasks,
                          completed_tasks=serialized_completed_tasks,
                          logs=logs,
+                         effort_by_user=effort_by_user,
                          is_pinned=is_pinned,
                          clients=clients,
                          users=users)
