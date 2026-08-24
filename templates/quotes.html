@@ -76,8 +76,7 @@
                             <td class="billing-col-compact">{{ quote.issue_date.strftime('%Y-%m-%d') if quote.issue_date else '—' }}</td>
                             <td class="billing-col-compact">{{ quote.total_amount|currency }}</td>
                             <td class="text-end billing-actions billing-col-compact">
-                                <form method="POST" action="{{ url_for('billing_mark_paid', bill_db_id=quote.id) }}" class="d-inline me-1"
-                                      onsubmit="return confirm('Mark this bill as paid? It will move to the Paid section below.');">
+                                <form method="POST" action="{{ url_for('billing_mark_paid', bill_db_id=quote.id) }}" class="d-inline me-1">
                                     <button type="submit" class="btn btn-sm btn-outline-success">Mark Paid</button>
                                 </form>
                                 <form method="POST" action="{{ url_for('billing_archive', bill_db_id=quote.id) }}" class="d-inline me-1"
@@ -221,8 +220,7 @@
                             <td class="billing-col-compact">{{ quote.issue_date.strftime('%Y-%m-%d') if quote.issue_date else '—' }}</td>
                             <td class="billing-col-compact">{{ quote.total_amount|currency }}</td>
                             <td class="text-end billing-actions billing-col-compact">
-                                <form method="POST" action="{{ url_for('billing_mark_paid', bill_db_id=quote.id) }}" class="d-inline me-1"
-                                      onsubmit="return confirm('Mark this bill as paid? It will move to the Paid section.');">
+                                <form method="POST" action="{{ url_for('billing_mark_paid', bill_db_id=quote.id) }}" class="d-inline me-1">
                                     <button type="submit" class="btn btn-sm btn-outline-success">Mark Paid</button>
                                 </form>
                                 <form method="POST" action="{{ url_for('billing_unarchive', bill_db_id=quote.id) }}" class="d-inline me-1">

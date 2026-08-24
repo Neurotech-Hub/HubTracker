@@ -46,6 +46,7 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False, default='trainee')  # admin, trainee, finance
     password = db.Column(db.String(255), nullable=True)  # Will implement hashing later
     annual_salary = db.Column(db.Numeric(12, 2), nullable=True)  # Used by Finances page (monthly drain = salary / 12)
+    notes = db.Column(db.Text, nullable=True)  # Shown on Finances Salaries table
     
     # Relationships
     created_tasks = db.relationship('Task', foreign_keys='Task.created_by', backref='creator', lazy='dynamic')
@@ -439,6 +440,7 @@ class Quote(db.Model):
     valid_until = db.Column(db.Date, nullable=True)
     status = db.Column(db.String(20), nullable=False, default='draft', server_default='draft')  # draft, published, paid, archived
     paid_at = db.Column(db.DateTime(timezone=True), nullable=True)  # Set when status becomes 'paid'
+    projected_fy_month = db.Column(db.Integer, nullable=True)  # 0-11 Jul-Jun; Finances projection only when open
     subtotal = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     shipping_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     shipping_tbd = db.Column(db.Boolean, nullable=False, default=False)

@@ -3418,6 +3418,7 @@ def finances():
 
     funding_monthly = [0.0] * 12
     paid_monthly = [0.0] * 12
+    projected_monthly = [0.0] * 12
 
     # Membership funding: upfront lands in the start month; monthly splits evenly
     # across calendar months from start through end (inclusive).
@@ -3457,27 +3458,55 @@ def finances():
         if idx is not None:
             paid_monthly[idx] += float(quote.total_amount or 0)
 
+    # Open (unpaid, non-archived) bills with a projected month — mutually exclusive from paid.
+    open_bills = Quote.query.filter(
+        Quote.status.notin_(('paid', 'archived'))
+    ).order_by(Quote.issue_date.desc(), Quote.id.desc()).all()
+    for quote in open_bills:
+        idx = quote.projected_fy_month
+        if idx is None or not (0 <= idx < 12):
+            continue
+        projected_monthly[idx] += float(quote.total_amount or 0)
+
     salaried_admins = User.query.filter(
         User.role == 'admin',
         User.annual_salary.isnot(None),
         User.annual_salary > 0,
     ).order_by(User.first_name.asc()).all()
     salary_people = [
-        {'name': u.full_name, 'annual': float(u.annual_salary), 'monthly': float(u.annual_salary) / 12}
+        {
+            'name': u.full_name,
+            'annual': float(u.annual_salary),
+            'monthly': float(u.annual_salary) / 12,
+            'notes': u.notes or '',
+        }
         for u in salaried_admins
     ]
     salary_monthly_total = sum(p['monthly'] for p in salary_people)
+
+    month_options = []
+    for i in range(12):
+        month_number = (6 + i) % 12 + 1
+        year = fy_start_year + (1 if month_number < 7 else 0)
+        month_options.append({'index': i, 'label': f'{FY_MONTH_LABELS[i]} {year}'})
 
     months = []
     for i in range(12):
         month_number = (6 + i) % 12 + 1
         year = fy_start_year + (1 if month_number < 7 else 0)
-        net = funding_monthly[i] + paid_monthly[i] - salary_monthly_total - fixed_costs[i]
+        net = (
+            funding_monthly[i]
+            + paid_monthly[i]
+            + projected_monthly[i]
+            - salary_monthly_total
+            - fixed_costs[i]
+        )
         months.append({
             'index': i,
             'label': f'{FY_MONTH_LABELS[i]} {year}',
             'funding': funding_monthly[i],
             'paid_bills': paid_monthly[i],
+            'projected': projected_monthly[i],
             'salaries': salary_monthly_total,
             'fixed_cost': fixed_costs[i],
             'net': net,
@@ -3486,10 +3515,11 @@ def finances():
     totals = {
         'funding': sum(m['funding'] for m in months),
         'paid_bills': sum(m['paid_bills'] for m in months),
+        'projected': sum(m['projected'] for m in months),
         'salaries': salary_monthly_total * 12,
         'fixed_costs': sum(fixed_costs),
     }
-    totals['inflow'] = totals['funding'] + totals['paid_bills']
+    totals['inflow'] = totals['funding'] + totals['paid_bills'] + totals['projected']
     totals['outflow'] = totals['salaries'] + totals['fixed_costs']
     totals['net'] = totals['inflow'] - totals['outflow']
 
@@ -3500,7 +3530,9 @@ def finances():
         needs_restart=needs_restart,
         settings_fy_label=f'FY{(settings.fy_start_year + 1) % 100}',
         months=months,
+        month_options=month_options,
         totals=totals,
+        open_bills=open_bills,
         salary_people=salary_people,
         salary_monthly_total=salary_monthly_total,
     )
@@ -3520,6 +3552,29 @@ def finances_fixed_costs():
     settings.fixed_costs = fixed_costs
     db.session.commit()
     flash('Fixed costs saved.', 'success')
+    return redirect(url_for('finances'))
+
+
+@app.route('/finances/bill-months', methods=['POST'])
+def finances_bill_months():
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    open_bills = Quote.query.filter(Quote.status.notin_(('paid', 'archived'))).all()
+    for quote in open_bills:
+        raw = request.form.get(f'projected_month_{quote.id}', '').strip()
+        if raw == '':
+            quote.projected_fy_month = None
+            continue
+        try:
+            idx = int(raw)
+        except (TypeError, ValueError):
+            quote.projected_fy_month = None
+            continue
+        quote.projected_fy_month = idx if 0 <= idx < 12 else None
+    db.session.commit()
+    flash('Bill month associations saved.', 'success')
     return redirect(url_for('finances'))
 
 
@@ -5175,6 +5230,7 @@ def add_user():
     password = request.form.get('password', '').strip()
     role = request.form.get('role', 'trainee')  # Default to trainee if not specified
     annual_salary = request.form.get('annual_salary', type=float)
+    notes = request.form.get('notes', '').strip() or None
     equipment_ids = request.form.getlist('equipment[]')
     
     if not first_name or not email:
@@ -5201,7 +5257,8 @@ def add_user():
         first_name=first_name,
         email=email,
         role=role,
-        annual_salary=annual_salary
+        annual_salary=annual_salary,
+        notes=notes
     )
     user.set_last_name(last_name)
     if password:  # Only set password if provided
@@ -5252,6 +5309,7 @@ def edit_user(user_id):
     password = request.form.get('password', '').strip()
     role = request.form.get('role', 'trainee')  # Default to trainee if not specified
     annual_salary = request.form.get('annual_salary', type=float)
+    notes = request.form.get('notes', '').strip() or None
     equipment_ids = request.form.getlist('equipment[]')
     
     if not first_name or not email:
@@ -5279,6 +5337,7 @@ def edit_user(user_id):
     user.email = email
     user.role = role
     user.annual_salary = annual_salary
+    user.notes = notes
     
     # Only update password if provided
     if password:

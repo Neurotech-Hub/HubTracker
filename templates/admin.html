@@ -366,7 +366,7 @@
 
 <!-- Add User Modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <form action="{{ url_for('add_user') }}" method="POST">
                 <div class="modal-header">
@@ -374,38 +374,60 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="firstName" class="form-label">First Name</label>
-                        <input type="text" class="form-control" id="firstName" name="first_name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="lastName" class="form-label">Last Name</label>
-                        <input type="text" class="form-control" id="lastName" name="last_name">
-                    </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="role" class="form-label">Role</label>
-                        <select class="form-select" id="role" name="role" required onchange="togglePasswordRequired(this, 'password')">
-                            <option value="trainee">Trainee</option>
-                            <option value="finance">Finance</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password">
-                        <div class="form-text password-help">Password is only required for admin users.</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="annualSalary" class="form-label">Annual Salary</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" id="annualSalary" name="annual_salary" step="0.01" min="0" placeholder="Optional">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="firstName" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="firstName" name="first_name" required>
+                            </div>
                         </div>
-                        <div class="form-text">Used by the Finances page as a monthly drain (salary / 12). Admin users only.</div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="lastName" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="lastName" name="last_name">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="role" class="form-label">Role</label>
+                                <select class="form-select" id="role" name="role" required onchange="togglePasswordRequired(this, 'password')">
+                                    <option value="trainee">Trainee</option>
+                                    <option value="finance">Finance</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="password" name="password">
+                                <div class="form-text password-help">Password is only required for admin users.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="annualSalary" class="form-label">Annual Salary</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="annualSalary" name="annual_salary" step="0.01" min="0" placeholder="Optional">
+                                </div>
+                                <div class="form-text">Used by the Finances page as a monthly drain (salary / 12). Admin users only.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="userNotes" name="notes" rows="2" placeholder="Optional notes shown on Finances Salaries"></textarea>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Equipment Access</label>
@@ -433,7 +455,7 @@
 <!-- Edit User Modals -->
 {% for user in users %}
 <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1" aria-labelledby="editUserModalLabel{{ user.id }}" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <form action="{{ url_for('edit_user', user_id=user.id) }}" method="POST">
                 <div class="modal-header">
@@ -441,44 +463,66 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="firstName{{ user.id }}" class="form-label">First Name</label>
-                        <input type="text" class="form-control" id="firstName{{ user.id }}" name="first_name" value="{{ user.first_name }}" required>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="firstName{{ user.id }}" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="firstName{{ user.id }}" name="first_name" value="{{ user.first_name }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="lastName{{ user.id }}" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="lastName{{ user.id }}" name="last_name" value="{{ user.last_name or '' }}">
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="lastName{{ user.id }}" class="form-label">Last Name</label>
-                        <input type="text" class="form-control" id="lastName{{ user.id }}" name="last_name" value="{{ user.last_name or '' }}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email{{ user.id }}" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email{{ user.id }}" name="email" value="{{ user.email }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="role{{ user.id }}" class="form-label">Role</label>
+                                <select class="form-select" id="role{{ user.id }}" name="role" required onchange="togglePasswordRequired(this, 'password{{ user.id }}', '{{ user.role }}')">
+                                    <option value="trainee" {% if user.role == 'trainee' %}selected{% endif %}>Trainee</option>
+                                    <option value="finance" {% if user.role == 'finance' %}selected{% endif %}>Finance</option>
+                                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="email{{ user.id }}" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email{{ user.id }}" name="email" value="{{ user.email }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="role{{ user.id }}" class="form-label">Role</label>
-                        <select class="form-select" id="role{{ user.id }}" name="role" required onchange="togglePasswordRequired(this, 'password{{ user.id }}', '{{ user.role }}')">
-                            <option value="trainee" {% if user.role == 'trainee' %}selected{% endif %}>Trainee</option>
-                            <option value="finance" {% if user.role == 'finance' %}selected{% endif %}>Finance</option>
-                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password{{ user.id }}" class="form-label">New Password</label>
-                        <input type="password" class="form-control" id="password{{ user.id }}" name="password">
-                        <div class="form-text password-help">
-                            {% if user.role == 'admin' %}
-                            Leave blank to keep current password.
-                            {% else %}
-                            Password is only required when promoting to admin role.
-                            {% endif %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="password{{ user.id }}" class="form-label">New Password</label>
+                                <input type="password" class="form-control" id="password{{ user.id }}" name="password">
+                                <div class="form-text password-help">
+                                    {% if user.role == 'admin' %}
+                                    Leave blank to keep current password.
+                                    {% else %}
+                                    Password is only required when promoting to admin role.
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="annualSalary{{ user.id }}" class="form-label">Annual Salary</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="annualSalary{{ user.id }}" name="annual_salary" step="0.01" min="0" placeholder="Optional" value="{{ user.annual_salary or '' }}">
+                                </div>
+                                <div class="form-text">Used by the Finances page as a monthly drain (salary / 12). Admin users only.</div>
+                            </div>
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="annualSalary{{ user.id }}" class="form-label">Annual Salary</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" id="annualSalary{{ user.id }}" name="annual_salary" step="0.01" min="0" placeholder="Optional" value="{{ user.annual_salary or '' }}">
-                        </div>
-                        <div class="form-text">Used by the Finances page as a monthly drain (salary / 12). Admin users only.</div>
+                        <label for="userNotes{{ user.id }}" class="form-label">Notes</label>
+                        <textarea class="form-control" id="userNotes{{ user.id }}" name="notes" rows="2" placeholder="Optional notes shown on Finances Salaries">{{ user.notes or '' }}</textarea>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Equipment Access</label>
