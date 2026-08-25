@@ -3419,6 +3419,9 @@ def finances():
     funding_monthly = [0.0] * 12
     paid_monthly = [0.0] * 12
     projected_monthly = [0.0] * 12
+    funding_items = [[] for _ in range(12)]
+    paid_items = [[] for _ in range(12)]
+    projected_items = [[] for _ in range(12)]
 
     # Membership funding: upfront lands in the start month; monthly splits evenly
     # across calendar months from start through end (inclusive).
@@ -3428,11 +3431,18 @@ def finances():
         amount = float(funding.amount or 0)
         if amount == 0 or not funding.start_date:
             continue
+        membership_title = funding.membership.title if funding.membership else f'Funding #{funding.id}'
+        payout = funding.payout or 'monthly'
         start_local = funding.start_date.astimezone(TIMEZONE)
-        if (funding.payout or 'monthly') == 'upfront':
+        if payout == 'upfront':
             idx = fy_month_index(start_local.year, start_local.month, fy_start_year)
             if idx is not None:
                 funding_monthly[idx] += amount
+                funding_items[idx].append({
+                    'label': membership_title,
+                    'detail': 'Upfront',
+                    'amount': amount,
+                })
         else:
             end_local = (funding.end_date or funding.start_date).astimezone(TIMEZONE)
             n_months = months_between(start_local, end_local)
@@ -3444,6 +3454,11 @@ def finances():
                 idx = fy_month_index(year, month, fy_start_year)
                 if idx is not None:
                     funding_monthly[idx] += share
+                    funding_items[idx].append({
+                        'label': membership_title,
+                        'detail': f'Monthly ({n_months} mo)',
+                        'amount': share,
+                    })
 
     # Paid bills land in the month they were marked paid (fallback: issue date).
     for quote in Quote.query.filter(Quote.status == 'paid').all():
@@ -3456,7 +3471,13 @@ def finances():
             continue
         idx = fy_month_index(year, month, fy_start_year)
         if idx is not None:
-            paid_monthly[idx] += float(quote.total_amount or 0)
+            amount = float(quote.total_amount or 0)
+            paid_monthly[idx] += amount
+            paid_items[idx].append({
+                'label': quote.title or quote.quote_id,
+                'detail': quote.client.name if quote.client else '',
+                'amount': amount,
+            })
 
     # Open (unpaid, non-archived) bills with a projected month — mutually exclusive from paid.
     open_bills = Quote.query.filter(
@@ -3466,7 +3487,13 @@ def finances():
         idx = quote.projected_fy_month
         if idx is None or not (0 <= idx < 12):
             continue
-        projected_monthly[idx] += float(quote.total_amount or 0)
+        amount = float(quote.total_amount or 0)
+        projected_monthly[idx] += amount
+        projected_items[idx].append({
+            'label': quote.title or quote.quote_id,
+            'detail': quote.client.name if quote.client else '',
+            'amount': amount,
+        })
 
     salaried_admins = User.query.filter(
         User.role == 'admin',
@@ -3483,6 +3510,14 @@ def finances():
         for u in salaried_admins
     ]
     salary_monthly_total = sum(p['monthly'] for p in salary_people)
+    salary_items = [
+        {
+            'label': p['name'],
+            'detail': p['notes'] or 'Salary / 12',
+            'amount': p['monthly'],
+        }
+        for p in salary_people
+    ]
 
     month_options = []
     for i in range(12):
@@ -3510,6 +3545,10 @@ def finances():
             'salaries': salary_monthly_total,
             'fixed_cost': fixed_costs[i],
             'net': net,
+            'funding_items': funding_items[i],
+            'paid_items': paid_items[i],
+            'projected_items': projected_items[i],
+            'salary_items': salary_items,
         })
 
     totals = {
