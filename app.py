@@ -479,6 +479,20 @@ def quote_admin_form_locked(quote):
     return quote_is_client_locked(quote) and not bool(getattr(quote, 'admin_edit_unlocked', False))
 
 
+def parse_quote_paid_at_form(raw):
+    """Parse Billing Settings Paid Date (YYYY-MM-DD) as Chicago midnight. Empty clears paid_at."""
+    from datetime import time as time_cls
+
+    value = (raw or '').strip()
+    if not value:
+        return None, None
+    try:
+        day = datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError:
+        return None, 'Paid Date must be a valid date.'
+    return TIMEZONE.localize(datetime.combine(day, time_cls.min)), None
+
+
 TIME_GRID_HOUR_START = 6
 TIME_GRID_HOUR_END = 17
 
@@ -3058,15 +3072,25 @@ def billing_edit(bill_db_id):
             quote_edit_locked=quote_admin_form_locked(quote),
         )
 
-    # Locked approved quotes: allow only bill_type changes (e.g. Quote → Invoice) without altering approval or body.
+    # Locked approved quotes: allow bill_type and paid_at without altering approval or body.
     if quote_admin_form_locked(quote):
         bill_type = request.form.get('bill_type', quote.bill_type or 'quote').strip().lower()
         if bill_type not in BILL_TYPE_OPTIONS:
             bill_type = quote.bill_type or 'quote'
+        paid_at, paid_at_error = parse_quote_paid_at_form(request.form.get('paid_at'))
+        if paid_at_error:
+            flash(paid_at_error, 'error')
+            return redirect(url_for('billing_edit', bill_db_id=quote.id))
+        changed = False
         if quote.bill_type != bill_type:
             quote.bill_type = bill_type
+            changed = True
+        if quote.paid_at != paid_at:
+            quote.paid_at = paid_at
+            changed = True
+        if changed:
             db.session.commit()
-            flash(f'Bill type updated to {bill_type.title()}.', 'success')
+            flash(f'Bill {quote.quote_id} updated.', 'success')
         else:
             flash('No changes to save.', 'info')
         return redirect(url_for('billing_edit', bill_db_id=quote.id))
@@ -3133,6 +3157,12 @@ def billing_edit(bill_db_id):
             return redirect(url_for('billing_edit', bill_db_id=quote.id))
     else:
         quote.approved_at = None
+
+    paid_at, paid_at_error = parse_quote_paid_at_form(request.form.get('paid_at'))
+    if paid_at_error:
+        flash(paid_at_error, 'error')
+        return redirect(url_for('billing_edit', bill_db_id=quote.id))
+    quote.paid_at = paid_at
 
     # Full replace keeps ordering and deletions simple.
     for existing in list(quote.line_items):
