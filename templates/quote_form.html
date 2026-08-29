@@ -237,6 +237,26 @@
                             <p id="billTypeLockedHelp" class="form-text small mb-0">You can switch between Quote and Invoice here while the bill stays approved and locked. For other edits, use Enable editing.</p>
                             {% endif %}
                         </div>
+                        <div class="mt-3 mb-0">
+                            {% set finance_mode_value = quote.finance_mode if quote and quote.finance_mode else 'payback' %}
+                            {% set profit_percent_value = quote.profit_percent if quote and quote.profit_percent is not none else 50 %}
+                            <label class="form-label" for="financeModeSelect">Finance Mode</label>
+                            <div class="d-flex gap-2 align-items-start">
+                                <select class="form-select" id="financeModeSelect" name="finance_mode" style="min-width: 0; flex: 1 1 auto;">
+                                    <option value="payback" {% if finance_mode_value == 'payback' %}selected{% endif %}>Payback</option>
+                                    <option value="profiting" {% if finance_mode_value == 'profiting' %}selected{% endif %}>Profiting</option>
+                                </select>
+                                <div class="input-group" style="width: 7.5rem; flex: 0 0 auto;">
+                                    <input type="number" class="form-control" id="profitPercentInput" name="profit_percent"
+                                           min="0" max="100" step="1"
+                                           value="{{ profit_percent_value }}"
+                                           aria-label="Profit percent"
+                                           {% if finance_mode_value != 'profiting' %}disabled{% endif %}>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="form-text small">Finances counts only Profiting bills as bill total × this percent.</div>
+                        </div>
                         {% if quote %}
                         <div class="mt-3 mb-0">
                             <label class="form-label" for="paidAtInput">Paid Date</label>
@@ -438,6 +458,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     filterProjectsByClient();
     document.getElementById('shippingAmount').disabled = document.getElementById('shippingTbd').checked;
+
+    const financeModeSelect = document.getElementById('financeModeSelect');
+    const profitPercentInput = document.getElementById('profitPercentInput');
+    function syncProfitPercentDisabled() {
+        if (!financeModeSelect || !profitPercentInput) return;
+        profitPercentInput.disabled = financeModeSelect.value !== 'profiting';
+    }
+    if (financeModeSelect && profitPercentInput) {
+        financeModeSelect.addEventListener('change', syncProfitPercentDisabled);
+        syncProfitPercentDisabled();
+        // Disabled inputs are omitted from POST; re-enable so the stored % is preserved on Payback saves.
+        const quoteForm = profitPercentInput.closest('form');
+        if (quoteForm) {
+            quoteForm.addEventListener('submit', function() {
+                profitPercentInput.disabled = false;
+            });
+        }
+    }
+
     recalculateLiveTotals();
 });
 </script>

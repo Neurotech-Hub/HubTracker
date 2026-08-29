@@ -436,6 +436,8 @@ class Quote(db.Model):
     title = db.Column(db.String(255), nullable=True)
     scope_summary = db.Column(db.Text, nullable=True)
     bill_type = db.Column(db.String(20), nullable=False, default='quote', server_default='quote')  # quote, invoice
+    finance_mode = db.Column(db.String(20), nullable=False, default='payback', server_default='payback')  # payback, profiting
+    profit_percent = db.Column(db.Integer, nullable=False, default=50, server_default='50')  # 0–100; Finances when profiting
     issue_date = db.Column(db.Date, nullable=False)
     valid_until = db.Column(db.Date, nullable=True)
     status = db.Column(db.String(20), nullable=False, default='draft', server_default='draft')  # draft, published, paid, archived

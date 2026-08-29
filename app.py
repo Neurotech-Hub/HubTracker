@@ -463,6 +463,26 @@ app.jinja_env.filters['central_time'] = central_time
 app.jinja_env.filters['duration_hours_central'] = duration_hours_central
 
 BILL_TYPE_OPTIONS = ('quote', 'invoice')
+FINANCE_MODE_OPTIONS = ('payback', 'profiting')
+
+
+def parse_quote_finance_mode_form(raw, fallback='payback'):
+    value = (raw or '').strip().lower()
+    if value in FINANCE_MODE_OPTIONS:
+        return value
+    return fallback if fallback in FINANCE_MODE_OPTIONS else 'payback'
+
+
+def parse_quote_profit_percent_form(raw, fallback=50):
+    """Integer 0–100; invalid/empty uses fallback (default 50)."""
+    value = (raw or '').strip()
+    if not value:
+        return fallback
+    try:
+        pct = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    return max(0, min(100, pct))
 
 
 def quote_is_client_locked(quote):
@@ -492,6 +512,13 @@ def parse_quote_paid_at_form(raw):
         return None, 'Paid Date must be a valid date.'
     return TIMEZONE.localize(datetime.combine(day, time_cls.min)), None
 
+
+def quote_finance_profit_amount(quote):
+    """Bill total × profit% for Finances; None if not a profiting bill."""
+    if not quote or (quote.finance_mode or 'payback') != 'profiting':
+        return None
+    pct = quote.profit_percent if quote.profit_percent is not None else 50
+    return float(quote.total_amount or 0) * (pct / 100.0)
 
 TIME_GRID_HOUR_START = 6
 TIME_GRID_HOUR_END = 17
@@ -2981,6 +3008,8 @@ def billing_new():
     bill_type = request.form.get('bill_type', 'quote').strip().lower()
     if bill_type not in BILL_TYPE_OPTIONS:
         bill_type = 'quote'
+    finance_mode = parse_quote_finance_mode_form(request.form.get('finance_mode'), 'payback')
+    profit_percent = parse_quote_profit_percent_form(request.form.get('profit_percent'), 50)
 
     quote = Quote(
         client_id=client_id,
@@ -2989,6 +3018,8 @@ def billing_new():
         title=title,
         scope_summary=request.form.get('scope_summary', '').strip() or None,
         bill_type=bill_type,
+        finance_mode=finance_mode,
+        profit_percent=profit_percent,
         issue_date=issue_date,
         valid_until=valid_until,
         status='published',
@@ -3072,11 +3103,18 @@ def billing_edit(bill_db_id):
             quote_edit_locked=quote_admin_form_locked(quote),
         )
 
-    # Locked approved quotes: allow bill_type and paid_at without altering approval or body.
+    # Locked approved quotes: allow bill_type, finance fields, and paid_at without altering approval or body.
     if quote_admin_form_locked(quote):
         bill_type = request.form.get('bill_type', quote.bill_type or 'quote').strip().lower()
         if bill_type not in BILL_TYPE_OPTIONS:
             bill_type = quote.bill_type or 'quote'
+        finance_mode = parse_quote_finance_mode_form(
+            request.form.get('finance_mode'), quote.finance_mode or 'payback'
+        )
+        profit_percent = parse_quote_profit_percent_form(
+            request.form.get('profit_percent'),
+            quote.profit_percent if quote.profit_percent is not None else 50,
+        )
         paid_at, paid_at_error = parse_quote_paid_at_form(request.form.get('paid_at'))
         if paid_at_error:
             flash(paid_at_error, 'error')
@@ -3084,6 +3122,12 @@ def billing_edit(bill_db_id):
         changed = False
         if quote.bill_type != bill_type:
             quote.bill_type = bill_type
+            changed = True
+        if quote.finance_mode != finance_mode:
+            quote.finance_mode = finance_mode
+            changed = True
+        if quote.profit_percent != profit_percent:
+            quote.profit_percent = profit_percent
             changed = True
         if quote.paid_at != paid_at:
             quote.paid_at = paid_at
@@ -3123,6 +3167,13 @@ def billing_edit(bill_db_id):
     if bill_type not in BILL_TYPE_OPTIONS:
         bill_type = quote.bill_type or 'quote'
     quote.bill_type = bill_type
+    quote.finance_mode = parse_quote_finance_mode_form(
+        request.form.get('finance_mode'), quote.finance_mode or 'payback'
+    )
+    quote.profit_percent = parse_quote_profit_percent_form(
+        request.form.get('profit_percent'),
+        quote.profit_percent if quote.profit_percent is not None else 50,
+    )
     quote.is_public = True
     if not quote.public_token:
         quote.public_token = secrets.token_urlsafe(24)
@@ -3490,8 +3541,12 @@ def finances():
                         'amount': share,
                     })
 
-    # Paid bills land in the month they were marked paid (fallback: issue date).
+    # Profiting paid bills land in the month they were marked paid (fallback: issue date).
+    # Amount counted is bill total × profit_percent / 100.
     for quote in Quote.query.filter(Quote.status == 'paid').all():
+        amount = quote_finance_profit_amount(quote)
+        if amount is None:
+            continue
         if quote.paid_at:
             paid_local = quote.paid_at.astimezone(TIMEZONE)
             year, month = paid_local.year, paid_local.month
@@ -3501,27 +3556,35 @@ def finances():
             continue
         idx = fy_month_index(year, month, fy_start_year)
         if idx is not None:
-            amount = float(quote.total_amount or 0)
+            pct = quote.profit_percent if quote.profit_percent is not None else 50
+            client_name = quote.client.name if quote.client else ''
+            detail = f'{client_name} · {pct}%' if client_name else f'{pct}%'
             paid_monthly[idx] += amount
             paid_items[idx].append({
                 'label': quote.title or quote.quote_id,
-                'detail': quote.client.name if quote.client else '',
+                'detail': detail,
                 'amount': amount,
             })
 
-    # Open (unpaid, non-archived) bills with a projected month — mutually exclusive from paid.
+    # Open Profiting bills only (Payback excluded from Finances and Projected Bills UI).
     open_bills = Quote.query.filter(
-        Quote.status.notin_(('paid', 'archived'))
+        Quote.status.notin_(('paid', 'archived')),
+        Quote.finance_mode == 'profiting',
     ).order_by(Quote.issue_date.desc(), Quote.id.desc()).all()
     for quote in open_bills:
         idx = quote.projected_fy_month
         if idx is None or not (0 <= idx < 12):
             continue
-        amount = float(quote.total_amount or 0)
+        amount = quote_finance_profit_amount(quote)
+        if amount is None:
+            continue
+        pct = quote.profit_percent if quote.profit_percent is not None else 50
+        client_name = quote.client.name if quote.client else ''
+        detail = f'{client_name} · {pct}%' if client_name else f'{pct}%'
         projected_monthly[idx] += amount
         projected_items[idx].append({
             'label': quote.title or quote.quote_id,
-            'detail': quote.client.name if quote.client else '',
+            'detail': detail,
             'amount': amount,
         })
 
@@ -3630,7 +3693,10 @@ def finances_bill_months():
     if auth_error:
         return auth_error
 
-    open_bills = Quote.query.filter(Quote.status.notin_(('paid', 'archived'))).all()
+    open_bills = Quote.query.filter(
+        Quote.status.notin_(('paid', 'archived')),
+        Quote.finance_mode == 'profiting',
+    ).all()
     for quote in open_bills:
         raw = request.form.get(f'projected_month_{quote.id}', '').strip()
         if raw == '':
