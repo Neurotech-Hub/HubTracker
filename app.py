@@ -514,11 +514,19 @@ def parse_quote_paid_at_form(raw):
 
 
 def quote_finance_profit_amount(quote):
-    """Bill total × profit% for Finances; None if not a profiting bill."""
+    """Bill total × profit% for Finances; None if not a profiting bill.
+
+    External Customer Tax is excluded from the base (pass-through, not P/L).
+    """
     if not quote or (quote.finance_mode or 'payback') != 'profiting':
         return None
     pct = quote.profit_percent if quote.profit_percent is not None else 50
-    return float(quote.total_amount or 0) * (pct / 100.0)
+    base = float(quote.total_amount or 0)
+    if bool(getattr(quote, 'external_customer_tax', False)):
+        base -= float(quote.tax_amount or 0)
+    if base < 0:
+        base = 0.0
+    return base * (pct / 100.0)
 
 TIME_GRID_HOUR_START = 6
 TIME_GRID_HOUR_END = 17

@@ -45,6 +45,7 @@
                             <th class="billing-col-compact">Client</th>
                             <th class="billing-col-title">Title</th>
                             <th class="billing-col-compact">Type</th>
+                            <th class="billing-col-compact">Financing</th>
                             <th class="billing-col-compact">Issued</th>
                             <th class="billing-col-compact">Total</th>
                             <th class="text-end billing-actions billing-col-compact">Actions</th>
@@ -73,6 +74,13 @@
                                     {{ (quote.bill_type or 'quote').title() }}
                                 </span>
                             </td>
+                            <td class="billing-col-compact">
+                                {% if (quote.finance_mode or 'payback') == 'profiting' %}
+                                {{ quote.profit_percent if quote.profit_percent is not none else 50 }}%
+                                {% else %}
+                                Payback
+                                {% endif %}
+                            </td>
                             <td class="billing-col-compact">{{ quote.issue_date.strftime('%Y-%m-%d') if quote.issue_date else '—' }}</td>
                             <td class="billing-col-compact">{{ quote.total_amount|currency }}</td>
                             <td class="text-end billing-actions billing-col-compact">
@@ -90,7 +98,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="table-light">
-                            <td colspan="6" class="text-end fw-semibold border-top">{{ active_total|currency }}</td>
+                            <td colspan="7" class="text-end fw-semibold border-top">{{ active_total|currency }}</td>
                             <td class="border-top"></td>
                         </tr>
                     </tfoot>
@@ -120,6 +128,7 @@
                             <th class="billing-col-compact">Client</th>
                             <th class="billing-col-title">Title</th>
                             <th class="billing-col-compact">Type</th>
+                            <th class="billing-col-compact">Financing</th>
                             <th class="billing-col-compact">Paid</th>
                             <th class="billing-col-compact">Total</th>
                             <th class="text-end billing-actions billing-col-compact">Actions</th>
@@ -148,6 +157,13 @@
                                     {{ (quote.bill_type or 'quote').title() }}
                                 </span>
                             </td>
+                            <td class="billing-col-compact">
+                                {% if (quote.finance_mode or 'payback') == 'profiting' %}
+                                {{ quote.profit_percent if quote.profit_percent is not none else 50 }}%
+                                {% else %}
+                                Payback
+                                {% endif %}
+                            </td>
                             <td class="billing-col-compact">{{ quote.paid_at.strftime('%Y-%m-%d') if quote.paid_at else '—' }}</td>
                             <td class="billing-col-compact">{{ quote.total_amount|currency }}</td>
                             <td class="text-end billing-actions billing-col-compact">
@@ -165,7 +181,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="table-light">
-                            <td colspan="6" class="text-end fw-semibold border-top">{{ paid_total|currency }}</td>
+                            <td colspan="7" class="text-end fw-semibold border-top">{{ paid_total|currency }}</td>
                             <td class="border-top"></td>
                         </tr>
                     </tfoot>
@@ -189,6 +205,7 @@
                             <th class="billing-col-compact">Client</th>
                             <th class="billing-col-title">Title</th>
                             <th class="billing-col-compact">Type</th>
+                            <th class="billing-col-compact">Financing</th>
                             <th class="billing-col-compact">Issued</th>
                             <th class="billing-col-compact">Total</th>
                             <th class="text-end billing-actions billing-col-compact">Actions</th>
@@ -217,6 +234,13 @@
                                     {{ (quote.bill_type or 'quote').title() }}
                                 </span>
                             </td>
+                            <td class="billing-col-compact">
+                                {% if (quote.finance_mode or 'payback') == 'profiting' %}
+                                {{ quote.profit_percent if quote.profit_percent is not none else 50 }}%
+                                {% else %}
+                                Payback
+                                {% endif %}
+                            </td>
                             <td class="billing-col-compact">{{ quote.issue_date.strftime('%Y-%m-%d') if quote.issue_date else '—' }}</td>
                             <td class="billing-col-compact">{{ quote.total_amount|currency }}</td>
                             <td class="text-end billing-actions billing-col-compact">
@@ -233,7 +257,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="table-light">
-                            <td colspan="6" class="text-end fw-semibold border-top">{{ archived_total|currency }}</td>
+                            <td colspan="7" class="text-end fw-semibold border-top">{{ archived_total|currency }}</td>
                             <td class="border-top"></td>
                         </tr>
                     </tfoot>
