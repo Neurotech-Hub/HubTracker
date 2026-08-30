@@ -14,25 +14,28 @@
         <div class="col-12">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <div>
-                    <h2 class="mb-0">Time Grid <span class="badge bg-secondary align-middle fs-6">Beta</span></h2>
+                    <h2 class="mb-0">Time Grid</h2>
                     <small class="text-muted">Click hour blocks to log effort for the week</small>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <a href="{{ url_for('time_grid', week=prev_week.isoformat()) }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-chevron-left"></i> Prev
-                    </a>
-                    <span class="text-muted small px-1" id="weekRangeLabel">
-                        {{ week_start.strftime('%b %d') }} – {{ week_end.strftime('%b %d, %Y') }}
-                    </span>
-                    {% if is_current_week %}
-                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Cannot log time in future weeks">
-                        Next <i class="bi bi-chevron-right"></i>
-                    </button>
-                    {% else %}
-                    <a href="{{ url_for('time_grid', week=next_week.isoformat()) }}" class="btn btn-outline-secondary btn-sm">
-                        Next <i class="bi bi-chevron-right"></i>
-                    </a>
-                    {% endif %}
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                    <div class="fw-semibold" id="weekTotalLabel">Week total: — hrs</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="{{ url_for('time_grid', week=prev_week.isoformat()) }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-chevron-left"></i> Prev
+                        </a>
+                        <span class="text-muted small px-1" id="weekRangeLabel">
+                            {{ week_start.strftime('%b %d') }} – {{ week_end.strftime('%b %d, %Y') }}
+                        </span>
+                        {% if is_current_week %}
+                        <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Cannot log time in future weeks">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </button>
+                        {% else %}
+                        <a href="{{ url_for('time_grid', week=next_week.isoformat()) }}" class="btn btn-outline-secondary btn-sm">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </a>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -74,8 +77,6 @@
             </div>
         </div>
     </div>
-
-    <div class="fw-semibold mb-2" id="weekTotalLabel">Week total: — hrs</div>
 
     <div class="card mb-3">
         <div class="card-body p-2 p-md-3">

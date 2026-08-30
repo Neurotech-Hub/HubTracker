@@ -367,7 +367,7 @@
             }
         }
 
-        if (weekData) {
+        if (weekData && weekTotalEl) {
             weekTotalEl.textContent = `Week total: ${Number(weekData.week_total_hours || 0).toFixed(1)} hrs`;
         }
 
@@ -396,7 +396,9 @@
             renderGrid();
         } catch (err) {
             console.error(err);
-            weekTotalEl.textContent = 'Week total: error loading data';
+            if (weekTotalEl) {
+                weekTotalEl.textContent = 'Week total: error loading data';
+            }
         }
     }
 
