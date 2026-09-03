@@ -661,6 +661,7 @@ def build_week_grid_state(logs, week_start_date):
                         'day_index': day_index,
                         'hour': hour,
                         'log_id': log.id,
+                        'project_id': log.project_id,
                         'client_name': client_name,
                         'project_name': project_name,
                         'status': 'locked',
@@ -718,6 +719,112 @@ def _week_logs_for_user(user_id, week_start_date):
         )
         .all()
     )
+
+
+def compute_week_project_breakdown(logs, user_id, week_start_date):
+    """Per-project this-week hours/%, last-week hours, and all-time hours for the user."""
+    from collections import defaultdict
+    from datetime import time as time_cls
+
+    weekly_by_project = defaultdict(float)
+    meta_by_project = {}
+    for log in logs:
+        hours_val = float(log.hours or 0)
+        if hours_val <= 0:
+            continue
+        project_id = log.project_id
+        weekly_by_project[project_id] += hours_val
+        if project_id not in meta_by_project:
+            client_name, project_name = _log_project_names(log)
+            meta_by_project[project_id] = {
+                'client_name': client_name,
+                'project_name': project_name,
+            }
+
+    week_total = sum(weekly_by_project.values())
+    project_ids = [pid for pid in weekly_by_project.keys() if pid is not None]
+
+    last_week_start = week_start_date - timedelta(days=7)
+    last_week_end = week_start_date - timedelta(days=1)
+    last_week_start_dt = TIMEZONE.localize(datetime.combine(last_week_start, time_cls.min))
+    last_week_end_exclusive = TIMEZONE.localize(
+        datetime.combine(last_week_end + timedelta(days=1), time_cls.min)
+    )
+
+    last_week_by_project = {}
+    all_time_by_project = {}
+    last_week_total = float(
+        db.session.query(func.coalesce(func.sum(Log.hours), 0))
+        .filter(
+            Log.user_id == user_id,
+            Log.created_at >= last_week_start_dt,
+            Log.created_at < last_week_end_exclusive,
+        )
+        .scalar()
+        or 0
+    )
+    if project_ids:
+        last_week_rows = (
+            db.session.query(Log.project_id, func.coalesce(func.sum(Log.hours), 0))
+            .filter(
+                Log.user_id == user_id,
+                Log.project_id.in_(project_ids),
+                Log.created_at >= last_week_start_dt,
+                Log.created_at < last_week_end_exclusive,
+            )
+            .group_by(Log.project_id)
+            .all()
+        )
+        last_week_by_project = {pid: float(total or 0) for pid, total in last_week_rows}
+
+        all_time_rows = (
+            db.session.query(Log.project_id, func.coalesce(func.sum(Log.hours), 0))
+            .filter(Log.user_id == user_id, Log.project_id.in_(project_ids))
+            .group_by(Log.project_id)
+            .all()
+        )
+        all_time_by_project = {pid: float(total or 0) for pid, total in all_time_rows}
+
+    if None in weekly_by_project:
+        last_week_by_project[None] = float(
+            db.session.query(func.coalesce(func.sum(Log.hours), 0))
+            .filter(
+                Log.user_id == user_id,
+                Log.project_id.is_(None),
+                Log.created_at >= last_week_start_dt,
+                Log.created_at < last_week_end_exclusive,
+            )
+            .scalar()
+            or 0
+        )
+        all_time_by_project[None] = float(
+            db.session.query(func.coalesce(func.sum(Log.hours), 0))
+            .filter(Log.user_id == user_id, Log.project_id.is_(None))
+            .scalar()
+            or 0
+        )
+
+    breakdown = []
+    for project_id, weekly_hours in weekly_by_project.items():
+        meta = meta_by_project.get(project_id) or {'client_name': '', 'project_name': 'No project'}
+        weekly_hours = round(weekly_hours, 1)
+        percent = round((weekly_hours / week_total) * 100, 1) if week_total > 0 else 0.0
+        last_week_hours = round(last_week_by_project.get(project_id, 0.0), 1)
+        last_week_percent = (
+            round((last_week_hours / last_week_total) * 100, 1) if last_week_total > 0 else 0.0
+        )
+        breakdown.append({
+            'project_id': project_id,
+            'client_name': meta['client_name'],
+            'project_name': meta['project_name'],
+            'weekly_hours': weekly_hours,
+            'weekly_percent': percent,
+            'last_week_hours': last_week_hours,
+            'last_week_percent': last_week_percent,
+            'all_time_hours': round(all_time_by_project.get(project_id, 0.0), 1),
+        })
+    breakdown.sort(key=lambda row: (-row['weekly_hours'], row['project_name'].lower()))
+    return breakdown, round(last_week_total, 1)
 
 
 def require_admin():
@@ -4469,6 +4576,23 @@ def time_grid():
     week_start = normalize_week_start(request.args.get('week'))
     week_end = week_start + timedelta(days=6)
     current_week_start = normalize_week_start()
+    current_user_id = session['user_id']
+
+    admin_users = (
+        User.query.filter(User.role == 'admin')
+        .order_by(User.first_name.asc(), User.last_name.asc())
+        .all()
+    )
+    # Ensure the logged-in user appears even if not admin.
+    if not any(u.id == current_user_id for u in admin_users):
+        current_user = db.session.get(User, current_user_id)
+        if current_user:
+            admin_users = [current_user] + admin_users
+
+    selected_user_id = request.args.get('user', type=int) or current_user_id
+    if not any(u.id == selected_user_id for u in admin_users):
+        selected_user_id = current_user_id
+
     return render_template(
         'time_grid.html',
         week_start=week_start,
@@ -4476,7 +4600,22 @@ def time_grid():
         prev_week=week_start - timedelta(days=7),
         next_week=week_start + timedelta(days=7),
         is_current_week=week_start >= current_week_start,
+        admin_users=admin_users,
+        current_user_id=current_user_id,
+        selected_user_id=selected_user_id,
     )
+
+
+def _resolve_time_grid_view_user_id():
+    """Return the user whose grid to show; only self or an admin is allowed."""
+    current_user_id = session['user_id']
+    requested_id = request.args.get('user', type=int)
+    if not requested_id or requested_id == current_user_id:
+        return current_user_id
+    view_user = db.session.get(User, requested_id)
+    if not view_user or view_user.role != 'admin':
+        return current_user_id
+    return view_user.id
 
 
 @app.route('/api/time_grid/week')
@@ -4486,10 +4625,14 @@ def api_time_grid_week():
 
     week_start = normalize_week_start(request.args.get('week'))
     week_end = week_start + timedelta(days=6)
-    logs = _week_logs_for_user(session['user_id'], week_start)
+    view_user_id = _resolve_time_grid_view_user_id()
+    logs = _week_logs_for_user(view_user_id, week_start)
 
     locked_cells, other_by_day, _occupied = build_week_grid_state(logs, week_start)
     week_total_hours = round(sum(float(log.hours or 0) for log in logs), 1)
+    project_breakdown, _last_week_total_hours = compute_week_project_breakdown(
+        logs, view_user_id, week_start
+    )
 
     return jsonify({
         'week_start': week_start.isoformat(),
@@ -4498,6 +4641,8 @@ def api_time_grid_week():
         'day_totals': compute_day_totals_for_week(logs, week_start),
         'cells': locked_cells,
         'other_by_day': [other_by_day[i] for i in range(7)],
+        'project_breakdown': project_breakdown,
+        'user_id': view_user_id,
     })
 
 

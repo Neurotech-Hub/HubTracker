@@ -11,6 +11,8 @@
     }
 
     const weekStart = page.dataset.weekStart;
+    const currentUserId = Number(page.dataset.currentUserId);
+    let selectedUserId = Number(page.dataset.selectedUserId || currentUserId);
     const gridEl = document.getElementById('timeGrid');
     const projectSearchEl = document.getElementById('timeGridProjectSearch');
     const projectListEl = document.getElementById('timeGridProjectList');
@@ -19,7 +21,46 @@
     const submitBtn = document.getElementById('timeGridSubmitBtn');
     const clearBtn = document.getElementById('timeGridClearBtn');
     const mergePreviewEl = document.getElementById('timeGridMergePreview');
-    const weekTotalEl = document.getElementById('weekTotalLabel');
+    const breakdownBodyEl = document.getElementById('timeGridBreakdownBody');
+    const breakdownWeekTotalEl = document.getElementById('timeGridBreakdownWeekTotal');
+    const breakdownEmptyEl = document.getElementById('timeGridBreakdownEmpty');
+    const breakdownContentEl = document.getElementById('timeGridBreakdownContent');
+    const inputCardEl = document.getElementById('timeGridInputCard');
+    const userSelectEl = document.getElementById('timeGridUserSelect');
+
+    const BAR_COLORS = [
+        '#0d6efd', '#198754', '#fd7e14', '#6f42c1', '#dc3545',
+        '#20c997', '#ffc107', '#6610f2', '#0dcaf0', '#6c757d',
+    ];
+
+    function isViewingSelf() {
+        return selectedUserId === currentUserId;
+    }
+
+    function syncInputVisibility() {
+        if (!inputCardEl) {
+            return;
+        }
+        const show = isViewingSelf();
+        inputCardEl.hidden = !show;
+        if (!show) {
+            selectedProject = null;
+            pendingSlots.clear();
+            if (notesEl) {
+                notesEl.value = '';
+            }
+            if (selectedProjectEl) {
+                selectedProjectEl.textContent = 'No project selected';
+            }
+            if (projectListEl) {
+                projectListEl.querySelectorAll('.time-grid-project-item').forEach((item) => {
+                    item.classList.remove('selected');
+                });
+            }
+        }
+        updateFlowHighlights();
+        updateSubmitState();
+    }
 
     function focusProjectSearch() {
         if (projectSearchEl) {
@@ -46,9 +87,33 @@
     }
 
     function updateFlowHighlights() {
+        if (!isViewingSelf() || !projectSearchEl || !notesEl) {
+            if (projectSearchEl) {
+                projectSearchEl.classList.remove('time-grid-flow-highlight');
+            }
+            if (notesEl) {
+                notesEl.classList.remove('time-grid-flow-highlight');
+            }
+            return;
+        }
         const notesOk = notesEl.value.trim().length > 0;
         projectSearchEl.classList.toggle('time-grid-flow-highlight', !selectedProject);
         notesEl.classList.toggle('time-grid-flow-highlight', Boolean(selectedProject) && !notesOk);
+    }
+
+    function updateWeekNavLinks() {
+        document.querySelectorAll('a.btn[href*="time-grid"]').forEach((link) => {
+            try {
+                const url = new URL(link.href, window.location.origin);
+                if (!url.pathname.includes('time-grid')) {
+                    return;
+                }
+                url.searchParams.set('user', String(selectedUserId));
+                link.href = url.pathname + url.search;
+            } catch (err) {
+                // ignore malformed hrefs
+            }
+        });
     }
 
     let allProjects = [];
@@ -275,15 +340,94 @@
         });
     }
 
+    function projectColorMap() {
+        const map = {};
+        const rows = (weekData && weekData.project_breakdown) || [];
+        rows.forEach((row, index) => {
+            const key = row.project_id == null ? 'null' : String(row.project_id);
+            map[key] = BAR_COLORS[index % BAR_COLORS.length];
+        });
+        return map;
+    }
+
+    function colorForProjectId(projectId, colorMap) {
+        const key = projectId == null ? 'null' : String(projectId);
+        if (colorMap[key]) {
+            return colorMap[key];
+        }
+        // Stable fallback for projects not yet in this week's breakdown.
+        const n = projectId == null ? 0 : Number(projectId) || 0;
+        return BAR_COLORS[Math.abs(n) % BAR_COLORS.length];
+    }
+
+    function clearCellOutline(cell) {
+        cell.style.borderColor = '';
+        cell.style.borderWidth = '';
+        cell.style.backgroundColor = '';
+    }
+
+    function applyCellOutline(cell, color) {
+        if (!color) {
+            cell.removeAttribute('data-outline-color');
+            clearCellOutline(cell);
+            return;
+        }
+        cell.dataset.outlineColor = color;
+        cell.style.borderColor = color;
+        cell.style.borderWidth = '2px';
+        cell.style.backgroundColor = `${color}14`;
+    }
+
+    function projectKey(projectId) {
+        return projectId == null || projectId === '' ? 'null' : String(projectId);
+    }
+
+    function setGridProjectHighlight(focusProjectId) {
+        const focusKey = focusProjectId === undefined ? null : projectKey(focusProjectId);
+        gridEl.querySelectorAll('.time-grid-cell[data-key]').forEach((cell) => {
+            const cellProject = cell.dataset.projectId;
+            const savedColor = cell.dataset.outlineColor;
+            if (!savedColor) {
+                return;
+            }
+            if (focusKey === null || cellProject === focusKey) {
+                cell.style.borderColor = savedColor;
+                cell.style.borderWidth = '2px';
+                cell.style.backgroundColor = `${savedColor}14`;
+                cell.classList.remove('time-grid-cell-dimmed');
+            } else {
+                clearCellOutline(cell);
+                cell.classList.add('time-grid-cell-dimmed');
+            }
+        });
+    }
+
+    function clearGridProjectHighlight() {
+        gridEl.querySelectorAll('.time-grid-cell[data-key]').forEach((cell) => {
+            cell.classList.remove('time-grid-cell-dimmed');
+            const savedColor = cell.dataset.outlineColor;
+            if (savedColor) {
+                cell.style.borderColor = savedColor;
+                cell.style.borderWidth = '2px';
+                cell.style.backgroundColor = `${savedColor}14`;
+            }
+        });
+    }
+
     function onCellClick(cell) {
+        if (!isViewingSelf()) {
+            return;
+        }
         if (cell.classList.contains('locked') || cell.classList.contains('disabled')) {
             return;
         }
         const key = cell.dataset.key;
+        const colorMap = projectColorMap();
         if (pendingSlots.has(key)) {
             pendingSlots.delete(key);
             cell.classList.remove('pending');
             cell.textContent = '';
+            clearCellOutline(cell);
         } else {
             pendingSlots.add(key);
             cell.classList.add('pending');
@@ -292,6 +436,7 @@
                     ? `${selectedProject.client_name} - ${selectedProject.name}`
                     : selectedProject.name;
                 cell.innerHTML = `<span class="cell-label">${escapeHtml(label)}</span>`;
+                applyCellOutline(cell, colorForProjectId(selectedProject.id, colorMap));
             }
         }
         updateSubmitState();
@@ -309,11 +454,18 @@
             });
         }
 
+        const colorMap = projectColorMap();
+        const canSelect = isViewingSelf() && selectedProject;
+
         gridEl.querySelectorAll('.time-grid-cell[data-key]').forEach((cell) => {
             const key = cell.dataset.key;
             cell.className = 'time-grid-cell';
             cell.textContent = '';
             cell.removeAttribute('title');
+            cell.removeAttribute('data-project-id');
+            cell.removeAttribute('data-outline-color');
+            cell.classList.remove('time-grid-cell-dimmed');
+            clearCellOutline(cell);
 
             if (lockedByKey[key]) {
                 if (pendingSlots.has(key)) {
@@ -321,26 +473,33 @@
                 }
                 const cellInfo = lockedByKey[key];
                 cell.classList.add('locked');
+                cell.dataset.projectId = projectKey(cellInfo.project_id);
                 const label = cellInfo.client_name
                     ? `${cellInfo.client_name} - ${cellInfo.project_name}`
                     : cellInfo.project_name;
                 cell.innerHTML = `<span class="cell-label">${escapeHtml(label)}</span>`;
                 cell.title = label;
+                applyCellOutline(cell, colorForProjectId(cellInfo.project_id, colorMap));
                 return;
             }
 
-            if (pendingSlots.has(key)) {
+            if (pendingSlots.has(key) && isViewingSelf()) {
                 cell.classList.add('pending');
                 if (selectedProject) {
+                    cell.dataset.projectId = projectKey(selectedProject.id);
                     const label = selectedProject.client_name
                         ? `${selectedProject.client_name} - ${selectedProject.name}`
                         : selectedProject.name;
                     cell.innerHTML = `<span class="cell-label">${escapeHtml(label)}</span>`;
+                    applyCellOutline(cell, colorForProjectId(selectedProject.id, colorMap));
                 }
                 return;
             }
 
-            if (selectedProject) {
+            cell.removeAttribute('data-project-id');
+            cell.removeAttribute('data-outline-color');
+
+            if (canSelect) {
                 cell.classList.add('selectable');
             } else {
                 cell.classList.add('disabled');
@@ -367,11 +526,67 @@
             }
         }
 
-        if (weekData && weekTotalEl) {
-            weekTotalEl.textContent = `Week total: ${Number(weekData.week_total_hours || 0).toFixed(1)} hrs`;
+        renderBreakdown();
+        updateSubmitState();
+    }
+
+    function renderBreakdown() {
+        if (!breakdownBodyEl || !breakdownContentEl || !breakdownEmptyEl) {
+            return;
         }
 
-        updateSubmitState();
+        const rows = (weekData && weekData.project_breakdown) || [];
+        const weekTotal = Number((weekData && weekData.week_total_hours) || 0);
+
+        if (!rows.length || weekTotal <= 0) {
+            breakdownEmptyEl.classList.remove('d-none');
+            breakdownContentEl.classList.add('d-none');
+            breakdownBodyEl.innerHTML = '';
+            if (breakdownWeekTotalEl) {
+                breakdownWeekTotalEl.innerHTML = '<strong>0.0%</strong> (0.0 hrs)';
+            }
+            return;
+        }
+
+        breakdownEmptyEl.classList.add('d-none');
+        breakdownContentEl.classList.remove('d-none');
+
+        breakdownBodyEl.innerHTML = rows.map((row, index) => {
+            const pct = Math.max(0, Math.min(100, Number(row.weekly_percent || 0)));
+            const thisWeek = Number(row.weekly_hours || 0);
+            const lastWeek = Number(row.last_week_hours || 0);
+            const lastWeekPct = Math.max(0, Math.min(100, Number(row.last_week_percent || 0)));
+            const allTime = Number(row.all_time_hours || 0);
+            const color = BAR_COLORS[index % BAR_COLORS.length];
+            const rowProjectKey = projectKey(row.project_id);
+            return (
+                `<tr data-project-id="${escapeHtml(rowProjectKey)}">` +
+                `<td class="time-grid-breakdown-bar-col">` +
+                `<span class="time-grid-breakdown-bar-track" title="${pct.toFixed(1)}% of week">` +
+                `<span class="time-grid-breakdown-bar-fill" style="width:${pct}%;background:${color}"></span>` +
+                `</span>` +
+                `</td>` +
+                `<td>${escapeHtml(row.client_name || '—')}</td>` +
+                `<td>${escapeHtml(row.project_name || '—')}</td>` +
+                `<td class="text-end"><strong>${pct.toFixed(1)}%</strong> (${thisWeek.toFixed(1)} hrs)</td>` +
+                `<td class="text-end"><strong>${lastWeekPct.toFixed(1)}%</strong> (${lastWeek.toFixed(1)} hrs)</td>` +
+                `<td class="text-end">${allTime.toFixed(1)} hrs</td>` +
+                `</tr>`
+            );
+        }).join('');
+
+        breakdownBodyEl.querySelectorAll('tr[data-project-id]').forEach((rowEl) => {
+            rowEl.addEventListener('mouseenter', () => {
+                setGridProjectHighlight(rowEl.dataset.projectId);
+            });
+            rowEl.addEventListener('mouseleave', () => {
+                clearGridProjectHighlight();
+            });
+        });
+
+        if (breakdownWeekTotalEl) {
+            breakdownWeekTotalEl.innerHTML = `<strong>100%</strong> (${weekTotal.toFixed(1)} hrs)`;
+        }
     }
 
     async function loadProjects() {
@@ -388,7 +603,11 @@
 
     async function loadWeek() {
         try {
-            const response = await fetch(`/api/time_grid/week?week=${encodeURIComponent(weekStart)}`);
+            const params = new URLSearchParams({
+                week: weekStart,
+                user: String(selectedUserId),
+            });
+            const response = await fetch(`/api/time_grid/week?${params.toString()}`);
             if (!response.ok) {
                 throw new Error('Failed to load week');
             }
@@ -396,14 +615,13 @@
             renderGrid();
         } catch (err) {
             console.error(err);
-            if (weekTotalEl) {
-                weekTotalEl.textContent = 'Week total: error loading data';
-            }
+            weekData = null;
+            renderBreakdown();
         }
     }
 
     async function submitPending() {
-        if (submitBtn.disabled) {
+        if (!isViewingSelf() || submitBtn.disabled) {
             return;
         }
         submitBtn.disabled = true;
@@ -434,6 +652,19 @@
         }
     }
 
+    if (userSelectEl) {
+        userSelectEl.addEventListener('change', () => {
+            selectedUserId = Number(userSelectEl.value) || currentUserId;
+            page.dataset.selectedUserId = String(selectedUserId);
+            syncInputVisibility();
+            updateWeekNavLinks();
+            const url = new URL(window.location.href);
+            url.searchParams.set('user', String(selectedUserId));
+            window.history.replaceState({}, '', url.pathname + url.search);
+            loadWeek();
+        });
+    }
+
     projectSearchEl.addEventListener('input', filterProjects);
     notesEl.addEventListener('input', updateSubmitState);
     submitBtn.addEventListener('click', submitPending);
@@ -443,6 +674,8 @@
     });
 
     buildGridSkeleton();
+    syncInputVisibility();
+    updateWeekNavLinks();
     loadProjects();
     loadWeek();
     updateFlowHighlights();

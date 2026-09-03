@@ -9,39 +9,44 @@
 {% block content %}
 <div class="container-fluid py-4 time-grid-page"
      id="timeGridPage"
-     data-week-start="{{ week_start.isoformat() }}">
+     data-week-start="{{ week_start.isoformat() }}"
+     data-current-user-id="{{ current_user_id }}"
+     data-selected-user-id="{{ selected_user_id }}">
     <div class="row mb-3">
         <div class="col-12">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <div>
                     <h2 class="mb-0">Time Grid</h2>
-                    <small class="text-muted">Click hour blocks to log effort for the week</small>
                 </div>
-                <div class="d-flex flex-wrap align-items-center gap-3">
-                    <div class="fw-semibold" id="weekTotalLabel">Week total: — hrs</div>
-                    <div class="d-flex align-items-center gap-2">
-                        <a href="{{ url_for('time_grid', week=prev_week.isoformat()) }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-chevron-left"></i> Prev
-                        </a>
-                        <span class="text-muted small px-1" id="weekRangeLabel">
-                            {{ week_start.strftime('%b %d') }} – {{ week_end.strftime('%b %d, %Y') }}
-                        </span>
-                        {% if is_current_week %}
-                        <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Cannot log time in future weeks">
-                            Next <i class="bi bi-chevron-right"></i>
-                        </button>
-                        {% else %}
-                        <a href="{{ url_for('time_grid', week=next_week.isoformat()) }}" class="btn btn-outline-secondary btn-sm">
-                            Next <i class="bi bi-chevron-right"></i>
-                        </a>
-                        {% endif %}
-                    </div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <select class="form-select form-select-sm time-grid-user-select" id="timeGridUserSelect" aria-label="View user">
+                        {% for admin in admin_users %}
+                        <option value="{{ admin.id }}" {% if admin.id == selected_user_id %}selected{% endif %}>
+                            {{ admin.full_name }}{% if admin.id == current_user_id %} (you){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <a href="{{ url_for('time_grid', week=prev_week.isoformat(), user=selected_user_id) }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-chevron-left"></i> Prev
+                    </a>
+                    <span class="text-muted small px-1" id="weekRangeLabel">
+                        {{ week_start.strftime('%b %d') }} – {{ week_end.strftime('%b %d, %Y') }}
+                    </span>
+                    {% if is_current_week %}
+                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Cannot log time in future weeks">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </button>
+                    {% else %}
+                    <a href="{{ url_for('time_grid', week=next_week.isoformat(), user=selected_user_id) }}" class="btn btn-outline-secondary btn-sm">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="card mb-3 time-grid-input-card">
+    <div class="card mb-3 time-grid-input-card" id="timeGridInputCard" {% if selected_user_id != current_user_id %}hidden{% endif %}>
         <div class="card-body">
             <div class="row g-3 align-items-stretch">
                 <div class="col-lg-5">
@@ -79,6 +84,14 @@
     </div>
 
     <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-calendar-week me-2"></i>Time Grid
+            </h5>
+            <a href="{{ url_for('logs') }}" class="text-decoration-none">
+                <small class="text-muted">View All Logs <i class="bi bi-arrow-right ms-1"></i></small>
+            </a>
+        </div>
         <div class="card-body p-2 p-md-3">
             <div class="time-grid-scroll">
                 <div class="time-grid" id="timeGrid">
@@ -86,6 +99,42 @@
                 </div>
             </div>
             <div class="small text-muted mt-2" id="timeGridMergePreview"></div>
+        </div>
+    </div>
+
+    <div class="card mb-3" id="timeGridBreakdownCard">
+        <div class="card-header">
+            <h5 class="mb-0">Weekly breakdown</h5>
+        </div>
+        <div class="card-body">
+            <div id="timeGridBreakdownEmpty" class="text-muted small d-none">No hours logged this week.</div>
+            <div id="timeGridBreakdownContent">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 time-grid-breakdown-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="time-grid-breakdown-bar-col" aria-label="Weekly share"></th>
+                                <th>Client</th>
+                                <th>Project</th>
+                                <th class="text-end">This Week</th>
+                                <th class="text-end">Last Week</th>
+                                <th class="text-end">All Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="timeGridBreakdownBody">
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <td></td>
+                                <td colspan="2" class="fw-semibold">Total</td>
+                                <td class="text-end fw-semibold" id="timeGridBreakdownWeekTotal"><strong>0.0%</strong> (0.0 hrs)</td>
+                                <td class="text-end"></td>
+                                <td class="text-end"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>

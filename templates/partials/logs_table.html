@@ -16,10 +16,11 @@
         </thead>
         <tbody>
             {% for log in logs %}
+            {% set log_local = log.created_at|central_time %}
             <tr>
                 <td>
-                    <div class="fw-medium">{{ log.created_at.strftime('%b %d, %Y') }}</div>
-                    <small class="text-muted">{{ log.created_at.strftime('%I:%M %p') }}</small>
+                    <div class="fw-medium">{{ log_local.strftime('%b %d, %Y') if log_local else '—' }}</div>
+                    <small class="text-muted">{{ log_local.strftime('%I:%M %p') if log_local else '' }}</small>
                 </td>
                 <td>
                     <div class="fw-medium">{{ log.user.full_name }}</div>
@@ -72,7 +73,7 @@
                                 data-log-hours="{{ log.hours or '' }}"
                                 data-log-fixed-cost="{{ log.fixed_cost or '' }}"
                                 data-log-project-id="{{ log.project_id or '' }}"
-                                data-log-datetime="{{ log.created_at.strftime('%Y-%m-%dT%H:%M') }}"
+                                data-log-datetime="{{ log_local.strftime('%Y-%m-%dT%H:%M') if log_local else '' }}"
                                 data-bs-toggle="modal" data-bs-target="#editLogModal"
                                 onclick="editLogFromData(this)"
                                 title="Edit Log">
