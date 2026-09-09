@@ -528,7 +528,7 @@ def quote_finance_profit_amount(quote):
         base = 0.0
     return base * (pct / 100.0)
 
-TIME_GRID_HOUR_START = 6
+TIME_GRID_HOUR_START = 4
 TIME_GRID_HOUR_END = 17
 
 

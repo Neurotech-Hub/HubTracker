@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const HOUR_START = 6;
+    const HOUR_START = 4;
     const HOUR_END = 17;
     const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 

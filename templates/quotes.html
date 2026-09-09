@@ -41,7 +41,7 @@
                 <table class="table table-hover table-sm mb-0 table-billing-list">
                     <thead class="table-light">
                         <tr>
-                            <th class="billing-col-compact">Bill ID</th>
+                            <th class="billing-col-compact">Approved</th>
                             <th class="billing-col-compact">Client</th>
                             <th class="billing-col-title">Title</th>
                             <th class="billing-col-compact">Type</th>
@@ -55,11 +55,9 @@
                         {% for quote in quotes %}
                         {% set full_title = (quote.title or '—') ~ (' (' ~ quote.project.name ~ ')' if quote.project else '') %}
                         <tr>
-                            <td class="billing-col-compact fw-semibold">
-                                {% if quote.public_token and quote.is_public %}
-                                <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" target="_blank" rel="noopener noreferrer">{{ quote.quote_id }}</a>
-                                {% else %}
-                                {{ quote.quote_id }}
+                            <td class="billing-col-compact text-center">
+                                {% if quote.approved_by_name %}
+                                <i class="bi bi-check-lg text-success" title="Approved by {{ quote.approved_by_name|e }}"></i>
                                 {% endif %}
                             </td>
                             <td class="billing-col-compact">{{ quote.client.name }}</td>
@@ -124,7 +122,7 @@
                 <table class="table table-hover table-sm mb-0 table-billing-list">
                     <thead class="table-light">
                         <tr>
-                            <th class="billing-col-compact">Bill ID</th>
+                            <th class="billing-col-compact">Approved</th>
                             <th class="billing-col-compact">Client</th>
                             <th class="billing-col-title">Title</th>
                             <th class="billing-col-compact">Type</th>
@@ -138,11 +136,9 @@
                         {% for quote in paid_quotes %}
                         {% set full_title = (quote.title or '—') ~ (' (' ~ quote.project.name ~ ')' if quote.project else '') %}
                         <tr>
-                            <td class="billing-col-compact fw-semibold">
-                                {% if quote.public_token and quote.is_public %}
-                                <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" target="_blank" rel="noopener noreferrer">{{ quote.quote_id }}</a>
-                                {% else %}
-                                {{ quote.quote_id }}
+                            <td class="billing-col-compact text-center">
+                                {% if quote.approved_by_name %}
+                                <i class="bi bi-check-lg text-success" title="Approved by {{ quote.approved_by_name|e }}"></i>
                                 {% endif %}
                             </td>
                             <td class="billing-col-compact">{{ quote.client.name }}</td>
@@ -201,7 +197,7 @@
                 <table class="table table-hover table-sm mb-0 table-billing-list">
                     <thead class="table-light">
                         <tr>
-                            <th class="billing-col-compact">Bill ID</th>
+                            <th class="billing-col-compact">Approved</th>
                             <th class="billing-col-compact">Client</th>
                             <th class="billing-col-title">Title</th>
                             <th class="billing-col-compact">Type</th>
@@ -215,11 +211,9 @@
                         {% for quote in archived_quotes %}
                         {% set full_title = (quote.title or '—') ~ (' (' ~ quote.project.name ~ ')' if quote.project else '') %}
                         <tr class="table-secondary">
-                            <td class="billing-col-compact fw-semibold">
-                                {% if quote.public_token and quote.is_public %}
-                                <a href="{{ url_for('public_quote', public_token=quote.public_token) }}" target="_blank" rel="noopener noreferrer">{{ quote.quote_id }}</a>
-                                {% else %}
-                                {{ quote.quote_id }}
+                            <td class="billing-col-compact text-center">
+                                {% if quote.approved_by_name %}
+                                <i class="bi bi-check-lg text-success" title="Approved by {{ quote.approved_by_name|e }}"></i>
                                 {% endif %}
                             </td>
                             <td class="billing-col-compact">{{ quote.client.name }}</td>

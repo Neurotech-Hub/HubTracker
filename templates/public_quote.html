@@ -236,7 +236,7 @@
             {% if quote.scope_summary %}
             <div class="mb-4 page-break-avoid section-sep">
                 <h6 class="text-uppercase section-title">Scope Summary</h6>
-                <p class="mb-0">{{ quote.scope_summary|autolink }}</p>
+                <div class="mb-0">{{ quote.scope_summary|markdown|safe }}</div>
             </div>
             {% endif %}
 
