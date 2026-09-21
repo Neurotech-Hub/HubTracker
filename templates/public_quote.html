@@ -275,10 +275,10 @@
                         {% if (quote.discount_percent or 0)|float > 0 %}
                         <tr><th>Discount %</th><td class="text-end">{{ quote.discount_percent }}%</td></tr>
                         {% endif %}
-                        {% if quote.external_customer_tax %}
-                        <tr><th>External Customer Tax (20%)</th><td class="text-end">{{ quote.tax_amount|currency }}</td></tr>
-                        {% endif %}
                         <tr><th>Shipping</th><td class="text-end">{{ 'TBD' if quote.shipping_tbd else (quote.shipping_amount|currency) }}</td></tr>
+                        {% if quote.external_customer_tax %}
+                        <tr><th>External Overhead (20%)</th><td class="text-end">{{ quote.tax_amount|currency }}</td></tr>
+                        {% endif %}
                         <tr class="table-light"><th>Total</th><td class="text-end fw-bold">{{ quote.total_amount|currency }}</td></tr>
                     </table>
                 </div>
@@ -329,7 +329,10 @@
                 <p class="mb-2">{{ quote.terms }}</p>
                 {% endif %}
                 {% if quote.external_customer_tax %}
-                <p class="mb-2">External customers incur a 20% tax on all products due to instituional overhead.</p>
+                <p class="mb-2">
+                    Overhead rates are bound by institutional policies:
+                    <a href="https://research.washu.edu/special-considerations-external-customers/" target="_blank" rel="noopener noreferrer">research.washu.edu/special-considerations-external-customers/</a>
+                </p>
                 {% endif %}
                 <p class="mb-0">
                     Products are subject to the Neurotech Hub Product User Agreement:
