@@ -275,7 +275,7 @@
                         {% if (quote.discount_percent or 0)|float > 0 %}
                         <tr><th>Discount %</th><td class="text-end">{{ quote.discount_percent }}%</td></tr>
                         {% endif %}
-                        <tr><th>Shipping</th><td class="text-end">{{ 'TBD' if quote.shipping_tbd else (quote.shipping_amount|currency) }}</td></tr>
+                        <tr><th>Shipping &amp; Handling</th><td class="text-end">{{ 'TBD' if quote.shipping_tbd else (quote.shipping_amount|currency) }}</td></tr>
                         {% if quote.external_customer_tax %}
                         <tr><th>External Overhead (20%)</th><td class="text-end">{{ quote.tax_amount|currency }}</td></tr>
                         {% endif %}
