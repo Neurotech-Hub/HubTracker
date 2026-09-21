@@ -196,16 +196,27 @@
                             </div>
                             <div class="col-12 col-md-6">
                                 <div class="border rounded p-3 h-100 bg-light">
-                                    <div class="small text-muted">Subtotal</div>
-                                    <div class="fw-semibold mb-1" id="subtotalDisplay">{{ quote.subtotal|currency if quote else '$0.00' }}</div>
-                                    <div class="small text-muted">Discount Amount</div>
-                                    <div class="fw-semibold text-danger mb-1" id="discountAmountDisplay">$0.00</div>
-                                    <div id="taxRow" {% if not (quote and quote.external_customer_tax) %}style="display:none;"{% endif %}>
-                                        <div class="small text-muted">External Customer Tax (20%)</div>
-                                        <div class="fw-semibold mb-1" id="taxAmountDisplay">{{ quote.tax_amount|currency if quote else '$0.00' }}</div>
+                                    <div class="d-flex justify-content-between align-items-baseline mb-1 gap-2">
+                                        <span class="small text-muted">Subtotal</span>
+                                        <span class="fw-semibold text-end" id="subtotalDisplay">{{ quote.subtotal|currency if quote else '$0.00' }}</span>
                                     </div>
-                                    <div class="small text-muted">Final Total</div>
-                                    <div class="fw-bold fs-5" id="finalTotalDisplay">{{ quote.total_amount|currency if quote else '$0.00' }}</div>
+                                    <div class="d-flex justify-content-between align-items-baseline mb-1 gap-2">
+                                        <span class="small text-muted">Discount Amount</span>
+                                        <span class="fw-semibold text-danger text-end" id="discountAmountDisplay">$0.00</span>
+                                    </div>
+                                    <div id="taxRow" class="d-flex justify-content-between align-items-baseline mb-1 gap-2" {% if not (quote and quote.external_customer_tax) %}style="display:none;"{% endif %}>
+                                        <span class="small text-muted">External Customer Tax (20%)</span>
+                                        <span class="fw-semibold text-end" id="taxAmountDisplay">{{ quote.tax_amount|currency if quote else '$0.00' }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-baseline mb-1 gap-2">
+                                        <span class="small text-muted">Shipping</span>
+                                        <span class="fw-semibold text-end" id="shippingAmountDisplay">{{ 'TBD' if (not quote) or quote.shipping_tbd else (quote.shipping_amount|currency) }}</span>
+                                    </div>
+                                    <hr class="my-2">
+                                    <div class="d-flex justify-content-between align-items-baseline gap-2">
+                                        <span class="small text-muted">Final Total</span>
+                                        <span class="fw-bold fs-5 text-end" id="finalTotalDisplay">{{ quote.total_amount|currency if quote else '$0.00' }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -406,11 +417,15 @@ function recalculateLiveTotals() {
     document.getElementById('discountAmountDisplay').textContent = formatCurrency(discountAmount);
     const taxRow = document.getElementById('taxRow');
     if (taxRow) {
-        taxRow.style.display = externalTaxOn ? '' : 'none';
+        taxRow.style.display = externalTaxOn ? 'flex' : 'none';
     }
     const taxDisplay = document.getElementById('taxAmountDisplay');
     if (taxDisplay) {
         taxDisplay.textContent = formatCurrency(taxAmount);
+    }
+    const shippingDisplay = document.getElementById('shippingAmountDisplay');
+    if (shippingDisplay) {
+        shippingDisplay.textContent = shippingTbd ? 'TBD' : formatCurrency(shippingAmount);
     }
     document.getElementById('finalTotalDisplay').textContent = formatCurrency(finalTotal);
 }
