@@ -944,6 +944,24 @@ def recalculate_quote_totals(quote, parsed_line_items=None):
         quote.tax_amount = Decimal('0.00')
     quote.total_amount = (taxable_total + quote.tax_amount + shipping_component).quantize(Decimal('0.01'))
 
+
+def refresh_quote_totals_for_display(quote, persist=True):
+    """Recompute bill totals for client/preview views (tax excludes shipping).
+
+    When persist is True and tax/total changed, write the corrected values so
+    Billing/Finances stay aligned without requiring a manual re-save.
+    """
+    if not quote:
+        return
+    before_tax = Decimal(quote.tax_amount or 0).quantize(Decimal('0.01'))
+    before_total = Decimal(quote.total_amount or 0).quantize(Decimal('0.01'))
+    recalculate_quote_totals(quote)
+    if not persist:
+        return
+    if quote.tax_amount != before_tax or quote.total_amount != before_total:
+        db.session.commit()
+
+
 @app.route('/')
 def index():
     # Public landing page - show general metrics without sensitive data
@@ -3488,6 +3506,7 @@ def billing_preview(bill_db_id):
         return auth_error
 
     quote = Quote.query.get_or_404(bill_db_id)
+    refresh_quote_totals_for_display(quote)
     preview_url = None
     if quote.public_token and quote.is_public:
         preview_url = url_for('public_quote', public_token=quote.public_token, _external=True)
@@ -3509,6 +3528,7 @@ def public_quote(public_token):
     if not quote or not quote.is_public:
         abort(404)
 
+    refresh_quote_totals_for_display(quote)
     brand_logo_path = os.path.join(app.static_folder, 'img', 'neurotechhub-logo.png')
     has_brand_logo = os.path.exists(brand_logo_path)
     return render_template(
