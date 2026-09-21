@@ -514,9 +514,10 @@ def parse_quote_paid_at_form(raw):
 
 
 def quote_finance_profit_amount(quote):
-    """Bill total × profit% for Finances; None if not a profiting bill.
+    """Bill product total × profit% for Finances; None if not a profiting bill.
 
-    External Customer Tax is excluded from the base (pass-through, not P/L).
+    External Customer Tax and shipping are excluded from the base (pass-through /
+    fixed cost — not P/L).
     """
     if not quote or (quote.finance_mode or 'payback') != 'profiting':
         return None
@@ -524,6 +525,8 @@ def quote_finance_profit_amount(quote):
     base = float(quote.total_amount or 0)
     if bool(getattr(quote, 'external_customer_tax', False)):
         base -= float(quote.tax_amount or 0)
+    if not bool(getattr(quote, 'shipping_tbd', False)):
+        base -= float(quote.shipping_amount or 0)
     if base < 0:
         base = 0.0
     return base * (pct / 100.0)
@@ -933,12 +936,13 @@ def recalculate_quote_totals(quote, parsed_line_items=None):
     quote.discount_percent = parse_discount_percent(quote.discount_percent)
     discount_amount = (quote.subtotal * (quote.discount_percent / Decimal('100'))).quantize(Decimal('0.01'))
     shipping_component = Decimal('0.00') if quote.shipping_tbd else quote.shipping_amount
-    pre_tax_total = (quote.subtotal - discount_amount + shipping_component).quantize(Decimal('0.01'))
+    # Tax applies to product total only — shipping is never taxed.
+    taxable_total = (quote.subtotal - discount_amount).quantize(Decimal('0.01'))
     if bool(getattr(quote, 'external_customer_tax', False)):
-        quote.tax_amount = (pre_tax_total * Decimal('0.20')).quantize(Decimal('0.01'))
+        quote.tax_amount = (taxable_total * Decimal('0.20')).quantize(Decimal('0.01'))
     else:
         quote.tax_amount = Decimal('0.00')
-    quote.total_amount = (pre_tax_total + quote.tax_amount).quantize(Decimal('0.01'))
+    quote.total_amount = (taxable_total + quote.tax_amount + shipping_component).quantize(Decimal('0.01'))
 
 @app.route('/')
 def index():

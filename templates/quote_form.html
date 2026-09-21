@@ -396,11 +396,11 @@ function recalculateLiveTotals() {
     const shippingAmount = shippingTbd ? 0 : getNumericValue('shippingAmount');
     const discountPercent = Math.min(100, Math.max(0, getNumericValue('discountPercent')));
     const discountAmount = subtotal * (discountPercent / 100);
-    const preTaxTotal = subtotal - discountAmount + shippingAmount;
+    const taxableTotal = subtotal - discountAmount;
     const externalTaxEl = document.getElementById('externalCustomerTax');
     const externalTaxOn = !!(externalTaxEl && externalTaxEl.checked);
-    const taxAmount = externalTaxOn ? preTaxTotal * 0.20 : 0;
-    const finalTotal = preTaxTotal + taxAmount;
+    const taxAmount = externalTaxOn ? taxableTotal * 0.20 : 0;
+    const finalTotal = taxableTotal + taxAmount + shippingAmount;
 
     document.getElementById('subtotalDisplay').textContent = formatCurrency(subtotal);
     document.getElementById('discountAmountDisplay').textContent = formatCurrency(discountAmount);
