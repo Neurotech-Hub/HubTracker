@@ -528,6 +528,11 @@ def quote_finance_profit_amount(quote):
 
 TIME_GRID_HOUR_START = 4
 TIME_GRID_HOUR_END = 17
+TIME_MACHINE_RANGES = {
+    '30d': ('Last 30 Days', 30),
+    '90d': ('Last 90 Days', 90),
+    '1y': ('Last Year', 365),
+}
 
 
 def normalize_week_start(week_param=None):
@@ -4596,18 +4601,7 @@ def time_grid():
     week_end = week_start + timedelta(days=6)
     current_week_start = normalize_week_start()
     current_user_id = session['user_id']
-
-    admin_users = (
-        User.query.filter(User.role == 'admin')
-        .order_by(User.first_name.asc(), User.last_name.asc())
-        .all()
-    )
-    # Ensure the logged-in user appears even if not admin.
-    if not any(u.id == current_user_id for u in admin_users):
-        current_user = db.session.get(User, current_user_id)
-        if current_user:
-            admin_users = [current_user] + admin_users
-
+    admin_users = _time_view_admin_users(current_user_id)
     selected_user_id = request.args.get('user', type=int) or current_user_id
     if not any(u.id == selected_user_id for u in admin_users):
         selected_user_id = current_user_id
@@ -4637,6 +4631,105 @@ def _resolve_time_grid_view_user_id():
     return view_user.id
 
 
+def _time_view_admin_users(current_user_id):
+    """Admins, plus the logged-in user if they are not an admin."""
+    admin_users = (
+        User.query.filter(User.role == 'admin')
+        .order_by(User.first_name.asc(), User.last_name.asc())
+        .all()
+    )
+    if not any(u.id == current_user_id for u in admin_users):
+        current_user = db.session.get(User, current_user_id)
+        if current_user:
+            admin_users = [current_user] + admin_users
+    return admin_users
+
+
+def compute_time_machine(user_id, range_key):
+    """Weekly per-project hours for a lookback range (Chicago weeks, zeros included)."""
+    from collections import defaultdict
+    from datetime import time as time_cls
+    from sqlalchemy.orm import joinedload
+
+    if range_key not in TIME_MACHINE_RANGES:
+        range_key = '30d'
+    label, days = TIME_MACHINE_RANGES[range_key]
+    today = get_current_time().date()
+    range_start = today - timedelta(days=days)
+    first_week = range_start - timedelta(days=range_start.weekday())
+    last_week = today - timedelta(days=today.weekday())
+
+    weeks = []
+    cursor = first_week
+    while cursor <= last_week:
+        weeks.append(cursor)
+        cursor += timedelta(days=7)
+
+    range_start_dt = TIMEZONE.localize(datetime.combine(range_start, time_cls.min))
+    range_end_exclusive = TIMEZONE.localize(
+        datetime.combine(today + timedelta(days=1), time_cls.min)
+    )
+    logs = (
+        Log.query.options(joinedload(Log.project).joinedload(Project.client))
+        .filter(
+            Log.user_id == user_id,
+            Log.created_at >= range_start_dt,
+            Log.created_at < range_end_exclusive,
+        )
+        .all()
+    )
+
+    week_index = {week: i for i, week in enumerate(weeks)}
+    hours_by_project = defaultdict(lambda: [0.0] * len(weeks))
+    meta = {}
+    for log in logs:
+        hours_val = float(log.hours or 0)
+        if hours_val <= 0:
+            continue
+        dt = log_created_at_chicago(log)
+        if not dt:
+            continue
+        log_date = dt.date()
+        week_start = log_date - timedelta(days=log_date.weekday())
+        idx = week_index.get(week_start)
+        if idx is None:
+            continue
+        project_id = log.project_id
+        hours_by_project[project_id][idx] += hours_val
+        if project_id not in meta:
+            client_name, project_name = _log_project_names(log)
+            meta[project_id] = {'client_name': client_name, 'project_name': project_name}
+
+    week_totals = [0.0] * len(weeks)
+    for weekly in hours_by_project.values():
+        for i, hours in enumerate(weekly):
+            week_totals[i] += hours
+
+    range_total = sum(week_totals)
+    projects = []
+    for project_id, weekly in hours_by_project.items():
+        rounded = [round(hours, 1) for hours in weekly]
+        range_hours = round(sum(weekly), 1)
+        projects.append({
+            'project_id': project_id,
+            'client_name': meta[project_id]['client_name'],
+            'project_name': meta[project_id]['project_name'],
+            'range_hours': range_hours,
+            'range_percent': round((range_hours / range_total) * 100, 1) if range_total > 0 else 0.0,
+            'weekly_hours': rounded,
+            'weekly_avg': round(sum(rounded) / len(rounded), 1) if rounded else 0.0,
+        })
+    projects.sort(key=lambda row: (-row['range_hours'], row['project_name'].lower()))
+    return {
+        'range': range_key,
+        'range_label': label,
+        'weeks': [week.isoformat() for week in weeks],
+        'week_totals': [round(total, 1) for total in week_totals],
+        'range_total_hours': round(range_total, 1),
+        'projects': projects,
+    }
+
+
 @app.route('/api/time_grid/week')
 def api_time_grid_week():
     if 'user_id' not in session:
@@ -4663,6 +4756,45 @@ def api_time_grid_week():
         'project_breakdown': project_breakdown,
         'user_id': view_user_id,
     })
+
+
+@app.route('/time-machine')
+def time_machine():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    current_user_id = session['user_id']
+    admin_users = _time_view_admin_users(current_user_id)
+    selected_user_id = request.args.get('user', type=int) or current_user_id
+    if not any(u.id == selected_user_id for u in admin_users):
+        selected_user_id = current_user_id
+
+    range_key = request.args.get('range', '30d')
+    if range_key not in TIME_MACHINE_RANGES:
+        range_key = '30d'
+
+    return render_template(
+        'time_machine.html',
+        admin_users=admin_users,
+        current_user_id=current_user_id,
+        selected_user_id=selected_user_id,
+        range_key=range_key,
+        range_options=[
+            {'key': key, 'label': label}
+            for key, (label, _days) in TIME_MACHINE_RANGES.items()
+        ],
+    )
+
+
+@app.route('/api/time_machine')
+def api_time_machine():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+
+    view_user_id = _resolve_time_grid_view_user_id()
+    payload = compute_time_machine(view_user_id, request.args.get('range', '30d'))
+    payload['user_id'] = view_user_id
+    return jsonify(payload)
 
 
 @app.route('/api/time_grid/submit', methods=['POST'])

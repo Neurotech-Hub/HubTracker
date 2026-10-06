@@ -202,6 +202,47 @@
     min-width: 0;
 }
 
+.time-machine-plot {
+    height: 360px;
+    position: relative;
+}
+
+.time-machine-legend {
+    max-height: 360px;
+    overflow-y: auto;
+    border-right: 1px solid #e9ecef;
+    padding-right: 0.75rem;
+}
+
+.time-machine-legend-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    padding: 0.3rem 0.35rem;
+    border-radius: 0.3rem;
+    cursor: default;
+    font-size: 0.8rem;
+}
+
+.time-machine-legend-item:hover,
+.time-machine-legend-item.is-isolated,
+tr.is-isolated {
+    background: #f8f9fa;
+}
+
+.time-machine-legend-swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 0.15rem;
+    margin-top: 0.2rem;
+    flex: 0 0 auto;
+}
+
+.time-machine-legend-label {
+    min-width: 0;
+    word-break: break-word;
+}
+
 @media (max-width: 768px) {
     .time-grid-cell {
         min-height: 2.2rem;
@@ -210,5 +251,14 @@
 
     .time-grid-breakdown-bar-col {
         width: 4.5rem;
+    }
+
+    .time-machine-legend {
+        max-height: 160px;
+        border-right: 0;
+        border-bottom: 1px solid #e9ecef;
+        padding-right: 0;
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
     }
 }
