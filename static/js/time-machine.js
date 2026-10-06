@@ -60,9 +60,51 @@
         return `${dt.getMonth() + 1}/${dt.getDate()}`;
     }
 
+    function weekTotals() {
+        return (machineData && machineData.week_totals) || [];
+    }
+
+    function totalHoursAxisMax() {
+        const peak = weekTotals().reduce((max, value) => Math.max(max, Number(value) || 0), 0);
+        return peak > 0 ? peak : 1;
+    }
+
+    const totalHoursBarsPlugin = {
+        id: 'totalHoursBars',
+        beforeDatasetsDraw(chartInstance) {
+            if (mode !== 'hours') {
+                return;
+            }
+            const totals = weekTotals();
+            const xScale = chartInstance.scales.x;
+            const yScale = chartInstance.scales.y1;
+            const { ctx, chartArea } = chartInstance;
+            if (!xScale || !yScale || !totals.length || !chartArea) {
+                return;
+            }
+            const slot = totals.length > 1
+                ? Math.abs(xScale.getPixelForTick(1) - xScale.getPixelForTick(0))
+                : chartArea.width;
+            const barWidth = Math.max(4, slot * 0.62);
+            const base = yScale.getPixelForValue(0);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
+            ctx.clip();
+            ctx.fillStyle = 'rgba(173, 181, 189, 0.55)';
+            totals.forEach((total, index) => {
+                const x = xScale.getPixelForTick(index);
+                const y = yScale.getPixelForValue(Number(total) || 0);
+                const top = Math.min(y, base);
+                ctx.fillRect(x - barWidth / 2, top, barWidth, Math.abs(base - y));
+            });
+            ctx.restore();
+        },
+    };
+
     function seriesFor(project) {
         const hours = project.weekly_hours || [];
-        const totals = (machineData && machineData.week_totals) || [];
+        const totals = weekTotals();
         if (mode === 'hours') {
             return hours.map((value) => Number(value) || 0);
         }
@@ -109,6 +151,10 @@
         chart.options.scales.y.ticks.callback = (value) => (
             mode === 'effort' ? `${Number(value).toFixed(0)}%` : Number(value).toFixed(1)
         );
+        if (chart.options.scales.y1) {
+            chart.options.scales.y1.display = mode === 'hours';
+            chart.options.scales.y1.max = totalHoursAxisMax();
+        }
         chart.update();
     }
 
@@ -197,6 +243,7 @@
         }
         chart = new Chart(chartEl, {
             type: 'line',
+            plugins: [totalHoursBarsPlugin],
             data: { labels, datasets },
             options: {
                 responsive: true,
@@ -227,6 +274,21 @@
                             callback: (value) => (
                                 mode === 'effort' ? `${Number(value).toFixed(0)}%` : Number(value).toFixed(1)
                             ),
+                        },
+                    },
+                    y1: {
+                        position: 'right',
+                        display: mode === 'hours',
+                        beginAtZero: true,
+                        min: 0,
+                        max: totalHoursAxisMax(),
+                        title: {
+                            display: true,
+                            text: 'Total hours',
+                        },
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            callback: (value) => Number(value).toFixed(0),
                         },
                     },
                     x: {
@@ -269,9 +331,9 @@
             rangeTotalEl.innerHTML = `<strong>100%</strong> (${total.toFixed(1)} hrs)`;
         }
         if (weeklyAvgTotalEl) {
-            const weekTotals = (machineData && machineData.week_totals) || [];
-            const weeklyAvgTotal = weekTotals.length
-                ? weekTotals.reduce((sum, hours) => sum + Number(hours || 0), 0) / weekTotals.length
+            const totals = weekTotals();
+            const weeklyAvgTotal = totals.length
+                ? totals.reduce((sum, hours) => sum + Number(hours || 0), 0) / totals.length
                 : 0;
             weeklyAvgTotalEl.textContent = `${weeklyAvgTotal.toFixed(1)} hrs`;
         }
