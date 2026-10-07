@@ -243,6 +243,123 @@ tr.is-isolated {
     word-break: break-word;
 }
 
+.time-machine-heatmap {
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+.time-machine-heatmap-scroll {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.time-machine-heatmap-grid {
+    display: grid;
+    gap: 2px;
+    align-items: stretch;
+    min-width: 100%;
+}
+
+.time-machine-heatmap-corner,
+.time-machine-heatmap-name {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #fff;
+}
+
+.time-machine-heatmap-name {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.1;
+    text-align: right;
+    min-height: 1.7rem;
+}
+
+.time-machine-heatmap-week {
+    text-align: center;
+    font-size: 0.68rem;
+    color: #6c757d;
+    padding-bottom: 0.1rem;
+}
+
+.time-machine-heatmap-cell {
+    min-height: 1.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+    font-weight: 600;
+    border-radius: 1px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px #e9ecef;
+}
+
+.time-machine-heatmap-name.time-machine-heatmap-total,
+.time-machine-heatmap-cell.time-machine-heatmap-total {
+    background: #f8f9fa;
+    color: #212529;
+    font-weight: 700;
+}
+
+.time-machine-heatmap-scale.has-total {
+    padding-bottom: calc(1.7rem + 2px);
+}
+
+.time-machine-heatmap-scale {
+    display: flex;
+    align-items: stretch;
+    gap: 0.35rem;
+    flex: 0 0 auto;
+    padding-top: 0.95rem;
+}
+
+.time-machine-heatmap-scale-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 0.72rem;
+    color: #6c757d;
+    text-align: center;
+}
+
+.time-machine-heatmap-scale-track {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.time-machine-heatmap-scale-bar {
+    width: 0.7rem;
+    border-radius: 2px;
+    border: 1px solid #dee2e6;
+    background: linear-gradient(
+        to top,
+        #ffffff 0%,
+        #440154 11%,
+        #482878 22%,
+        #3e4989 33%,
+        #31688e 44%,
+        #26828e 55%,
+        #1f9e89 66%,
+        #35b779 77%,
+        #6ece58 88%,
+        #fde725 100%
+    );
+}
+
+.time-machine-heatmap-scale-ticks {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 0.68rem;
+    color: #6c757d;
+    line-height: 1;
+}
+
 @media (max-width: 768px) {
     .time-grid-cell {
         min-height: 2.2rem;

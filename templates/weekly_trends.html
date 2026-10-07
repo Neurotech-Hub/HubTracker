@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly Trends - Hub Tracker{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="{{ url_for('static', filename='css/time-grid.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4"
+     id="timeMachinePage"
+     data-range="{{ range_key }}"
+     data-current-user-id="{{ current_user_id }}"
+     data-selected-user-id="{{ selected_user_id }}">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="mb-0">Weekly Trends</h2>
+        {% include 'partials/time_machine_controls.html' %}
+    </div>
+    {% include 'partials/time_machine_cards.html' %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/time-machine.js') }}?v={{ range(1, 10000) | random }}"></script>
+{% endblock %}

@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Analytics - Hub Tracker{% endblock %}
+{% block title %}Overview - Hub Tracker{% endblock %}
 
 {% block extra_head %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
     .analytics-summary .stat-card {
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
@@ -197,39 +196,17 @@
     <!-- Page Header -->
     <div class="row mb-3">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h2 class="mb-0">Analytics</h2>
-                </div>
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createReportModal">
-                    <i class="bi bi-file-earmark-text me-2"></i>Create Report
-                </button>
+            <div>
+                <h2 class="mb-0">Overview</h2>
             </div>
         </div>
     </div>
 
-    <!-- Hours Trends Chart -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="mb-0">
-                            <i class="bi bi-graph-up me-2"></i>Hours Trends
-                        </h5>
-                        <small class="text-muted">Last 30 days</small>
-                    </div>
-                    <a href="{{ url_for('time_machine', user=session.get('user_id')) }}" class="btn btn-sm btn-outline-secondary">
-                        View Time Machine
-                    </a>
-                </div>
-                <div class="card-body py-2">
-                    <div style="height: 280px;">
-                        <canvas id="taskCompletionChart" width="400" height="100"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Hub-wide</h2>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createReportModal">
+            <i class="bi bi-file-earmark-text me-2"></i>Create Report
+        </button>
     </div>
 
     <!-- Summary Metrics -->
@@ -510,92 +487,5 @@ function exportForm() {
         }
     }
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('taskCompletionChart').getContext('2d');
-    const completionData = {{ completion_data | tojson }};
-    const chartUsers = {{ chart_users | tojson }};
-    const reversedData = [...completionData].reverse();
-
-    const labels = [];
-    const userSeries = {};
-
-    chartUsers.forEach((user) => {
-        userSeries[user.id] = [];
-    });
-
-    reversedData.forEach((d) => {
-        const [year, month, day] = d.date.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        labels.push(label);
-        chartUsers.forEach((user) => {
-            const dayHours = d.user_hours && d.user_hours[user.id] !== undefined ? d.user_hours[user.id] : 0;
-            userSeries[user.id].push(parseFloat(dayHours) || 0);
-        });
-    });
-
-    const datasets = chartUsers.map((user, index) => {
-        const hue = (index * 53) % 360;
-        return {
-            label: user.name,
-            data: userSeries[user.id] || [],
-            borderColor: `hsl(${hue}, 70%, 45%)`,
-            backgroundColor: `hsla(${hue}, 70%, 45%, 0.12)`,
-            borderWidth: 2,
-            fill: false,
-            tension: 0.4
-        };
-    });
-
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-                title: {
-                    display: false
-                }
-            },
-            layout: {
-                padding: {
-                    top: 10,
-                    bottom: 10
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    },
-                    suggestedMax: 15,
-                    ticks: {
-                        stepSize: 3
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    }
-                }
-            },
-            elements: {
-                point: {
-                    radius: 3,
-                    hoverRadius: 5
-                }
-            }
-        }
-    });
-});
 </script>
 {% endblock %}

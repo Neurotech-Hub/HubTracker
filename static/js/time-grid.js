@@ -102,10 +102,10 @@
     }
 
     function updateWeekNavLinks() {
-        document.querySelectorAll('a.btn[href*="time-grid"], a.btn[href*="time-machine"]').forEach((link) => {
+        document.querySelectorAll('a.btn[href*="/effort"]').forEach((link) => {
             try {
                 const url = new URL(link.href, window.location.origin);
-                if (!url.pathname.includes('time-grid') && !url.pathname.includes('time-machine')) {
+                if (!url.pathname.endsWith('/effort')) {
                     return;
                 }
                 url.searchParams.set('user', String(selectedUserId));

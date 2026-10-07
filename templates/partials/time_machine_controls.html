@@ -1,0 +1,20 @@
+<div class="d-flex flex-wrap align-items-center gap-2">
+    <select class="form-select form-select-sm time-grid-user-select" id="timeMachineUserSelect" aria-label="View user">
+        <option value="all" {% if selected_user_id == 'all' %}selected{% endif %}>All users</option>
+        {% for admin in admin_users if admin.id == current_user_id %}
+        <option value="{{ admin.id }}" {% if admin.id == selected_user_id %}selected{% endif %}>
+            {{ admin.full_name }} (you)
+        </option>
+        {% endfor %}
+        {% for admin in admin_users if admin.id != current_user_id %}
+        <option value="{{ admin.id }}" {% if admin.id == selected_user_id %}selected{% endif %}>
+            {{ admin.full_name }}
+        </option>
+        {% endfor %}
+    </select>
+    <select class="form-select form-select-sm time-grid-user-select" id="timeMachineRangeSelect" aria-label="Date range">
+        {% for opt in range_options %}
+        <option value="{{ opt.key }}" {% if opt.key == range_key %}selected{% endif %}>{{ opt.label }}</option>
+        {% endfor %}
+    </select>
+</div>

@@ -3624,6 +3624,11 @@ def months_between(start, end):
 
 
 @app.route('/finances')
+def finances_redirect():
+    return redirect(url_for('finances'))
+
+
+@app.route('/projection')
 def finances():
     auth_error = require_admin()
     if auth_error:
@@ -3809,7 +3814,7 @@ def finances():
     )
 
 
-@app.route('/finances/fixed-costs', methods=['POST'])
+@app.route('/projection/fixed-costs', methods=['POST'])
 def finances_fixed_costs(): 
     auth_error = require_admin()
     if auth_error:
@@ -3826,7 +3831,7 @@ def finances_fixed_costs():
     return redirect(url_for('finances'))
 
 
-@app.route('/finances/bill-months', methods=['POST'])
+@app.route('/projection/bill-months', methods=['POST'])
 def finances_bill_months():
     auth_error = require_admin()
     if auth_error:
@@ -3852,7 +3857,7 @@ def finances_bill_months():
     return redirect(url_for('finances'))
 
 
-@app.route('/finances/restart-fy', methods=['POST'])
+@app.route('/projection/restart-fy', methods=['POST'])
 def finances_restart_fy():
     auth_error = require_admin()
     if auth_error:
@@ -4122,7 +4127,6 @@ def analytics():
     from datetime import timedelta
     import pytz
 
-    chicago_tz = pytz.timezone('America/Chicago')
     utc_tz = pytz.timezone('UTC')
     current_time_chicago = get_current_time()
     current_time_utc = current_time_chicago.astimezone(utc_tz)
@@ -4155,50 +4159,6 @@ def analytics():
     total_projects = Project.query.filter_by(status='Active').count()
     total_clients = Client.query.count()
     open_tasks = Task.query.filter_by(is_complete=False).count()
-
-    # Hours trends chart (last 30 days, per admin user)
-    users_for_hours_chart = User.query.filter_by(role='admin').order_by(
-        User.first_name.asc(), User.last_name.asc()
-    ).all()
-    admin_user_ids = [user.id for user in users_for_hours_chart]
-
-    completion_data = []
-    for i in range(30):
-        date_chicago = current_time_chicago - timedelta(days=i)
-        date_start_chicago = date_chicago.replace(hour=0, minute=0, second=0, microsecond=0)
-        date_end_chicago = date_start_chicago + timedelta(days=1)
-
-        if date_start_chicago.tzinfo is None:
-            date_start_utc = chicago_tz.localize(date_start_chicago).astimezone(utc_tz)
-        else:
-            date_start_utc = date_start_chicago.astimezone(utc_tz)
-
-        if date_end_chicago.tzinfo is None:
-            date_end_utc = chicago_tz.localize(date_end_chicago).astimezone(utc_tz)
-        else:
-            date_end_utc = date_end_chicago.astimezone(utc_tz)
-
-        user_hours_rows = []
-        if admin_user_ids:
-            user_hours_rows = db.session.query(
-                Log.user_id,
-                func.sum(Log.hours).label('total_hours')
-            ).filter(
-                Log.created_at >= date_start_utc,
-                Log.created_at < date_end_utc,
-                Log.hours.isnot(None),
-                Log.user_id.in_(admin_user_ids)
-            ).group_by(Log.user_id).all()
-
-        user_hours = {
-            row.user_id: round(float(row.total_hours), 1)
-            for row in user_hours_rows
-        }
-
-        completion_data.append({
-            'date': date_start_chicago.strftime('%Y-%m-%d'),
-            'user_hours': user_hours
-        })
 
     # Time & logs
     total_logs = Log.query.count()
@@ -4513,8 +4473,6 @@ def analytics():
         total_projects=total_projects,
         total_clients=total_clients,
         open_tasks=open_tasks,
-        completion_data=completion_data,
-        chart_users=[{'id': user.id, 'name': user.full_name} for user in users_for_hours_chart],
         entity_panels=entity_panels,
     )
 
@@ -4593,6 +4551,11 @@ def delete_log(log_id):
 
 
 @app.route('/time-grid')
+def time_grid_redirect():
+    return redirect(url_for('time_grid', **request.args.to_dict()))
+
+
+@app.route('/effort')
 def time_grid():
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -4645,7 +4608,7 @@ def _time_view_admin_users(current_user_id):
     return admin_users
 
 
-def compute_time_machine(user_id, range_key):
+def compute_time_machine(user_id, range_key, user_ids=None):
     """Weekly per-project hours for a lookback range (Chicago weeks, zeros included)."""
     from collections import defaultdict
     from datetime import time as time_cls
@@ -4669,15 +4632,18 @@ def compute_time_machine(user_id, range_key):
     range_end_exclusive = TIMEZONE.localize(
         datetime.combine(today + timedelta(days=1), time_cls.min)
     )
-    logs = (
+    logs_query = (
         Log.query.options(joinedload(Log.project).joinedload(Project.client))
         .filter(
-            Log.user_id == user_id,
             Log.created_at >= range_start_dt,
             Log.created_at < range_end_exclusive,
         )
-        .all()
     )
+    if user_ids is None:
+        logs_query = logs_query.filter(Log.user_id == user_id)
+    else:
+        logs_query = logs_query.filter(Log.user_id.in_(user_ids))
+    logs = logs_query.all()
 
     week_index = {week: i for i, week in enumerate(weeks)}
     hours_by_project = defaultdict(lambda: [0.0] * len(weeks))
@@ -4759,22 +4725,31 @@ def api_time_grid_week():
 
 
 @app.route('/time-machine')
-def time_machine():
+def time_machine_redirect():
+    return redirect(url_for('weekly_trends'))
+
+
+@app.route('/weekly-trends')
+def weekly_trends():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
     current_user_id = session['user_id']
     admin_users = _time_view_admin_users(current_user_id)
-    selected_user_id = request.args.get('user', type=int) or current_user_id
-    if not any(u.id == selected_user_id for u in admin_users):
-        selected_user_id = current_user_id
+    raw_user = request.args.get('user', '')
+    if raw_user == 'all':
+        selected_user_id = 'all'
+    else:
+        selected_user_id = request.args.get('user', type=int) or current_user_id
+        if not any(user.id == selected_user_id for user in admin_users):
+            selected_user_id = current_user_id
 
     range_key = request.args.get('range', '30d')
     if range_key not in TIME_MACHINE_RANGES:
         range_key = '30d'
 
     return render_template(
-        'time_machine.html',
+        'weekly_trends.html',
         admin_users=admin_users,
         current_user_id=current_user_id,
         selected_user_id=selected_user_id,
@@ -4790,6 +4765,13 @@ def time_machine():
 def api_time_machine():
     if 'user_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
+
+    requested = request.args.get('user', '')
+    if requested == 'all':
+        user_ids = [user.id for user in _time_view_admin_users(session['user_id'])]
+        payload = compute_time_machine(None, request.args.get('range', '30d'), user_ids=user_ids)
+        payload['user_id'] = 'all'
+        return jsonify(payload)
 
     view_user_id = _resolve_time_grid_view_user_id()
     payload = compute_time_machine(view_user_id, request.args.get('range', '30d'))

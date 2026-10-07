@@ -34,33 +34,55 @@
         <!-- Expandable Navigation Menu -->
         <div class="mobile-nav-menu" id="mobileNavMenu">
             <nav class="mobile-nav-links">
+                {% set ep = request.endpoint or '' %}
+                <div class="nav-spotlight">
+                    <a href="{{ url_for('billing') }}" class="nav-spotlight-tile {% if ep in ['billing', 'billing_new', 'billing_edit'] %}active{% endif %}">
+                        <span class="nav-spotlight-icon"><i class="bi bi-receipt"></i></span>
+                        <span class="nav-spotlight-label">Billing</span>
+                    </a>
+                    <a href="{{ url_for('time_grid') }}" class="nav-spotlight-tile {% if ep == 'time_grid' %}active{% endif %}">
+                        <span class="nav-spotlight-icon"><i class="bi bi-calendar-week"></i></span>
+                        <span class="nav-spotlight-label">Effort</span>
+                    </a>
+                </div>
                 <a href="{{ url_for('dashboard') }}" class="mobile-nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
                     <i class="bi bi-house me-2"></i>Dashboard
                 </a>
-                <a href="{{ url_for('checklists') }}" class="mobile-nav-link {% if request.endpoint == 'checklists' %}active{% endif %}">
-                    <i class="bi bi-list-check me-2"></i>Checklists
-                </a>
-                <a href="{{ url_for('projects') }}" class="mobile-nav-link {% if request.endpoint == 'projects' %}active{% endif %}">
-                    <i class="bi bi-hash me-2"></i>Projects
-                </a>
-                <a href="{{ url_for('clients') }}" class="mobile-nav-link {% if request.endpoint == 'clients' %}active{% endif %}">
-                    <i class="bi bi-person-lines-fill me-2"></i>Clients
-                </a>
-                <a href="{{ url_for('memberships') }}" class="mobile-nav-link {% if request.endpoint == 'memberships' %}active{% endif %}">
-                    <i class="bi bi-card-list me-2"></i>Memberships
-                </a>
-                <a href="{{ url_for('billing') }}" class="mobile-nav-link {% if request.endpoint in ['billing', 'billing_new', 'billing_edit'] %}active{% endif %}">
-                    <i class="bi bi-receipt me-2"></i>Billing
-                </a>
-                <a href="{{ url_for('finances') }}" class="mobile-nav-link {% if request.endpoint == 'finances' %}active{% endif %}">
-                    <i class="bi bi-cash-stack me-2"></i>Finances
-                </a>
-                <a href="{{ url_for('time_grid') }}" class="mobile-nav-link {% if request.endpoint == 'time_grid' %}active{% endif %}">
-                    <i class="bi bi-calendar-week me-2"></i>Time Grid
-                </a>
-                <a href="{{ url_for('analytics') }}" class="mobile-nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
+                {% set in_operations = ep.startswith('checklist') or ep.startswith('project') or ep.startswith('client') or ep.startswith('membership') %}
+                <button class="mobile-nav-link nav-group-toggle {% if in_operations %}active{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNavOperations" aria-expanded="{{ 'true' if in_operations else 'false' }}" aria-controls="mobileNavOperations">
+                    <i class="bi bi-collection me-2"></i>Operations
+                    <i class="bi bi-chevron-down nav-group-chevron ms-auto"></i>
+                </button>
+                <div class="collapse nav-group-menu {% if in_operations %}show{% endif %}" id="mobileNavOperations">
+                    <a href="{{ url_for('checklists') }}" class="mobile-nav-link nav-sublink {% if ep.startswith('checklist') %}active{% endif %}">
+                        <i class="bi bi-list-check me-2"></i>Checklists
+                    </a>
+                    <a href="{{ url_for('projects') }}" class="mobile-nav-link nav-sublink {% if ep.startswith('project') %}active{% endif %}">
+                        <i class="bi bi-hash me-2"></i>Projects
+                    </a>
+                    <a href="{{ url_for('clients') }}" class="mobile-nav-link nav-sublink {% if ep.startswith('client') %}active{% endif %}">
+                        <i class="bi bi-person-lines-fill me-2"></i>Clients
+                    </a>
+                    <a href="{{ url_for('memberships') }}" class="mobile-nav-link nav-sublink {% if ep.startswith('membership') %}active{% endif %}">
+                        <i class="bi bi-card-list me-2"></i>Memberships
+                    </a>
+                </div>
+                {% set in_analytics = ep in ['analytics', 'weekly_trends'] or ep.startswith('finances') %}
+                <button class="mobile-nav-link nav-group-toggle {% if in_analytics %}active{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNavAnalytics" aria-expanded="{{ 'true' if in_analytics else 'false' }}" aria-controls="mobileNavAnalytics">
                     <i class="bi bi-graph-up me-2"></i>Analytics
-                </a>
+                    <i class="bi bi-chevron-down nav-group-chevron ms-auto"></i>
+                </button>
+                <div class="collapse nav-group-menu {% if in_analytics %}show{% endif %}" id="mobileNavAnalytics">
+                    <a href="{{ url_for('analytics') }}" class="mobile-nav-link nav-sublink {% if ep == 'analytics' %}active{% endif %}">
+                        <i class="bi bi-speedometer2 me-2"></i>Overview
+                    </a>
+                    <a href="{{ url_for('weekly_trends') }}" class="mobile-nav-link nav-sublink {% if ep == 'weekly_trends' %}active{% endif %}">
+                        <i class="bi bi-bar-chart-line me-2"></i>Weekly Trends
+                    </a>
+                    <a href="{{ url_for('finances') }}" class="mobile-nav-link nav-sublink {% if ep.startswith('finances') %}active{% endif %}">
+                        <i class="bi bi-cash-stack me-2"></i>Projection
+                    </a>
+                </div>
             </nav>
             
             <!-- Pinned Projects Section -->
@@ -114,33 +136,55 @@
         </div>
         <nav class="sidebar-nav">
             <div class="nav flex-column">
+                {% set ep = request.endpoint or '' %}
+                <div class="nav-spotlight">
+                    <a href="{{ url_for('billing') }}" class="nav-spotlight-tile {% if ep in ['billing', 'billing_new', 'billing_edit'] %}active{% endif %}">
+                        <span class="nav-spotlight-icon"><i class="bi bi-receipt"></i></span>
+                        <span class="nav-spotlight-label">Billing</span>
+                    </a>
+                    <a href="{{ url_for('time_grid') }}" class="nav-spotlight-tile {% if ep == 'time_grid' %}active{% endif %}">
+                        <span class="nav-spotlight-icon"><i class="bi bi-calendar-week"></i></span>
+                        <span class="nav-spotlight-label">Effort</span>
+                    </a>
+                </div>
                 <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
                     <i class="bi bi-house me-2"></i>Dashboard
                 </a>
-                <a href="{{ url_for('checklists') }}" class="nav-link {% if request.endpoint == 'checklists' %}active{% endif %}">
-                    <i class="bi bi-list-check me-2"></i>Checklists
-                </a>
-                <a href="{{ url_for('projects') }}" class="nav-link {% if request.endpoint == 'projects' %}active{% endif %}">
-                    <i class="bi bi-hash me-2"></i>Projects
-                </a>
-                <a href="{{ url_for('clients') }}" class="nav-link {% if request.endpoint == 'clients' %}active{% endif %}">
-                    <i class="bi bi-person-lines-fill me-2"></i>Clients
-                </a>
-                <a href="{{ url_for('memberships') }}" class="nav-link {% if request.endpoint == 'memberships' %}active{% endif %}">
-                    <i class="bi bi-card-list me-2"></i>Memberships
-                </a>
-                <a href="{{ url_for('billing') }}" class="nav-link {% if request.endpoint in ['billing', 'billing_new', 'billing_edit'] %}active{% endif %}">
-                    <i class="bi bi-receipt me-2"></i>Billing
-                </a>
-                <a href="{{ url_for('finances') }}" class="nav-link {% if request.endpoint == 'finances' %}active{% endif %}">
-                    <i class="bi bi-cash-stack me-2"></i>Finances
-                </a>
-                <a href="{{ url_for('time_grid') }}" class="nav-link {% if request.endpoint == 'time_grid' %}active{% endif %}">
-                    <i class="bi bi-calendar-week me-2"></i>Time Grid
-                </a>
-                <a href="{{ url_for('analytics') }}" class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
+                {% set in_operations = ep.startswith('checklist') or ep.startswith('project') or ep.startswith('client') or ep.startswith('membership') %}
+                <button class="nav-link nav-group-toggle {% if in_operations %}active{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#navOperations" aria-expanded="{{ 'true' if in_operations else 'false' }}" aria-controls="navOperations">
+                    <i class="bi bi-collection me-2"></i>Operations
+                    <i class="bi bi-chevron-down nav-group-chevron ms-auto"></i>
+                </button>
+                <div class="collapse nav-group-menu {% if in_operations %}show{% endif %}" id="navOperations">
+                    <a href="{{ url_for('checklists') }}" class="nav-link nav-sublink {% if ep.startswith('checklist') %}active{% endif %}">
+                        <i class="bi bi-list-check me-2"></i>Checklists
+                    </a>
+                    <a href="{{ url_for('projects') }}" class="nav-link nav-sublink {% if ep.startswith('project') %}active{% endif %}">
+                        <i class="bi bi-hash me-2"></i>Projects
+                    </a>
+                    <a href="{{ url_for('clients') }}" class="nav-link nav-sublink {% if ep.startswith('client') %}active{% endif %}">
+                        <i class="bi bi-person-lines-fill me-2"></i>Clients
+                    </a>
+                    <a href="{{ url_for('memberships') }}" class="nav-link nav-sublink {% if ep.startswith('membership') %}active{% endif %}">
+                        <i class="bi bi-card-list me-2"></i>Memberships
+                    </a>
+                </div>
+                {% set in_analytics = ep in ['analytics', 'weekly_trends'] or ep.startswith('finances') %}
+                <button class="nav-link nav-group-toggle {% if in_analytics %}active{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#navAnalytics" aria-expanded="{{ 'true' if in_analytics else 'false' }}" aria-controls="navAnalytics">
                     <i class="bi bi-graph-up me-2"></i>Analytics
-                </a>
+                    <i class="bi bi-chevron-down nav-group-chevron ms-auto"></i>
+                </button>
+                <div class="collapse nav-group-menu {% if in_analytics %}show{% endif %}" id="navAnalytics">
+                    <a href="{{ url_for('analytics') }}" class="nav-link nav-sublink {% if ep == 'analytics' %}active{% endif %}">
+                        <i class="bi bi-speedometer2 me-2"></i>Overview
+                    </a>
+                    <a href="{{ url_for('weekly_trends') }}" class="nav-link nav-sublink {% if ep == 'weekly_trends' %}active{% endif %}">
+                        <i class="bi bi-bar-chart-line me-2"></i>Weekly Trends
+                    </a>
+                    <a href="{{ url_for('finances') }}" class="nav-link nav-sublink {% if ep.startswith('finances') %}active{% endif %}">
+                        <i class="bi bi-cash-stack me-2"></i>Projection
+                    </a>
+                </div>
             </div>
             
             <!-- Pinned Projects Section -->

@@ -12,7 +12,8 @@
     }
 
     const currentUserId = Number(page.dataset.currentUserId);
-    let selectedUserId = Number(page.dataset.selectedUserId || currentUserId);
+    const rawSelectedUser = page.dataset.selectedUserId;
+    let selectedUserId = rawSelectedUser === 'all' ? 'all' : Number(rawSelectedUser || currentUserId);
     let rangeKey = page.dataset.range || '30d';
     let mode = 'effort';
     let machineData = null;
@@ -21,12 +22,12 @@
     const userSelectEl = document.getElementById('timeMachineUserSelect');
     const rangeSelectEl = document.getElementById('timeMachineRangeSelect');
     const backLinkEl = document.getElementById('timeMachineBackLink');
-    const effortBtn = document.getElementById('timeMachineModeEffort');
-    const hoursBtn = document.getElementById('timeMachineModeHours');
     const legendEl = document.getElementById('timeMachineLegend');
     const chartEl = document.getElementById('timeMachineChart');
     const plotEmptyEl = document.getElementById('timeMachinePlotEmpty');
     const plotContentEl = document.getElementById('timeMachinePlotContent');
+    const heatmapEl = document.getElementById('timeMachineHeatmap');
+    const heatmapEmptyEl = document.getElementById('timeMachineHeatmapEmpty');
     const breakdownEmptyEl = document.getElementById('timeMachineBreakdownEmpty');
     const breakdownContentEl = document.getElementById('timeMachineBreakdownContent');
     const breakdownBodyEl = document.getElementById('timeMachineBreakdownBody');
@@ -102,6 +103,128 @@
         },
     };
 
+    const HEAT = [
+        [255, 255, 255],
+        [68, 1, 84],
+        [72, 40, 120],
+        [62, 73, 137],
+        [49, 104, 142],
+        [38, 130, 142],
+        [31, 158, 137],
+        [53, 183, 121],
+        [110, 206, 88],
+        [253, 231, 37],
+    ];
+
+    function heatColor(t) {
+        const clamped = Math.max(0, Math.min(1, t));
+        const scaled = clamped * (HEAT.length - 1);
+        const index = Math.floor(scaled);
+        const mix = scaled - index;
+        const start = HEAT[index];
+        const end = HEAT[Math.min(index + 1, HEAT.length - 1)];
+        const channels = start.map((channel, i) => Math.round(channel + (end[i] - channel) * mix));
+        return {
+            css: `rgb(${channels[0]}, ${channels[1]}, ${channels[2]})`,
+            text: (channels[0] * 299 + channels[1] * 587 + channels[2] * 114) / 1000 > 160 ? '#1a1a1a' : '#fff',
+        };
+    }
+
+    function heatmapValue(project, index) {
+        const hours = Number((project.weekly_hours || [])[index] || 0);
+        if (hours <= 0) {
+            return 0;
+        }
+        if (mode === 'hours') {
+            return hours;
+        }
+        const total = Number(weekTotals()[index] || 0);
+        if (total <= 0) {
+            return 0;
+        }
+        return hours / total * 100;
+    }
+
+    function heatmapTicks(scaleMax) {
+        const maxLabel = Math.max(1, Math.round(scaleMax));
+        const rough = Math.max(maxLabel / 4, 1);
+        const magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
+        const ratio = rough / magnitude;
+        const step = (ratio >= 7.5 ? 10 : ratio >= 3.5 ? 5 : ratio >= 1.5 ? 2 : 1) * magnitude;
+        const ticks = [];
+        for (let value = 0; value < maxLabel; value += step) {
+            ticks.push(value);
+        }
+        ticks.push(maxLabel);
+        return ticks;
+    }
+
+    function renderHeatmap(projects) {
+        if (!heatmapEl) {
+            return;
+        }
+        const weeks = (machineData && machineData.weeks) || [];
+        const hoursMode = mode === 'hours';
+        const matrix = projects.map((project) => weeks.map((_, index) => heatmapValue(project, index)));
+        const peak = matrix.reduce((max, row) => Math.max(max, ...row), 0);
+        const scaleMax = peak > 0 ? peak : 1;
+        const ticks = heatmapTicks(scaleMax);
+        const columns = `minmax(12rem, 18rem) repeat(${weeks.length}, minmax(2.75rem, 1fr))`;
+        const weekHeaders = weeks.map((week) => (
+            `<div class="time-machine-heatmap-week">${escapeHtml(weekLabel(week))}</div>`
+        )).join('');
+        const rows = projects.map((project, rowIndex) => {
+            const name = project.client_name
+                ? `${project.client_name} — ${project.project_name}`
+                : (project.project_name || 'No project');
+            const cells = matrix[rowIndex].map((value) => {
+                const color = heatColor(value <= 0 ? 0 : value / scaleMax);
+                let label = '';
+                if (value > 0) {
+                    label = hoursMode
+                        ? (value >= 10 ? value.toFixed(0) : value.toFixed(1))
+                        : (Math.round(value) >= 1 ? `${Math.round(value)}%` : '');
+                }
+                const detail = hoursMode ? `${value.toFixed(1)} hrs` : `${value.toFixed(1)}%`;
+                return (
+                    `<div class="time-machine-heatmap-cell" style="background:${color.css};color:${color.text}" title="${escapeHtml(name)}: ${detail}">${label}</div>`
+                );
+            }).join('');
+            return (
+                `<div class="time-machine-heatmap-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>` +
+                cells
+            );
+        }).join('');
+        const tickHtml = ticks.slice().reverse().map((tick) => `<span>${tick}</span>`).join('');
+        const scaleTitle = hoursMode ? 'Hours' : 'Effort (%)';
+        let totalRow = '';
+        if (hoursMode) {
+            const totals = weekTotals();
+            const totalCells = weeks.map((_, index) => {
+                const value = Number(totals[index] || 0);
+                return (
+                    `<div class="time-machine-heatmap-cell time-machine-heatmap-total" title="Total: ${value.toFixed(1)} hrs">${value.toFixed(1)}</div>`
+                );
+            }).join('');
+            totalRow = `<div class="time-machine-heatmap-name time-machine-heatmap-total">Total</div>${totalCells}`;
+        }
+        heatmapEl.innerHTML = (
+            `<div class="time-machine-heatmap-scroll">` +
+            `<div class="time-machine-heatmap-grid" style="grid-template-columns:${columns}">` +
+            `<div class="time-machine-heatmap-corner"></div>` +
+            weekHeaders +
+            rows +
+            totalRow +
+            `</div></div>` +
+            `<div class="time-machine-heatmap-scale${hoursMode ? ' has-total' : ''}" aria-hidden="true">` +
+            `<div class="time-machine-heatmap-scale-title">${scaleTitle}</div>` +
+            `<div class="time-machine-heatmap-scale-track">` +
+            `<div class="time-machine-heatmap-scale-bar"></div>` +
+            `<div class="time-machine-heatmap-scale-ticks">${tickHtml}</div>` +
+            `</div></div>`
+        );
+    }
+
     function seriesFor(project) {
         const hours = project.weekly_hours || [];
         const totals = weekTotals();
@@ -124,26 +247,32 @@
         window.history.replaceState({}, '', url.pathname + url.search);
         if (backLinkEl) {
             const back = new URL(backLinkEl.href, window.location.origin);
-            back.searchParams.set('user', String(selectedUserId));
+            back.searchParams.set('user', String(selectedUserId === 'all' ? currentUserId : selectedUserId));
             backLinkEl.href = back.pathname + back.search;
         }
     }
 
     function setMode(nextMode) {
         mode = nextMode;
-        if (effortBtn && hoursBtn) {
-            const effortOn = mode === 'effort';
-            effortBtn.classList.toggle('btn-primary', effortOn);
-            effortBtn.classList.toggle('btn-outline-primary', !effortOn);
-            effortBtn.setAttribute('aria-pressed', effortOn ? 'true' : 'false');
-            hoursBtn.classList.toggle('btn-primary', !effortOn);
-            hoursBtn.classList.toggle('btn-outline-primary', effortOn);
-            hoursBtn.setAttribute('aria-pressed', effortOn ? 'false' : 'true');
-        }
-        if (!chart || !machineData) {
+        const effortOn = mode === 'effort';
+        document.querySelectorAll('.time-machine-mode-effort').forEach((button) => {
+            button.classList.toggle('btn-primary', effortOn);
+            button.classList.toggle('btn-outline-primary', !effortOn);
+            button.setAttribute('aria-pressed', effortOn ? 'true' : 'false');
+        });
+        document.querySelectorAll('.time-machine-mode-hours').forEach((button) => {
+            button.classList.toggle('btn-primary', !effortOn);
+            button.classList.toggle('btn-outline-primary', effortOn);
+            button.setAttribute('aria-pressed', effortOn ? 'false' : 'true');
+        });
+        if (!machineData) {
             return;
         }
         const projects = machineData.projects || [];
+        renderHeatmap(projects);
+        if (!chart) {
+            return;
+        }
         chart.data.datasets.forEach((dataset, index) => {
             dataset.data = seriesFor(projects[index] || {});
         });
@@ -232,7 +361,7 @@
                 backgroundColor: color,
                 borderWidth: 2,
                 pointRadius: 2,
-                tension: 0.25,
+                tension: 0,
                 fill: false,
             };
         });
@@ -342,6 +471,10 @@
     function render() {
         const projects = (machineData && machineData.projects) || [];
         const empty = projects.length === 0;
+        if (heatmapEmptyEl && heatmapEl) {
+            heatmapEmptyEl.classList.toggle('d-none', !empty);
+            heatmapEl.classList.toggle('d-none', empty);
+        }
         if (plotEmptyEl && plotContentEl) {
             plotEmptyEl.classList.toggle('d-none', !empty);
             plotContentEl.classList.toggle('d-none', empty);
@@ -355,6 +488,9 @@
                 chart.destroy();
                 chart = null;
             }
+            if (heatmapEl) {
+                heatmapEl.innerHTML = '';
+            }
             if (legendEl) {
                 legendEl.innerHTML = '';
             }
@@ -363,6 +499,7 @@
             }
             return;
         }
+        renderHeatmap(projects);
         renderLegend(projects);
         renderChart(projects);
         renderTable(projects);
@@ -389,7 +526,7 @@
 
     if (userSelectEl) {
         userSelectEl.addEventListener('change', () => {
-            selectedUserId = Number(userSelectEl.value) || currentUserId;
+            selectedUserId = userSelectEl.value === 'all' ? 'all' : (Number(userSelectEl.value) || currentUserId);
             syncUrl();
             load();
         });
@@ -401,12 +538,12 @@
             load();
         });
     }
-    if (effortBtn) {
-        effortBtn.addEventListener('click', () => setMode('effort'));
-    }
-    if (hoursBtn) {
-        hoursBtn.addEventListener('click', () => setMode('hours'));
-    }
+    document.querySelectorAll('.time-machine-mode-effort').forEach((button) => {
+        button.addEventListener('click', () => setMode('effort'));
+    });
+    document.querySelectorAll('.time-machine-mode-hours').forEach((button) => {
+        button.addEventListener('click', () => setMode('hours'));
+    });
 
     syncUrl();
     load();
