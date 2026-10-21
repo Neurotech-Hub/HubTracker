@@ -462,7 +462,8 @@ app.jinja_env.filters['time_until'] = time_until
 app.jinja_env.filters['central_time'] = central_time
 app.jinja_env.filters['duration_hours_central'] = duration_hours_central
 
-BILL_TYPE_OPTIONS = ('quote', 'invoice')
+BILL_TYPE_OPTIONS = ('quote', 'invoice', 'planned')
+BILL_TYPE_LIST_ORDER = {'invoice': 0, 'quote': 1, 'planned': 2}
 FINANCE_MODE_OPTIONS = ('payback', 'profiting')
 
 
@@ -3068,6 +3069,10 @@ def billing():
 
     bills = Quote.query.order_by(Quote.created_at.desc()).all()
     quotes_active = [b for b in bills if b.status not in ('archived', 'paid')]
+    quotes_active.sort(key=lambda b: (
+        BILL_TYPE_LIST_ORDER.get((b.bill_type or 'quote').lower(), 9),
+        -(b.issue_date.toordinal() if b.issue_date else 0),
+    ))
     quotes_paid = [b for b in bills if b.status == 'paid']
     quotes_archived = [b for b in bills if b.status == 'archived']
     active_total = sum((Decimal(b.total_amount or 0) for b in quotes_active), Decimal('0'))

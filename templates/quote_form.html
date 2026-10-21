@@ -243,6 +243,7 @@
                             <select class="form-select" id="billTypeSelect" name="bill_type" {% if quote and edit_locked %}aria-describedby="billTypeLockedHelp"{% endif %}>
                                 <option value="quote" {% if bill_type_value == 'quote' %}selected{% endif %}>Quote</option>
                                 <option value="invoice" {% if bill_type_value == 'invoice' %}selected{% endif %}>Invoice</option>
+                                <option value="planned" {% if bill_type_value == 'planned' %}selected{% endif %}>Planned</option>
                             </select>
                             {% if quote and edit_locked %}
                             <p id="billTypeLockedHelp" class="form-text small mb-0">You can switch between Quote and Invoice here while the bill stays approved and locked. For other edits, use Enable editing.</p>

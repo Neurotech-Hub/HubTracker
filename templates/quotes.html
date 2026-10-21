@@ -68,7 +68,7 @@
                                 {% endif %}
                             </td>
                             <td class="billing-col-compact">
-                                <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% else %}bg-success{% endif %}">
+                                <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% elif quote.bill_type == 'planned' %}bg-secondary{% else %}bg-success{% endif %}">
                                     {{ (quote.bill_type or 'quote').title() }}
                                 </span>
                             </td>
@@ -149,7 +149,7 @@
                                 {% endif %}
                             </td>
                             <td class="billing-col-compact">
-                                <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% else %}bg-success{% endif %}">
+                                <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% elif quote.bill_type == 'planned' %}bg-secondary{% else %}bg-success{% endif %}">
                                     {{ (quote.bill_type or 'quote').title() }}
                                 </span>
                             </td>
@@ -224,7 +224,7 @@
                                 {% endif %}
                             </td>
                             <td class="billing-col-compact">
-                                <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% else %}bg-success{% endif %}">
+                                <span class="badge {% if quote.bill_type == 'invoice' %}bg-primary{% elif quote.bill_type == 'planned' %}bg-secondary{% else %}bg-success{% endif %}">
                                     {{ (quote.bill_type or 'quote').title() }}
                                 </span>
                             </td>

@@ -150,10 +150,13 @@
     <div class="container py-4">
         {% set public_bill_locked = quote.approved_by_name or quote.approved_at %}
         <div class="action-bar d-flex justify-content-end align-items-center gap-2 mb-3 flex-wrap">
-            {% if is_preview or public_bill_locked %}
+            {% if is_preview or public_bill_locked or (quote.bill_type or '') == 'planned' %}
             <div class="d-flex align-items-center gap-2 flex-wrap me-auto">
                 {% if is_preview %}
                 <span class="badge bg-secondary">Admin Preview</span>
+                {% endif %}
+                {% if (quote.bill_type or '') == 'planned' %}
+                <span class="badge bg-secondary">Planned</span>
                 {% endif %}
                 {% if public_bill_locked %}
                 <span class="approved-lock-strip" title="This bill was approved and is read-only for clients.">

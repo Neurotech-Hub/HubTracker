@@ -435,7 +435,7 @@ class Quote(db.Model):
     prepared_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     title = db.Column(db.String(255), nullable=True)
     scope_summary = db.Column(db.Text, nullable=True)
-    bill_type = db.Column(db.String(20), nullable=False, default='quote', server_default='quote')  # quote, invoice
+    bill_type = db.Column(db.String(20), nullable=False, default='quote', server_default='quote')  # quote, invoice, planned
     finance_mode = db.Column(db.String(20), nullable=False, default='payback', server_default='payback')  # payback, profiting
     profit_percent = db.Column(db.Integer, nullable=False, default=50, server_default='50')  # 0–100; Finances when profiting
     issue_date = db.Column(db.Date, nullable=False)
