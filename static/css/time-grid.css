@@ -57,7 +57,22 @@
     border-color: #ced4da;
     border-width: 2px;
     color: #495057;
-    cursor: not-allowed;
+    cursor: default;
+}
+
+.time-grid-note-tooltip {
+    position: fixed;
+    z-index: 1080;
+    max-width: 18rem;
+    padding: 0.45rem 0.6rem;
+    background: #212529;
+    color: #fff;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    border-radius: 0.35rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+    white-space: pre-wrap;
 }
 
 .time-grid-cell.time-grid-cell-dimmed {

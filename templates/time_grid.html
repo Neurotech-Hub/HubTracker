@@ -3,7 +3,7 @@
 {% block title %}Effort - Hub Tracker{% endblock %}
 
 {% block extra_head %}
-<link href="{{ url_for('static', filename='css/time-grid.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/time-grid.css') }}?v={{ range(1, 10000) | random }}" rel="stylesheet">
 {% endblock %}
 
 {% block content %}

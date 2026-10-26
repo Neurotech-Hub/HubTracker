@@ -303,6 +303,77 @@
         return div.innerHTML;
     }
 
+    function escapeAttr(text) {
+        return escapeHtml(text).replace(/"/g, '&quot;');
+    }
+
+    function noteTooltipEl() {
+        let tip = document.getElementById('timeGridNoteTooltip');
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.id = 'timeGridNoteTooltip';
+            tip.className = 'time-grid-note-tooltip';
+            tip.hidden = true;
+            document.body.appendChild(tip);
+        }
+        return tip;
+    }
+
+    function hideNoteTooltip() {
+        const tip = document.getElementById('timeGridNoteTooltip');
+        if (tip) {
+            tip.hidden = true;
+        }
+    }
+
+    function showNoteTooltip(anchor, text) {
+        const note = (text || '').trim();
+        if (!note) {
+            hideNoteTooltip();
+            return;
+        }
+        const tip = noteTooltipEl();
+        tip.textContent = note;
+        tip.hidden = false;
+        const rect = anchor.getBoundingClientRect();
+        const tipRect = tip.getBoundingClientRect();
+        let top = rect.bottom + 6;
+        let left = rect.left + (rect.width / 2) - (tipRect.width / 2);
+        if (top + tipRect.height > window.innerHeight - 8) {
+            top = rect.top - tipRect.height - 6;
+        }
+        left = Math.min(Math.max(8, left), window.innerWidth - tipRect.width - 8);
+        tip.style.top = `${Math.max(8, top)}px`;
+        tip.style.left = `${left}px`;
+    }
+
+    function bindNoteTooltip() {
+        gridEl.addEventListener('mouseover', (event) => {
+            const cell = event.target.closest('[data-note]');
+            if (!cell || !gridEl.contains(cell)) {
+                return;
+            }
+            showNoteTooltip(cell, cell.dataset.note || '');
+        });
+        gridEl.addEventListener('mouseout', (event) => {
+            const cell = event.target.closest('[data-note]');
+            if (!cell) {
+                return;
+            }
+            const next = event.relatedTarget && event.relatedTarget.closest
+                ? event.relatedTarget.closest('[data-note]')
+                : null;
+            if (next === cell) {
+                return;
+            }
+            hideNoteTooltip();
+        });
+        const scrollEl = gridEl.closest('.time-grid-scroll');
+        if (scrollEl) {
+            scrollEl.addEventListener('scroll', hideNoteTooltip);
+        }
+    }
+
     function buildGridSkeleton() {
         let html = '<div class="time-grid-hour-label"></div>';
         for (let d = 0; d < 7; d += 1) {
@@ -462,6 +533,7 @@
             cell.className = 'time-grid-cell';
             cell.textContent = '';
             cell.removeAttribute('title');
+            delete cell.dataset.note;
             cell.removeAttribute('data-project-id');
             cell.removeAttribute('data-outline-color');
             cell.classList.remove('time-grid-cell-dimmed');
@@ -479,7 +551,11 @@
                     : cellInfo.project_name;
                 cell.innerHTML = `<span class="cell-label">${escapeHtml(label)}</span>`;
                 const note = (cellInfo.notes || '').trim();
-                cell.title = note || label;
+                if (note) {
+                    cell.dataset.note = note;
+                } else {
+                    delete cell.dataset.note;
+                }
                 applyCellOutline(cell, colorForProjectId(cellInfo.project_id, colorMap));
                 return;
             }
@@ -519,8 +595,8 @@
                     otherEl.className = 'time-grid-cell locked time-grid-other-row';
                     otherEl.innerHTML = items.map((item) => {
                         const note = (item.notes || '').trim();
-                        const title = note ? ` title="${escapeHtml(note)}"` : '';
-                        return `<div class="time-grid-other-item"${title}>${escapeHtml(item.label)} (${item.hours}h)</div>`;
+                        const noteAttr = note ? ` data-note="${escapeAttr(note)}"` : '';
+                        return `<div class="time-grid-other-item"${noteAttr}>${escapeHtml(item.label)} (${item.hours}h)</div>`;
                     }).join('');
                 }
             }
@@ -529,6 +605,7 @@
             }
         }
 
+        hideNoteTooltip();
         renderBreakdown();
         updateSubmitState();
     }
@@ -676,6 +753,7 @@
         renderGrid();
     });
 
+    bindNoteTooltip();
     buildGridSkeleton();
     syncInputVisibility();
     updateWeekNavLinks();
