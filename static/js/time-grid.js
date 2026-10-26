@@ -478,7 +478,8 @@
                     ? `${cellInfo.client_name} - ${cellInfo.project_name}`
                     : cellInfo.project_name;
                 cell.innerHTML = `<span class="cell-label">${escapeHtml(label)}</span>`;
-                cell.title = label;
+                const note = (cellInfo.notes || '').trim();
+                cell.title = note || label;
                 applyCellOutline(cell, colorForProjectId(cellInfo.project_id, colorMap));
                 return;
             }
@@ -516,9 +517,11 @@
                     otherEl.textContent = '—';
                 } else {
                     otherEl.className = 'time-grid-cell locked time-grid-other-row';
-                    otherEl.innerHTML = items.map((item) =>
-                        `<div class="time-grid-other-item">${escapeHtml(item.label)} (${item.hours}h)</div>`
-                    ).join('');
+                    otherEl.innerHTML = items.map((item) => {
+                        const note = (item.notes || '').trim();
+                        const title = note ? ` title="${escapeHtml(note)}"` : '';
+                        return `<div class="time-grid-other-item"${title}>${escapeHtml(item.label)} (${item.hours}h)</div>`;
+                    }).join('');
                 }
             }
             if (totalEl && weekData && weekData.day_totals) {

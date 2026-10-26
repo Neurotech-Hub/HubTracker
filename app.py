@@ -634,6 +634,7 @@ def build_week_grid_state(logs, week_start_date):
                     'label': label,
                     'hours': round(float(log.hours or 0), 2),
                     'log_id': log.id,
+                    'notes': log.notes or '',
                 })
             continue
 
@@ -668,6 +669,7 @@ def build_week_grid_state(logs, week_start_date):
                         'project_id': log.project_id,
                         'client_name': client_name,
                         'project_name': project_name,
+                        'notes': log.notes or '',
                         'status': 'locked',
                     })
             else:
@@ -675,6 +677,7 @@ def build_week_grid_state(logs, week_start_date):
                     'label': label,
                     'hours': 1.0,
                     'log_id': log.id,
+                    'notes': log.notes or '',
                 })
 
         if fractional > 0.001:
@@ -686,6 +689,7 @@ def build_week_grid_state(logs, week_start_date):
                     'label': label,
                     'hours': round(fractional, 2),
                     'log_id': log.id,
+                    'notes': log.notes or '',
                 })
 
     return locked_cells, other_by_day, occupied
