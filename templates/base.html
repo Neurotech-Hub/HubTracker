@@ -67,7 +67,7 @@
                         <i class="bi bi-card-list me-2"></i>Memberships
                     </a>
                 </div>
-                {% set in_analytics = ep in ['analytics', 'weekly_trends'] or ep.startswith('finances') %}
+                {% set in_analytics = ep in ['analytics', 'weekly_trends', 'sites', 'site_new', 'site_detail', 'site_edit'] or ep.startswith('finances') %}
                 <button class="mobile-nav-link nav-group-toggle {% if in_analytics %}active{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNavAnalytics" aria-expanded="{{ 'true' if in_analytics else 'false' }}" aria-controls="mobileNavAnalytics">
                     <i class="bi bi-graph-up me-2"></i>Analytics
                     <i class="bi bi-chevron-down nav-group-chevron ms-auto"></i>
@@ -81,6 +81,9 @@
                     </a>
                     <a href="{{ url_for('finances') }}" class="mobile-nav-link nav-sublink {% if ep.startswith('finances') %}active{% endif %}">
                         <i class="bi bi-cash-stack me-2"></i>Projection
+                    </a>
+                    <a href="{{ url_for('sites') }}" class="mobile-nav-link nav-sublink {% if ep in ['sites', 'site_new', 'site_detail', 'site_edit'] %}active{% endif %}">
+                        <i class="bi bi-globe2 me-2"></i>Sites
                     </a>
                 </div>
             </nav>
@@ -169,7 +172,7 @@
                         <i class="bi bi-card-list me-2"></i>Memberships
                     </a>
                 </div>
-                {% set in_analytics = ep in ['analytics', 'weekly_trends'] or ep.startswith('finances') %}
+                {% set in_analytics = ep in ['analytics', 'weekly_trends', 'sites', 'site_new', 'site_detail', 'site_edit'] or ep.startswith('finances') %}
                 <button class="nav-link nav-group-toggle {% if in_analytics %}active{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#navAnalytics" aria-expanded="{{ 'true' if in_analytics else 'false' }}" aria-controls="navAnalytics">
                     <i class="bi bi-graph-up me-2"></i>Analytics
                     <i class="bi bi-chevron-down nav-group-chevron ms-auto"></i>
@@ -183,6 +186,9 @@
                     </a>
                     <a href="{{ url_for('finances') }}" class="nav-link nav-sublink {% if ep.startswith('finances') %}active{% endif %}">
                         <i class="bi bi-cash-stack me-2"></i>Projection
+                    </a>
+                    <a href="{{ url_for('sites') }}" class="nav-link nav-sublink {% if ep in ['sites', 'site_new', 'site_detail', 'site_edit'] %}active{% endif %}">
+                        <i class="bi bi-globe2 me-2"></i>Sites
                     </a>
                 </div>
             </div>

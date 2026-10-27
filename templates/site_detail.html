@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}{{ site.name }} - Sites - Hub Tracker{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h2 class="mb-1">{{ site.name }}</h2>
+            <div class="text-muted small">{{ site.display_url }}</div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('sites') }}" class="btn btn-outline-secondary btn-sm">All sites</a>
+            <a href="{{ url_for('site_edit', slug=site.slug) }}" class="btn btn-outline-primary btn-sm">Edit</a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Embed snippet</h5>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="copyEmbed">Copy</button>
+        </div>
+        <div class="card-body">
+            <pre class="mb-0 small" id="embedSnippet"><code>{{ embed_snippet }}</code></pre>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card p-3 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-primary-gradient text-white me-3">
+                        <i class="bi bi-eye"></i>
+                    </div>
+                    <div>
+                        <div class="h4 mb-0">{{ views_today }}</div>
+                        <div class="text-muted small">Views today</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card p-3 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-success-gradient text-white me-3">
+                        <i class="bi bi-bar-chart"></i>
+                    </div>
+                    <div>
+                        <div class="h4 mb-0">{{ views_in_range }}</div>
+                        <div class="text-muted small">Views in range</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card p-3 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-warning-gradient text-white me-3">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div>
+                        <div class="h4 mb-0">{{ sessions_in_range }}</div>
+                        <div class="text-muted small">Sessions in range</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card p-3 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-info-gradient text-white me-3">
+                        <i class="bi bi-clock"></i>
+                    </div>
+                    <div>
+                        <div class="h6 mb-0">
+                            {% if last_seen %}
+                            {{ (last_seen|central_time).strftime('%b %d, %Y %I:%M %p') }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </div>
+                        <div class="text-muted small">Last activity</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h5 class="mb-0">Traffic</h5>
+            <div class="btn-group btn-group-sm">
+                {% for key, label in range_labels.items() %}
+                <a href="{{ url_for('site_detail', slug=site.slug, range=key) }}" class="btn {% if range_key == key %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ label }}</a>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="card-body">
+            <div style="height: 280px;">
+                <canvas id="siteTrafficChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Most visited pages</h5>
+                </div>
+                <div class="card-body">
+                    {% if top_pages %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="border-0">Path</th>
+                                    <th class="border-0 text-end">Views</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for path, views in top_pages %}
+                                <tr>
+                                    <td>{{ path }}</td>
+                                    <td class="text-end">{{ views }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No page views in this range.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Top external referrers</h5>
+                </div>
+                <div class="card-body">
+                    {% if top_referrers %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="border-0">Host</th>
+                                    <th class="border-0 text-end">Views</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for host, views in top_referrers %}
+                                <tr>
+                                    <td>{{ host }}</td>
+                                    <td class="text-end">{{ views }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No external referrers in this range.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Recent activity</h5>
+        </div>
+        <div class="card-body">
+            {% if history %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0">Time</th>
+                            <th class="border-0">Path</th>
+                            <th class="border-0">Referrer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for hit in history %}
+                        <tr>
+                            <td>{{ (hit.created_at|central_time).strftime('%b %d, %Y %I:%M %p') }}</td>
+                            <td>{{ hit.path }}</td>
+                            <td>{% if hit.referrer_host %}{{ hit.referrer_host }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No individual hits in this range. Raw hits are kept for 90 days.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<script>
+    const trafficCtx = document.getElementById('siteTrafficChart');
+    if (trafficCtx) {
+        setTimeout(function () {
+        new Chart(trafficCtx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_labels|tojson }},
+                datasets: [
+                    {
+                        label: 'Views',
+                        data: {{ chart_views|tojson }},
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.12)',
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 2
+                    },
+                    {
+                        label: 'Sessions',
+                        data: {{ chart_sessions|tojson }},
+                        borderColor: '#6c757d',
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        tension: 0.2,
+                        pointRadius: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+        }, 80);
+    }
+
+    const copyEmbed = document.getElementById('copyEmbed');
+    if (copyEmbed) {
+        copyEmbed.addEventListener('click', function () {
+            const snippet = document.getElementById('embedSnippet').innerText;
+            navigator.clipboard.writeText(snippet).then(function () {
+                copyEmbed.textContent = 'Copied';
+            });
+        });
+    }
+</script>
+{% endblock %}

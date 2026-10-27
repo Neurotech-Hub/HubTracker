@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{% if site %}Edit Site{% else %}Add Site{% endif %} - Hub Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">{% if site %}Edit Site{% else %}Add Site{% endif %}</h2>
+        <a href="{{ url_for('site_detail', slug=site.slug) if site else url_for('sites') }}" class="btn btn-outline-secondary btn-sm">
+            Back
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="siteName">Name</label>
+                    <input class="form-control" id="siteName" name="name" value="{{ values.name }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="siteSlug">Slug</label>
+                    <input class="form-control" id="siteSlug" name="slug" value="{{ values.slug }}" placeholder="neurotech-hub" required>
+                    <div class="form-text">Public site id used in the embed snippet.</div>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label" for="siteOrigin">Origin</label>
+                    <input class="form-control" id="siteOrigin" name="origin" value="{{ values.origin }}" placeholder="https://example.github.io" required>
+                    <div class="form-text">Scheme and host only. Page views from other origins are ignored.</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="sitePrefix">Path prefix</label>
+                    <input class="form-control" id="sitePrefix" name="path_prefix" value="{{ values.path_prefix or '/' }}" required>
+                    <div class="form-text">Use / for the whole host, or /docs for one path.</div>
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="siteActive" name="is_active" {% if values.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="siteActive">Active</label>
+                    </div>
+                </div>
+                <div class="col-12 d-flex justify-content-between">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    {% if site %}
+                    <button type="submit" class="btn btn-outline-danger" form="deleteSiteForm">
+                        {% if has_history %}Deactivate{% else %}Delete{% endif %}
+                    </button>
+                    {% endif %}
+                </div>
+            </form>
+            {% if site %}
+            <form id="deleteSiteForm" method="POST" action="{{ url_for('site_delete', slug=site.slug) }}" class="d-none"></form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Sites - Hub Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Sites</h2>
+        <a href="{{ url_for('site_new') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Add Site
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if rows %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0">Site</th>
+                            <th class="border-0">Address</th>
+                            <th class="border-0 text-end">Views, 30d</th>
+                            <th class="border-0 text-end">Sessions, 30d</th>
+                            <th class="border-0">Last activity</th>
+                            <th class="border-0">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('site_detail', slug=row.site.slug) }}" class="text-decoration-none">
+                                    {{ row.site.name }}
+                                </a>
+                            </td>
+                            <td class="text-muted">{{ row.site.display_url }}</td>
+                            <td class="text-end">{{ row.views }}</td>
+                            <td class="text-end">{{ row.sessions }}</td>
+                            <td>
+                                {% if row.last_seen %}
+                                {{ (row.last_seen|central_time).strftime('%b %d, %Y %I:%M %p') }}
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.site.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No sites yet. Add one to start collecting page views.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

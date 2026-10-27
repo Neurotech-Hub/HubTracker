@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, abort
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, abort, make_response
 from flask_migrate import Migrate
 from datetime import datetime, timedelta, date
 import pytz
@@ -9,6 +9,9 @@ import re
 from markupsafe import Markup, escape
 import json
 import secrets
+import hashlib
+import time
+from urllib.parse import urlparse
 from decimal import Decimal, InvalidOperation
 from icalendar import Calendar, Event
 from io import BytesIO
@@ -56,7 +59,7 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
 # Import models and db
-from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME, Quote, QuoteLineItem, Checklist, ChecklistItem, FinanceSettings
+from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME, Quote, QuoteLineItem, Checklist, ChecklistItem, FinanceSettings, Site, SitePageview, SiteDaily, SiteDailyPage, SiteDailyReferrer
 
 # Initialize extensions
 db.init_app(app)
@@ -4767,6 +4770,502 @@ def weekly_trends():
             {'key': key, 'label': label}
             for key, (label, _days) in TIME_MACHINE_RANGES.items()
         ],
+    )
+
+
+SITE_PAGEVIEW_RETENTION_DAYS = 90
+SITE_SLUG_RE = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
+SITE_SESSION_RE = re.compile(r'^[A-Za-z0-9_-]{8,64}$')
+SITE_BOT_RE = re.compile(
+    r'bot|crawl|spider|slurp|preview|wget|curl|python-requests|headless|scrapy|httpclient',
+    re.I,
+)
+_site_rate_hits = {}
+_site_prune_at = 0
+
+
+def _normalize_origin(value):
+    parsed = urlparse((value or '').strip())
+    if parsed.scheme not in ('http', 'https') or not parsed.hostname:
+        return ''
+    host = parsed.hostname.lower()
+    if parsed.port and not (
+        (parsed.scheme == 'https' and parsed.port == 443)
+        or (parsed.scheme == 'http' and parsed.port == 80)
+    ):
+        host = f'{host}:{parsed.port}'
+    return f'{parsed.scheme}://{host}'
+
+
+def _normalize_path_prefix(value):
+    raw = (value or '/').strip()
+    if not raw.startswith('/'):
+        raw = '/' + raw
+    raw = raw.split('?', 1)[0].split('#', 1)[0]
+    if len(raw) > 1:
+        raw = raw.rstrip('/')
+    if not raw.startswith('/') or '//' in raw or len(raw) > 255:
+        return ''
+    return raw
+
+
+def _path_has_prefix(path, prefix):
+    prefix = prefix or '/'
+    if prefix == '/':
+        return path.startswith('/')
+    return path == prefix or path.startswith(prefix + '/')
+
+
+def _clean_collect_path(raw):
+    text = (raw or '').strip()
+    if '://' in text:
+        text = urlparse(text).path or '/'
+    text = text.split('?', 1)[0].split('#', 1)[0]
+    if not text.startswith('/'):
+        text = '/' + text
+    return text[:500]
+
+
+def _referrer_host(raw, site_origin):
+    host = (urlparse(raw or '').hostname or '').lower()
+    site_host = (urlparse(site_origin).hostname or '').lower()
+    if not host or host == site_host:
+        return ''
+    return host[:255]
+
+
+def _slugify_site_name(name):
+    slug = re.sub(r'[^a-z0-9]+', '-', (name or '').lower()).strip('-')
+    return slug[:80]
+
+
+def _collect_request_origin():
+    origin = _normalize_origin(request.headers.get('Origin'))
+    if origin:
+        return origin
+    return _normalize_origin(request.headers.get('Referer'))
+
+
+def _collect_response(status, allow_origin=None):
+    response = make_response('', status)
+    response.headers['Cache-Control'] = 'no-store'
+    if allow_origin:
+        response.headers['Access-Control-Allow-Origin'] = allow_origin
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        response.headers['Vary'] = 'Origin'
+    return response
+
+
+def _client_rate_key():
+    raw = (request.remote_addr or 'unknown').encode()
+    return hashlib.sha256(raw).hexdigest()[:16]
+
+
+def _rate_allow(key, limit, window=60):
+    now = time.time()
+    hits = [stamp for stamp in _site_rate_hits.get(key, []) if now - stamp < window]
+    if len(hits) >= limit:
+        _site_rate_hits[key] = hits
+        return False
+    hits.append(now)
+    _site_rate_hits[key] = hits
+    if len(_site_rate_hits) > 5000:
+        stale = [name for name, stamps in _site_rate_hits.items() if not stamps or now - stamps[-1] >= window]
+        for name in stale:
+            _site_rate_hits.pop(name, None)
+    return True
+
+
+def _prune_site_pageviews():
+    global _site_prune_at
+    now = time.time()
+    if now - _site_prune_at < 3600:
+        return
+    _site_prune_at = now
+    cutoff = get_current_time() - timedelta(days=SITE_PAGEVIEW_RETENTION_DAYS)
+    SitePageview.query.filter(SitePageview.created_at < cutoff).delete(synchronize_session=False)
+    db.session.commit()
+
+
+def _site_owns_path(site, path):
+    if not _path_has_prefix(path, site.path_prefix):
+        return False
+    site_len = len(site.path_prefix or '/')
+    siblings = Site.query.filter(
+        Site.origin == site.origin,
+        Site.id != site.id,
+        Site.is_active.is_(True),
+    ).all()
+    for other in siblings:
+        other_prefix = other.path_prefix or '/'
+        if _path_has_prefix(path, other_prefix) and len(other_prefix) > site_len:
+            return False
+    return True
+
+
+def _increment_counter(model, filters, field):
+    row = model.query.filter_by(**filters).first()
+    if row is None:
+        row = model(**filters)
+        setattr(row, field, 1)
+        db.session.add(row)
+        return row
+    setattr(row, field, (getattr(row, field) or 0) + 1)
+    return row
+
+
+def _record_site_pageview(site, path, referrer_host, session_id):
+    day = get_current_time().date()
+    start = TIMEZONE.localize(datetime.combine(day, datetime.min.time()))
+    seen = SitePageview.query.filter(
+        SitePageview.site_id == site.id,
+        SitePageview.session_id == session_id,
+        SitePageview.created_at >= start,
+        SitePageview.created_at < start + timedelta(days=1),
+    ).first() is not None
+
+    db.session.add(SitePageview(
+        site_id=site.id,
+        path=path,
+        referrer_host=referrer_host,
+        session_id=session_id,
+    ))
+    daily = SiteDaily.query.filter_by(site_id=site.id, day=day).first()
+    if daily is None:
+        daily = SiteDaily(site_id=site.id, day=day, views=0, sessions=0)
+        db.session.add(daily)
+    daily.views += 1
+    if not seen:
+        daily.sessions += 1
+    _increment_counter(SiteDailyPage, {'site_id': site.id, 'day': day, 'path': path}, 'views')
+    if referrer_host:
+        _increment_counter(
+            SiteDailyReferrer,
+            {'site_id': site.id, 'day': day, 'referrer_host': referrer_host},
+            'views',
+        )
+    db.session.commit()
+
+
+@app.route('/track.js')
+def track_js():
+    response = send_file(
+        os.path.join(app.root_path, 'static', 'js', 'track.js'),
+        mimetype='application/javascript',
+        max_age=3600,
+    )
+    return response
+
+
+@app.route('/api/collect', methods=['POST', 'OPTIONS'])
+def api_collect():
+    origin = _collect_request_origin()
+    if request.method == 'OPTIONS':
+        if origin and Site.query.filter_by(origin=origin, is_active=True).first():
+            return _collect_response(204, origin)
+        return _collect_response(204)
+
+    if request.content_length and request.content_length > 4096:
+        return _collect_response(413)
+
+    payload = request.get_json(force=True, silent=True) or {}
+    if not isinstance(payload, dict):
+        return _collect_response(400)
+
+    slug = (payload.get('site') or '').strip().lower()
+    site = Site.query.filter_by(slug=slug, is_active=True).first()
+    if not site:
+        return _collect_response(404)
+    if origin != site.origin:
+        return _collect_response(403)
+
+    user_agent = request.headers.get('User-Agent', '')
+    if not user_agent or SITE_BOT_RE.search(user_agent):
+        return _collect_response(204, site.origin)
+
+    path = _clean_collect_path(payload.get('path'))
+    session_id = (payload.get('session') or '').strip()
+    if not SITE_SESSION_RE.match(session_id) or not _site_owns_path(site, path):
+        return _collect_response(400, site.origin)
+
+    client_key = _client_rate_key()
+    if (
+        not _rate_allow(f'site-session:{site.id}:{session_id}', 30)
+        or not _rate_allow(f'site-client:{site.id}:{client_key}', 120)
+        or not _rate_allow(f'site:{site.id}', 300)
+    ):
+        return _collect_response(429, site.origin)
+
+    try:
+        _prune_site_pageviews()
+        _record_site_pageview(site, path, _referrer_host(payload.get('referrer'), site.origin), session_id)
+    except IntegrityError:
+        db.session.rollback()
+        try:
+            _record_site_pageview(site, path, _referrer_host(payload.get('referrer'), site.origin), session_id)
+        except IntegrityError:
+            db.session.rollback()
+            return _collect_response(204, site.origin)
+    return _collect_response(204, site.origin)
+
+
+def _require_user():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return None
+
+
+def _shift_month(year, month, delta):
+    index = year * 12 + (month - 1) + delta
+    return index // 12, index % 12 + 1
+
+
+def _site_window(range_key):
+    today = get_current_time().date()
+    if range_key == 'week':
+        this_monday = today - timedelta(days=today.weekday())
+        start = this_monday - timedelta(weeks=11)
+        points = [start + timedelta(days=7 * i) for i in range(12)]
+        return start, today, points, 'week'
+    if range_key == 'month':
+        year, month = _shift_month(today.year, today.month, -11)
+        start = date(year, month, 1)
+        points = []
+        cursor_year, cursor_month = year, month
+        for _ in range(12):
+            points.append(date(cursor_year, cursor_month, 1))
+            cursor_year, cursor_month = _shift_month(cursor_year, cursor_month, 1)
+        return start, today, points, 'month'
+    start = today - timedelta(days=29)
+    points = [start + timedelta(days=i) for i in range(30)]
+    return start, today, points, 'day'
+
+
+def _bucket_day(day, grain):
+    if grain == 'week':
+        return day - timedelta(days=day.weekday())
+    if grain == 'month':
+        return date(day.year, day.month, 1)
+    return day
+
+
+def _bucket_label(day, grain):
+    if grain == 'month':
+        return day.strftime('%b %Y')
+    return f'{day.month}/{day.day}'
+
+
+def _site_form_values(form, site=None):
+    name = (form.get('name') or '').strip()
+    slug = (form.get('slug') or '').strip().lower() or _slugify_site_name(name)
+    origin = _normalize_origin(form.get('origin'))
+    path_prefix = _normalize_path_prefix(form.get('path_prefix') or '/')
+    is_active = form.get('is_active') == 'on' if form else True
+    if site is None and 'is_active' not in form and request.method == 'GET':
+        is_active = True
+    return {
+        'name': name,
+        'slug': slug,
+        'origin': (form.get('origin') or '').strip(),
+        'normalized_origin': origin,
+        'path_prefix': path_prefix,
+        'is_active': is_active if request.method == 'POST' else (site.is_active if site else True),
+    }
+
+
+def _validate_site_form(values, site=None):
+    if not values['name']:
+        return 'Name is required.'
+    if not values['slug'] or not SITE_SLUG_RE.match(values['slug']):
+        return 'Slug must use lowercase letters, numbers, and hyphens.'
+    if not values['normalized_origin']:
+        return 'Origin must be a scheme and host, such as https://example.github.io.'
+    if not values['path_prefix']:
+        return 'Path prefix must start with /.'
+    existing = Site.query.filter_by(slug=values['slug']).first()
+    if existing and (site is None or existing.id != site.id):
+        return 'That slug is already in use.'
+    return None
+
+
+def _apply_site_form(site, values):
+    site.name = values['name']
+    site.slug = values['slug']
+    site.origin = values['normalized_origin']
+    site.path_prefix = values['path_prefix']
+    site.is_active = values['is_active']
+
+
+@app.route('/sites')
+def sites():
+    auth_error = _require_user()
+    if auth_error:
+        return auth_error
+
+    today = get_current_time().date()
+    start = today - timedelta(days=29)
+    site_rows = Site.query.order_by(Site.name.asc()).all()
+    totals = {
+        site_id: {'views': int(views or 0), 'sessions': int(sessions or 0)}
+        for site_id, views, sessions in db.session.query(
+            SiteDaily.site_id,
+            func.sum(SiteDaily.views),
+            func.sum(SiteDaily.sessions),
+        ).filter(SiteDaily.day >= start).group_by(SiteDaily.site_id)
+    }
+    last_seen = dict(
+        db.session.query(SitePageview.site_id, func.max(SitePageview.created_at)).group_by(SitePageview.site_id)
+    )
+    rows = []
+    for site in site_rows:
+        stats = totals.get(site.id, {'views': 0, 'sessions': 0})
+        rows.append({
+            'site': site,
+            'views': stats['views'],
+            'sessions': stats['sessions'],
+            'last_seen': last_seen.get(site.id),
+        })
+    return render_template('sites.html', rows=rows)
+
+
+@app.route('/sites/new', methods=['GET', 'POST'])
+def site_new():
+    auth_error = _require_user()
+    if auth_error:
+        return auth_error
+
+    values = _site_form_values(request.form)
+    if request.method == 'POST':
+        error = _validate_site_form(values)
+        if error:
+            flash(error, 'error')
+        else:
+            site = Site(is_active=True)
+            _apply_site_form(site, values)
+            db.session.add(site)
+            db.session.commit()
+            flash('Site added.', 'success')
+            return redirect(url_for('site_detail', slug=site.slug))
+    return render_template('site_form.html', site=None, values=values)
+
+
+@app.route('/sites/<slug>/edit', methods=['GET', 'POST'])
+def site_edit(slug):
+    auth_error = _require_user()
+    if auth_error:
+        return auth_error
+
+    site = Site.query.filter_by(slug=slug).first_or_404()
+    values = _site_form_values(request.form, site) if request.method == 'POST' else {
+        'name': site.name,
+        'slug': site.slug,
+        'origin': site.origin,
+        'path_prefix': site.path_prefix,
+        'is_active': site.is_active,
+        'normalized_origin': site.origin,
+    }
+    if request.method == 'POST':
+        error = _validate_site_form(values, site)
+        if error:
+            flash(error, 'error')
+        else:
+            _apply_site_form(site, values)
+            db.session.commit()
+            flash('Site updated.', 'success')
+            return redirect(url_for('site_detail', slug=site.slug))
+    has_history = site.pageviews.first() is not None or site.daily_stats.first() is not None
+    return render_template('site_form.html', site=site, values=values, has_history=has_history)
+
+
+@app.route('/sites/<slug>/delete', methods=['POST'])
+def site_delete(slug):
+    auth_error = _require_user()
+    if auth_error:
+        return auth_error
+
+    site = Site.query.filter_by(slug=slug).first_or_404()
+    if site.pageviews.first() is not None or site.daily_stats.first() is not None:
+        site.is_active = False
+        db.session.commit()
+        flash('This site has analytics history, so it was deactivated.', 'success')
+        return redirect(url_for('site_detail', slug=site.slug))
+    db.session.delete(site)
+    db.session.commit()
+    flash('Site deleted.', 'success')
+    return redirect(url_for('sites'))
+
+
+@app.route('/sites/<slug>')
+def site_detail(slug):
+    auth_error = _require_user()
+    if auth_error:
+        return auth_error
+
+    site = Site.query.filter_by(slug=slug).first_or_404()
+    range_key = request.args.get('range', 'day')
+    if range_key not in ('day', 'week', 'month'):
+        range_key = 'day'
+    start, today, points, grain = _site_window(range_key)
+    daily_rows = SiteDaily.query.filter(
+        SiteDaily.site_id == site.id,
+        SiteDaily.day >= start,
+        SiteDaily.day <= today,
+    ).all()
+    views_by_bucket = {point: 0 for point in points}
+    sessions_by_bucket = {point: 0 for point in points}
+    for row in daily_rows:
+        bucket = _bucket_day(row.day, grain)
+        if bucket in views_by_bucket:
+            views_by_bucket[bucket] += row.views
+            sessions_by_bucket[bucket] += row.sessions
+
+    today_row = SiteDaily.query.filter_by(site_id=site.id, day=today).first()
+    top_pages = db.session.query(
+        SiteDailyPage.path,
+        func.sum(SiteDailyPage.views),
+    ).filter(
+        SiteDailyPage.site_id == site.id,
+        SiteDailyPage.day >= start,
+        SiteDailyPage.day <= today,
+    ).group_by(SiteDailyPage.path).order_by(func.sum(SiteDailyPage.views).desc()).limit(15).all()
+    top_referrers = db.session.query(
+        SiteDailyReferrer.referrer_host,
+        func.sum(SiteDailyReferrer.views),
+    ).filter(
+        SiteDailyReferrer.site_id == site.id,
+        SiteDailyReferrer.day >= start,
+        SiteDailyReferrer.day <= today,
+        SiteDailyReferrer.referrer_host != '',
+    ).group_by(SiteDailyReferrer.referrer_host).order_by(func.sum(SiteDailyReferrer.views).desc()).limit(15).all()
+
+    start_dt = TIMEZONE.localize(datetime.combine(start, datetime.min.time()))
+    history = SitePageview.query.filter(
+        SitePageview.site_id == site.id,
+        SitePageview.created_at >= start_dt,
+    ).order_by(SitePageview.created_at.desc()).limit(100).all()
+    last_seen = db.session.query(func.max(SitePageview.created_at)).filter(
+        SitePageview.site_id == site.id
+    ).scalar()
+    track_src = request.url_root.rstrip('/') + url_for('track_js')
+    embed_snippet = f'<script async src="{track_src}" data-site="{site.slug}"></script>'
+    range_labels = {'day': 'Daily', 'week': 'Weekly', 'month': 'Monthly'}
+    return render_template(
+        'site_detail.html',
+        site=site,
+        range_key=range_key,
+        range_labels=range_labels,
+        views_today=today_row.views if today_row else 0,
+        views_in_range=sum(views_by_bucket.values()),
+        sessions_in_range=sum(sessions_by_bucket.values()),
+        last_seen=last_seen,
+        chart_labels=[_bucket_label(point, grain) for point in points],
+        chart_views=[views_by_bucket[point] for point in points],
+        chart_sessions=[sessions_by_bucket[point] for point in points],
+        top_pages=top_pages,
+        top_referrers=top_referrers,
+        history=history,
+        embed_snippet=embed_snippet,
     )
 
 

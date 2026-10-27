@@ -678,4 +678,98 @@ class EquipmentAppointment(db.Model):
         if self.start_time and self.end_time:
             delta = self.end_time - self.start_time
             return delta.total_seconds() / 3600
-        return 0 
+        return 0
+
+
+class Site(db.Model):
+    __tablename__ = 'sites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    slug = db.Column(db.String(80), nullable=False, unique=True, index=True)
+    origin = db.Column(db.String(255), nullable=False)
+    path_prefix = db.Column(db.String(255), nullable=False, default='/')
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+
+    pageviews = db.relationship('SitePageview', backref='site', lazy='dynamic', cascade='all, delete-orphan')
+    daily_stats = db.relationship('SiteDaily', backref='site', lazy='dynamic', cascade='all, delete-orphan')
+    daily_pages = db.relationship('SiteDailyPage', backref='site', lazy='dynamic', cascade='all, delete-orphan')
+    daily_referrers = db.relationship('SiteDailyReferrer', backref='site', lazy='dynamic', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<Site {self.slug}>'
+
+    @property
+    def display_url(self):
+        prefix = self.path_prefix if self.path_prefix and self.path_prefix != '/' else ''
+        return f'{self.origin}{prefix}'
+
+
+class SitePageview(db.Model):
+    __tablename__ = 'site_pageviews'
+
+    id = db.Column(db.Integer, primary_key=True)
+    site_id = db.Column(db.Integer, db.ForeignKey('sites.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    path = db.Column(db.String(500), nullable=False)
+    referrer_host = db.Column(db.String(255), nullable=False, default='')
+    session_id = db.Column(db.String(64), nullable=False)
+
+    __table_args__ = (
+        db.Index('ix_site_pageviews_site_created', 'site_id', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f'<SitePageview {self.site_id} {self.path}>'
+
+
+class SiteDaily(db.Model):
+    __tablename__ = 'site_daily'
+
+    id = db.Column(db.Integer, primary_key=True)
+    site_id = db.Column(db.Integer, db.ForeignKey('sites.id', ondelete='CASCADE'), nullable=False)
+    day = db.Column(db.Date, nullable=False)
+    views = db.Column(db.Integer, nullable=False, default=0)
+    sessions = db.Column(db.Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        db.UniqueConstraint('site_id', 'day', name='uq_site_daily'),
+    )
+
+    def __repr__(self):
+        return f'<SiteDaily {self.site_id} {self.day}>'
+
+
+class SiteDailyPage(db.Model):
+    __tablename__ = 'site_daily_pages'
+
+    id = db.Column(db.Integer, primary_key=True)
+    site_id = db.Column(db.Integer, db.ForeignKey('sites.id', ondelete='CASCADE'), nullable=False)
+    day = db.Column(db.Date, nullable=False)
+    path = db.Column(db.String(500), nullable=False)
+    views = db.Column(db.Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        db.UniqueConstraint('site_id', 'day', 'path', name='uq_site_daily_page'),
+    )
+
+    def __repr__(self):
+        return f'<SiteDailyPage {self.site_id} {self.path}>'
+
+
+class SiteDailyReferrer(db.Model):
+    __tablename__ = 'site_daily_referrers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    site_id = db.Column(db.Integer, db.ForeignKey('sites.id', ondelete='CASCADE'), nullable=False)
+    day = db.Column(db.Date, nullable=False)
+    referrer_host = db.Column(db.String(255), nullable=False)
+    views = db.Column(db.Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        db.UniqueConstraint('site_id', 'day', 'referrer_host', name='uq_site_daily_referrer'),
+    )
+
+    def __repr__(self):
+        return f'<SiteDailyReferrer {self.site_id} {self.referrer_host}>' 
