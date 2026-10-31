@@ -5104,7 +5104,7 @@ def sites():
         return auth_error
 
     today = get_current_time().date()
-    start = today - timedelta(days=29)
+    list_start = today - timedelta(days=29)
     site_rows = Site.query.order_by(Site.name.asc()).all()
     totals = {
         site_id: {'views': int(views or 0), 'sessions': int(sessions or 0)}
@@ -5112,7 +5112,7 @@ def sites():
             SiteDaily.site_id,
             func.sum(SiteDaily.views),
             func.sum(SiteDaily.sessions),
-        ).filter(SiteDaily.day >= start).group_by(SiteDaily.site_id)
+        ).filter(SiteDaily.day >= list_start).group_by(SiteDaily.site_id)
     }
     last_seen = dict(
         db.session.query(SitePageview.site_id, func.max(SitePageview.created_at)).group_by(SitePageview.site_id)
@@ -5126,7 +5126,35 @@ def sites():
             'sessions': stats['sessions'],
             'last_seen': last_seen.get(site.id),
         })
-    return render_template('sites.html', rows=rows)
+
+    range_key = request.args.get('range', 'day')
+    if range_key not in ('day', 'week', 'month'):
+        range_key = 'day'
+    start, today, points, grain = _site_window(range_key)
+    views_by_bucket = {point: 0 for point in points}
+    sessions_by_bucket = {point: 0 for point in points}
+    for row in SiteDaily.query.filter(SiteDaily.day >= start, SiteDaily.day <= today):
+        bucket = _bucket_day(row.day, grain)
+        if bucket in views_by_bucket:
+            views_by_bucket[bucket] += row.views
+            sessions_by_bucket[bucket] += row.sessions
+    views_today = db.session.query(func.coalesce(func.sum(SiteDaily.views), 0)).filter(
+        SiteDaily.day == today
+    ).scalar() or 0
+    last_activity = db.session.query(func.max(SitePageview.created_at)).scalar()
+    return render_template(
+        'sites.html',
+        rows=rows,
+        range_key=range_key,
+        range_labels={'day': 'Daily', 'week': 'Weekly', 'month': 'Monthly'},
+        views_today=int(views_today),
+        views_in_range=sum(views_by_bucket.values()),
+        sessions_in_range=sum(sessions_by_bucket.values()),
+        last_seen=last_activity,
+        chart_labels=[_bucket_label(point, grain) for point in points],
+        chart_views=[views_by_bucket[point] for point in points],
+        chart_sessions=[sessions_by_bucket[point] for point in points],
+    )
 
 
 @app.route('/sites/new', methods=['GET', 'POST'])
