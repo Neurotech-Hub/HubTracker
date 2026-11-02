@@ -24,8 +24,8 @@ class Equipment(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.String(255), nullable=True)
-    manual = db.Column(db.String(255), nullable=True)  # URL to manual
+    description = db.Column(db.Text, nullable=True)
+    manual = db.Column(db.Text, nullable=True)  # URL to manual
     is_schedulable = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)

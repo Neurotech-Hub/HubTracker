@@ -6129,7 +6129,13 @@ def add_equipment():
     )
     
     db.session.add(equipment)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as err:
+        db.session.rollback()
+        app.logger.exception('Failed to add equipment')
+        flash(f'Could not add equipment: {err}', 'error')
+        return redirect(url_for('admin'))
     flash('Equipment added successfully', 'success')
     return redirect(url_for('admin'))
 
@@ -6154,7 +6160,13 @@ def edit_equipment(equipment_id):
     equipment.manual = manual if manual else None
     equipment.is_schedulable = request.form.get('is_schedulable') == 'on'
     
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as err:
+        db.session.rollback()
+        app.logger.exception('Failed to update equipment')
+        flash(f'Could not update equipment: {err}', 'error')
+        return redirect(url_for('admin'))
     flash('Equipment updated successfully', 'success')
     return redirect(url_for('admin'))
 
