@@ -60,9 +60,11 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
 # Import models and db
 from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME, Quote, QuoteLineItem, Checklist, ChecklistItem, FinanceSettings, Site, SitePageview, SiteDaily, SiteDailyPage, SiteDailyReferrer
+from analytics_api import analytics_public_bp
 
 # Initialize extensions
 db.init_app(app)
+app.register_blueprint(analytics_public_bp)
 migrate = Migrate(app, db)
 
 # Initialize Flask-Mail
