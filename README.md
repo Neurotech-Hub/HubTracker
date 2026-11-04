@@ -249,6 +249,23 @@ HubTracker uses Flask-Migrate to manage database schema changes. Here's how to h
    
    **⚠️ NEVER use this in production** - you will lose all data!
 
+## Public Analytics API
+
+The analytics overview and the fiscal-year projection are available to a reporting bot as a public read-only JSON API. Client and user records are not included: no names, email addresses, contact details, individual salaries, notes, or ids. Responses contain aggregate counts, hours, and billing totals, plus project names, membership titles, bill titles, and equipment names. The projection includes the combined salary cost and fixed costs that the profit-and-loss net uses, without listing the people.
+
+- Data: `GET /api/public/analytics`
+- Documentation: `GET /api/public/analytics/docs`
+- OpenAPI: `GET /api/public/analytics/openapi.json`
+
+No authentication. The data endpoint accepts GET only and allows 60 requests per minute per address. Filter with `period` or `start` and `end`, plus `section`, `project_status`, `bill_type`, `limit`, `series`, and `grain`.
+
+An unfiltered request matches the overview page: time totals are all-time, and project hour rankings use the last 30 days. `projection` is the current fiscal year, July through June, including later months. `period=fiscal_year` returns that full year. A shorter period, or `start` and `end`, keeps only the fiscal-year months that overlap the range. The page's per-person hour list, per-client rankings, and per-person salary rows are not part of the payload.
+
+```bash
+curl "https://<host>/api/public/analytics?section=projection"
+curl "https://<host>/api/public/analytics?period=last_month&section=time,billing"
+```
+
 ## Deployment
 
 ### Cloud Deployment (Render, Heroku, etc.)

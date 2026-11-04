@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Public Analytics API — Hub Tracker</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #1c1915;
+            --muted: #5c564e;
+            --line: #e4ddd2;
+            --paper: #f7f4ee;
+            --card: #fffdf9;
+            --accent: #0f6b5c;
+            --accent-soft: #e5f3ef;
+            --warn: #8a4b12;
+            --warn-soft: #fbf0e4;
+            --code: #2a241c;
+            --code-bg: #241f1a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--paper);
+            color: var(--ink);
+            font: 16px/1.55 "Source Serif 4", "Iowan Old Style", Palatino, Georgia, serif;
+        }
+        a { color: var(--accent); }
+        header, main { width: min(920px, calc(100% - 2rem)); margin: 0 auto; }
+        header { padding: 3rem 0 1.5rem; }
+        .eyebrow {
+            margin: 0 0 0.4rem;
+            font-family: "Source Sans 3", "Segoe UI", sans-serif;
+            font-size: 0.78rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+        h1 { margin: 0 0 0.6rem; font-size: 2.4rem; line-height: 1.15; font-weight: 560; }
+        .lede { margin: 0; max-width: 40rem; font-size: 1.15rem; color: var(--muted); }
+        .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.25rem; }
+        .actions a {
+            font-family: "Source Sans 3", "Segoe UI", sans-serif;
+            text-decoration: none;
+            border-radius: 999px;
+            padding: 0.45rem 0.9rem;
+            border: 1px solid var(--line);
+            background: var(--card);
+        }
+        .actions a.primary { background: var(--accent); color: white; border-color: var(--accent); }
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem 1rem;
+            padding: 0.8rem 0;
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+            font-family: "Source Sans 3", "Segoe UI", sans-serif;
+            font-size: 0.92rem;
+        }
+        main { padding-bottom: 4rem; }
+        section { padding-top: 1.8rem; }
+        h2 { font-size: 1.45rem; margin: 0 0 0.6rem; }
+        h3 { font-size: 1.05rem; margin: 1.2rem 0 0.4rem; }
+        p { margin: 0.4rem 0 0.8rem; }
+        .callout {
+            background: var(--warn-soft);
+            border: 1px solid #efd7bc;
+            border-radius: 12px;
+            padding: 0.9rem 1rem;
+            margin: 1rem 0;
+        }
+        .callout strong { color: var(--warn); }
+        ul, ol { margin: 0.3rem 0 0.9rem; padding-left: 1.2rem; }
+        li + li { margin-top: 0.25rem; }
+        table { width: 100%; border-collapse: collapse; background: var(--card); margin: 0.6rem 0 1rem; }
+        th, td { text-align: left; vertical-align: top; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); }
+        th {
+            font-family: "Source Sans 3", "Segoe UI", sans-serif;
+            font-size: 0.78rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        code, pre {
+            font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.86rem;
+        }
+        code { background: var(--accent-soft); padding: 0.05rem 0.3rem; border-radius: 4px; }
+        pre {
+            background: var(--code-bg);
+            color: #f6f1e8;
+            padding: 0.9rem 1rem;
+            border-radius: 12px;
+            overflow: auto;
+            line-height: 1.45;
+        }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        .wrap { overflow-x: auto; }
+        .field-name { white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <header>
+        <p class="eyebrow">Hub Tracker</p>
+        <h1>Public Analytics API</h1>
+        <p class="lede">A read-only JSON view of the analytics overview for an external reporting bot. Counts, hours, and billing totals are included. Client and user records are not.</p>
+        <div class="actions">
+            <a class="primary" href="{{ example_overview }}">Open the endpoint</a>
+            <a href="{{ openapi_url }}">OpenAPI specification</a>
+        </div>
+    </header>
+    <main>
+        <nav>
+            <a href="#privacy">Privacy</a>
+            <a href="#request">Request</a>
+            <a href="#parameters">Parameters</a>
+            <a href="#filters">What filters change</a>
+            <a href="#page">Overview mapping</a>
+            <a href="#fields">Response fields</a>
+            <a href="#examples">Examples</a>
+            <a href="#errors">Errors</a>
+        </nav>
+
+        <section id="privacy">
+            <h2>Privacy</h2>
+            <div class="callout">
+                <strong>Client and user details are not in this API.</strong>
+                {{ privacy.description }}
+            </div>
+            <p>Omitted from every response:</p>
+            <ul>
+                {% for item in privacy.omitted %}
+                <li>{{ item }}</li>
+                {% endfor %}
+            </ul>
+            <p>Operational labels that do appear:</p>
+            <ul>
+                {% for item in privacy.included_labels %}
+                <li>{{ item }}</li>
+                {% endfor %}
+            </ul>
+            <p>{{ privacy.substitution }}</p>
+        </section>
+
+        <section id="request">
+            <h2>Request</h2>
+            <p><code>GET /api/public/analytics</code></p>
+            <p>No authentication. Session cookies are ignored. The endpoint accepts GET and CORS preflight only, and it does not write data.</p>
+            <p>Responses use <code>application/json</code> and <code>America/Chicago</code> for every date. Amounts are USD numbers. Hours are rounded to one decimal place.</p>
+            <p>The data endpoint allows {{ rate_limit }} requests per {{ rate_window }} seconds for each connecting address. Docs and the OpenAPI document are not counted. Successful responses include <code>X-RateLimit-Limit</code> and <code>X-RateLimit-Remaining</code>. A limited response is HTTP 429 with <code>Retry-After</code>.</p>
+            <p>Cross-origin GET is allowed (<code>Access-Control-Allow-Origin: *</code>) so a browser-based bot can call it. Do not send credentials.</p>
+        </section>
+
+        <section id="parameters">
+            <h2>Parameters</h2>
+            <p>All parameters are optional query parameters. Unknown parameters are rejected, including anything that would select a client or a user.</p>
+            <div class="wrap">
+                <table>
+                    <thead>
+                        <tr><th>Parameter</th><th>Example</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for param in parameters %}
+                        <tr>
+                            <td class="field-name"><code>{{ param.name }}</code></td>
+                            <td><code>{{ param.example }}</code></td>
+                            <td>{{ param.description }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <h3>Allowed values</h3>
+            <ul>
+                <li><code>section</code>: {{ sections|join(', ') }}</li>
+                <li><code>period</code>: {{ periods|join(', ') }}</li>
+                <li><code>project_status</code>: {{ project_statuses|join(', ') }}</li>
+                <li><code>bill_type</code>: {{ bill_types|join(', ') }}</li>
+            </ul>
+            <p>Ranked lists default to {{ default_limit }} rows and accept at most {{ max_limit }}. A series cannot exceed {{ max_series_points }} points.</p>
+        </section>
+
+        <section id="filters">
+            <h2>What filters change</h2>
+            <p>With no parameters, the payload matches the analytics overview: time totals are all-time, and the project hour ranking uses the rolling last 30 days. Summary cards, client counts, and membership figures always describe the organization right now.</p>
+            <div class="wrap">
+                <table>
+                    <thead><tr><th>Part of the response</th><th>How filters apply</th></tr></thead>
+                    <tbody>
+                        {% for label, effect in effects %}
+                        <tr><td>{{ label }}</td><td>{{ effect }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p>On an unfiltered request, <code>time</code> also includes <code>total_hours_all_time</code>, <code>total_hours_last_30_days</code>, <code>hours_this_week</code>, <code>hours_last_week</code>, and <code>total_logs</code>. Those keys are left out as soon as a date, project status, or bill type filter is present, so a filtered <code>time.hours</code> is not mistaken for the overview total.</p>
+            <p><code>filters.window</code> describes the requested date window. <code>start</code> and <code>end</code> are inclusive calendar dates. <code>start_at</code> and <code>end_at</code> are exact timestamps; <code>end_at</code> is exclusive. A rolling last-30-days window has no <code>end_at</code>.</p>
+            <p>Each point in <code>time.series</code> is rounded on its own, so the sum of points can differ from <code>time.hours</code> by a tenth. <code>series.date</code> is the bucket start: the day, the Monday, or the first of the month.</p>
+        </section>
+
+        <section id="page">
+            <h2>Overview mapping</h2>
+            <p>Use this when a report should quote the analytics page. The unfiltered response is the one that lines up with the page.</p>
+            <div class="wrap">
+                <table>
+                    <thead><tr><th>On the analytics page</th><th>In the JSON</th></tr></thead>
+                    <tbody>
+                        {% for label, field in page_map %}
+                        <tr><td>{{ label }}</td><td><code>{{ field }}</code></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="fields">
+            <h2>Response fields</h2>
+            <p>Every response includes <code>api_version</code>, <code>generated_at</code>, <code>timezone</code>, <code>documentation</code>, <code>privacy</code>, <code>scope</code>, and <code>filters</code>. The panels below are present when <code>section</code> asks for them.</p>
+            {% for group in field_groups %}
+            <h3 id="field-{{ group.id }}"><code>{{ group.title }}</code></h3>
+            <div class="wrap">
+                <table>
+                    <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+                    <tbody>
+                        {% for name, meaning in group.fields %}
+                        <tr><td class="field-name"><code>{{ name }}</code></td><td>{{ meaning }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        </section>
+
+        <section id="examples">
+            <h2>Examples</h2>
+            <h3>Overview, same numbers as the page</h3>
+            <pre><code>curl "{{ example_overview }}"</code></pre>
+            <h3>Last calendar month, time and billing only</h3>
+            <pre><code>curl "{{ example_filtered }}"</code></pre>
+            <h3>Custom range, active projects, weekly series</h3>
+            <pre><code>curl "{{ example_range }}"</code></pre>
+            <h3>Shape of an unfiltered response</h3>
+            <pre><code>{
+  "api_version": "1",
+  "timezone": "America/Chicago",
+  "scope": "Organization snapshot matching the analytics overview. Time totals are all-time. Project hour rankings use the last 30 days.",
+  "summary": {
+    "active_memberships": 4,
+    "active_projects": 12,
+    "clients": 9
+  },
+  "time": {
+    "hours": 640.5,
+    "logs": 210,
+    "detailed_hours": 600.0,
+    "touch_hours": 40.5,
+    "total_hours_all_time": 640.5,
+    "total_hours_last_30_days": 82.0,
+    "hours_this_week": 16.0,
+    "hours_last_week": 21.5,
+    "total_logs": 210,
+    "series": null
+  },
+  "projects": {
+    "top_by_hours": [
+      {"project": "Optical bench", "status": "Active", "hours": 18.5}
+    ]
+  },
+  "clients": {"total": 9, "with_membership": 6, "without_membership": 3},
+  "billing": {
+    "currency": "USD",
+    "total_bills": {"count": 14, "amount": 18250.0},
+    "active_quotes": {"count": 3, "amount": 2400.0},
+    "active_invoices": {"count": 8, "amount": 14000.0},
+    "archived_invoices": {"count": 3, "amount": 1850.0},
+    "invoices_awaiting_approval": {"count": 1, "amount": 750.0}
+  },
+  "memberships": {
+    "ending_soonest": [
+      {"membership": "Bench access", "funding_end": "2026-12-01"}
+    ]
+  },
+  "appointments": {
+    "equipment_count": 6,
+    "trainee_count": 11,
+    "appointment_count": 40,
+    "top_equipment": [
+      {"equipment": "Confocal microscope", "appointments": 9}
+    ]
+  },
+  "projection": {
+    "label": "FY27",
+    "start": "2026-07-01",
+    "end": "2027-06-30",
+    "salary_monthly": 4200.0,
+    "salaried_count": 2,
+    "months": [
+      {
+        "month": "2026-07",
+        "label": "Jul 2026",
+        "funding": 1500.0,
+        "paid_bills": 0.0,
+        "projected": 800.0,
+        "salaries": 4200.0,
+        "fixed_cost": 300.0,
+        "net": -2200.0
+      }
+    ],
+    "totals": {
+      "inflow": 48000.0,
+      "outflow": 54000.0,
+      "net": -6000.0
+    }
+  }
+}</code></pre>
+            <p>Ask for the projection on its own with <code>?section=projection</code>. <code>period=fiscal_year</code> returns all 12 months. A shorter period returns the months that overlap it. Profited and projected bill rows include the bill title and profit amount, not the client. Salaries are one combined monthly cost.</p>
+            <p>Filtered responses keep the same panel objects. <code>time.hours</code> and <code>time.logs</code> then describe the requested window, the overview-only time keys are omitted, and <code>time.series</code> is filled unless you pass <code>series=0</code>.</p>
+        </section>
+
+        <section id="errors">
+            <h2>Errors</h2>
+            <p>Errors are JSON. <code>parameter</code> names the query parameter to fix. <code>allowed</code> lists the accepted values when that is useful.</p>
+            <pre><code>{
+  "error": "Unknown period.",
+  "parameter": "period",
+  "allowed": ["today", "this_week", "last_week", "last_30_days", "this_month", "last_month", "fiscal_year", "all_time"]
+}</code></pre>
+            <div class="wrap">
+                <table>
+                    <thead><tr><th>Status</th><th>When</th></tr></thead>
+                    <tbody>
+                        <tr><td>200</td><td>The query is valid. Empty rankings are empty arrays, not errors.</td></tr>
+                        <tr><td>400</td><td>Unknown or invalid parameter, a one-sided date range, or a series that is too long.</td></tr>
+                        <tr><td>405</td><td>Any method other than GET or OPTIONS.</td></tr>
+                        <tr><td>429</td><td>The address exceeded {{ rate_limit }} data requests in {{ rate_window }} seconds.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p>The machine-readable contract is the <a href="{{ openapi_url }}">OpenAPI document</a>.</p>
+        </section>
+    </main>
+</body>
+</html>
