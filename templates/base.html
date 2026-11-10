@@ -48,7 +48,7 @@
                 <a href="{{ url_for('dashboard') }}" class="mobile-nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
                     <i class="bi bi-house me-2"></i>Dashboard
                 </a>
-                {% set in_operations = ep.startswith('checklist') or ep.startswith('project') or ep.startswith('client') or ep.startswith('membership') %}
+                {% set in_operations = ep.startswith('checklist') or ep.startswith('project') or ep.startswith('client') or ep.startswith('membership') or ep.startswith('affiliation') %}
                 <button class="mobile-nav-link nav-group-toggle {% if in_operations %}active{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNavOperations" aria-expanded="{{ 'true' if in_operations else 'false' }}" aria-controls="mobileNavOperations">
                     <i class="bi bi-collection me-2"></i>Operations
                     <i class="bi bi-chevron-down nav-group-chevron ms-auto"></i>
@@ -65,6 +65,9 @@
                     </a>
                     <a href="{{ url_for('memberships') }}" class="mobile-nav-link nav-sublink {% if ep.startswith('membership') %}active{% endif %}">
                         <i class="bi bi-card-list me-2"></i>Memberships
+                    </a>
+                    <a href="{{ url_for('affiliations') }}" class="mobile-nav-link nav-sublink {% if ep.startswith('affiliation') %}active{% endif %}">
+                        <i class="bi bi-diagram-3 me-2"></i>Affiliations
                     </a>
                 </div>
                 {% set in_analytics = ep in ['analytics', 'weekly_trends', 'sites', 'site_new', 'site_detail', 'site_edit'] or ep.startswith('finances') %}
@@ -153,7 +156,7 @@
                 <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
                     <i class="bi bi-house me-2"></i>Dashboard
                 </a>
-                {% set in_operations = ep.startswith('checklist') or ep.startswith('project') or ep.startswith('client') or ep.startswith('membership') %}
+                {% set in_operations = ep.startswith('checklist') or ep.startswith('project') or ep.startswith('client') or ep.startswith('membership') or ep.startswith('affiliation') %}
                 <button class="nav-link nav-group-toggle {% if in_operations %}active{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#navOperations" aria-expanded="{{ 'true' if in_operations else 'false' }}" aria-controls="navOperations">
                     <i class="bi bi-collection me-2"></i>Operations
                     <i class="bi bi-chevron-down nav-group-chevron ms-auto"></i>
@@ -170,6 +173,9 @@
                     </a>
                     <a href="{{ url_for('memberships') }}" class="nav-link nav-sublink {% if ep.startswith('membership') %}active{% endif %}">
                         <i class="bi bi-card-list me-2"></i>Memberships
+                    </a>
+                    <a href="{{ url_for('affiliations') }}" class="nav-link nav-sublink {% if ep.startswith('affiliation') %}active{% endif %}">
+                        <i class="bi bi-diagram-3 me-2"></i>Affiliations
                     </a>
                 </div>
                 {% set in_analytics = ep in ['analytics', 'weekly_trends', 'sites', 'site_new', 'site_detail', 'site_edit'] or ep.startswith('finances') %}

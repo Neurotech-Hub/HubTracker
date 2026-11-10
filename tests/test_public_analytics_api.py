@@ -13,6 +13,7 @@ import analytics_api  # noqa: E402
 from app import app, db  # noqa: E402
 from models import (  # noqa: E402
     TIMEZONE,
+    Affiliation,
     Client,
     Equipment,
     EquipmentAppointment,
@@ -175,9 +176,15 @@ class PublicAnalyticsApiTest(unittest.TestCase):
             fixed_costs=[100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         ))
 
+        internal_aff = Affiliation(name="Department of Neuroscience", is_internal=True)
+        external_aff = Affiliation(name="Partner Biotech", is_internal=False)
+        db.session.add_all([internal_aff, external_aff])
+        db.session.flush()
+
         northwind = Client(
             name="Northwind Biolabs",
             membership_id=active_membership.id,
+            affiliation_id=internal_aff.id,
             contact_name="Casey Morgan",
             contact_email="casey.morgan@northwind.test",
             contact_phone="555-0199",
@@ -186,6 +193,7 @@ class PublicAnalyticsApiTest(unittest.TestCase):
         )
         helios = Client(
             name="Helios Clinical",
+            affiliation_id=external_aff.id,
             notes="note-secret other client",
         )
         db.session.add_all([northwind, helios])
@@ -369,18 +377,17 @@ class PublicAnalyticsApiTest(unittest.TestCase):
             {"project": "Optical Bench Calibration", "status": "Active", "hours": 3.5},
         ])
 
-        self.assertEqual(payload["clients"], {
-            "total": 2,
-            "with_membership": 1,
-            "without_membership": 1,
-        })
+        self.assertEqual(payload["clients"]["total"], 2)
+        self.assertEqual(payload["clients"]["internal"], 1)
+        self.assertEqual(payload["clients"]["external"], 1)
+        self.assertFalse(payload["clients"]["window"]["applied"])
         billing = payload["billing"]
         self.assertEqual(billing["currency"], "USD")
-        self.assertEqual(billing["total_bills"], {"count": 7, "amount": 470.0})
+        self.assertEqual(billing["total_bills"], {"count": 2, "amount": 40.0})
         self.assertEqual(billing["active_quotes"], {"count": 3, "amount": 80.0})
-        self.assertEqual(billing["active_invoices"], {"count": 3, "amount": 290.0})
-        self.assertEqual(billing["archived_invoices"], {"count": 1, "amount": 100.0})
-        self.assertEqual(billing["invoices_awaiting_approval"], {"count": 1, "amount": 250.0})
+        self.assertEqual(billing["active_invoices"], {"count": 1, "amount": 250.0})
+        self.assertEqual(billing["internal_invoices"], {"count": 4, "amount": 390.0})
+        self.assertEqual(billing["external_invoices"], {"count": 0, "amount": 0.0})
 
         self.assertEqual(payload["memberships"]["total"], 2)
         self.assertEqual(payload["memberships"]["currently_active"], 1)
@@ -414,7 +421,12 @@ class PublicAnalyticsApiTest(unittest.TestCase):
         payload = self._get("?period=last_30_days")
         self.assertTrue(payload["filters"]["window"]["applied"])
         self.assertEqual(payload["filters"]["window"]["label"], "last_30_days")
-        self.assertEqual(payload["summary"]["clients"], 2)
+        # Helios only has an older log; Northwind has effort in the last 30 days.
+        self.assertEqual(payload["summary"]["clients"], 1)
+        self.assertEqual(payload["clients"]["total"], 1)
+        self.assertEqual(payload["clients"]["internal"], 1)
+        self.assertEqual(payload["clients"]["external"], 0)
+        self.assertTrue(payload["clients"]["window"]["applied"])
         self.assertEqual(payload["time"]["hours"], 12.5)
         self.assertEqual(payload["time"]["logs"], 3)
         self.assertNotIn("total_hours_all_time", payload["time"])
@@ -428,7 +440,7 @@ class PublicAnalyticsApiTest(unittest.TestCase):
         self.assertEqual(payload["projects"]["top_by_hours"], [
             {"project": "Optical Bench Calibration", "status": "Active", "hours": 3.5},
         ])
-        self.assertEqual(payload["billing"]["total_bills"], {"count": 6, "amount": 390.0})
+        self.assertEqual(payload["billing"]["total_bills"], {"count": 2, "amount": 40.0})
         self.assertEqual(payload["billing"]["active_quotes"], {"count": 2, "amount": 0.0})
         self.assertEqual(payload["appointments"]["appointment_count"], 2)
 
@@ -465,7 +477,7 @@ class PublicAnalyticsApiTest(unittest.TestCase):
             {"billing", "time"},
         )
         self.assertEqual(custom["time"]["hours"], 12.5)
-        self.assertEqual(custom["billing"]["total_bills"]["amount"], 390.0)
+        self.assertEqual(custom["billing"]["total_bills"]["amount"], 40.0)
 
         archived = self._get("?project_status=archived")
         self.assertEqual(archived["filters"]["project_status"], ["Archived"])
@@ -475,7 +487,7 @@ class PublicAnalyticsApiTest(unittest.TestCase):
         self.assertEqual(archived["projects"]["by_status"]["Active"], 0)
         self.assertEqual(archived["time"]["hours"], 4.0)
         self.assertEqual(archived["projects"]["top_by_hours"], [])
-        self.assertEqual(archived["billing"]["total_bills"], {"count": 1, "amount": 0.0})
+        self.assertEqual(archived["billing"]["total_bills"], {"count": 0, "amount": 0.0})
         self.assertNotIn("total_hours_all_time", archived["time"])
 
         ranked = self._get("?period=all_time&project_status=Archived,Active&limit=1")
@@ -487,8 +499,9 @@ class PublicAnalyticsApiTest(unittest.TestCase):
         invoices = self._get("?bill_type=Invoice&section=billing")
         self.assertEqual(invoices["filters"]["bill_type"], "invoice")
         self.assertEqual(invoices["billing"]["active_quotes"], {"count": 0, "amount": 0.0})
-        self.assertEqual(invoices["billing"]["total_bills"], {"count": 4, "amount": 390.0})
-        self.assertEqual(invoices["billing"]["invoices_awaiting_approval"]["count"], 1)
+        self.assertEqual(invoices["billing"]["total_bills"], {"count": 2, "amount": 40.0})
+        self.assertEqual(invoices["billing"]["internal_invoices"], {"count": 4, "amount": 390.0})
+        self.assertEqual(invoices["billing"]["external_invoices"], {"count": 0, "amount": 0.0})
 
     def test_fiscal_year_projection_omits_people_and_respects_filters(self):
         payload = self._get("?section=projection")

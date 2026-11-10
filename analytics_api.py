@@ -25,6 +25,7 @@ from sqlalchemy import and_, case, desc, func
 from models import (
     GENERAL_PROJECT_NAME,
     TIMEZONE,
+    Affiliation,
     Client,
     Equipment,
     EquipmentAppointment,
@@ -119,9 +120,9 @@ PAGE_MAP = (
     ("Total logs", "time.total_logs"),
     ("Hours by user", "Omitted. Use time.hours, time.hours_this_week, and time.hours_last_week."),
     ("Top projects by hours (30 days)", "projects.top_by_hours (project, status, hours; no client)"),
-    ("Client counts", "clients.total, clients.with_membership, clients.without_membership"),
+    ("Client counts", "clients.total, clients.internal, clients.external"),
     ("Top clients", "Omitted."),
-    ("Billing totals", "billing.total_bills, active_quotes, active_invoices, archived_invoices, invoices_awaiting_approval"),
+    ("Billing totals", "billing.total_bills, active_quotes, active_invoices, internal_invoices, external_invoices"),
     ("Top clients by billed amount", "Omitted."),
     ("Membership totals and budgets", "memberships.total, currently_active, active_dollar_budget, active_hour_budget"),
     ("Memberships ending soonest", "memberships.ending_soonest (title and funding end date)"),
@@ -131,8 +132,16 @@ PAGE_MAP = (
 )
 
 EFFECTS = (
-    ("Summary", "Always the current organization snapshot. Ignores every filter."),
-    ("Client counts", "Always the current organization snapshot. Counts only."),
+    (
+        "Summary",
+        "Active memberships and active projects are always the current organization snapshot. "
+        "summary.clients follows the same date-window rule as clients.total.",
+    ),
+    (
+        "Client counts",
+        "Unfiltered requests count every client on file. With a date filter, counts are distinct clients "
+        "that have at least one effort log in that window (and honor project_status when set).",
+    ),
     ("Membership totals, budgets, and ending dates", "Always the current organization snapshot."),
     ("Time totals", "Honor the date window and project_status. Unfiltered totals are all-time."),
     ("Project counts by status", "Honor project_status. Not limited by the date window."),
@@ -157,7 +166,11 @@ FIELD_GROUPS = (
         "fields": (
             ("active_memberships", "Memberships whose funding covers the current moment."),
             ("active_projects", "Projects with status Active."),
-            ("clients", "How many client records exist. No client is identified."),
+            (
+                "clients",
+                "Unfiltered: how many client records exist. With a date filter: distinct clients with an "
+                "effort log in that window. No client is identified.",
+            ),
         ),
     },
     {
@@ -192,9 +205,20 @@ FIELD_GROUPS = (
         "id": "clients",
         "title": "clients",
         "fields": (
-            ("total", "Client records on file."),
-            ("with_membership", "Clients attached to a membership."),
-            ("without_membership", "Clients with no membership."),
+            (
+                "total",
+                "Unfiltered: client records on file. With a date filter: distinct clients with an effort log "
+                "in that window.",
+            ),
+            (
+                "internal",
+                "Among the clients in total, those whose affiliation is marked internal.",
+            ),
+            (
+                "external",
+                "Among the clients in total, those whose affiliation is marked external.",
+            ),
+            ("window", "all_time unless a date filter is set. Compared on log created_at."),
         ),
     },
     {
@@ -203,11 +227,11 @@ FIELD_GROUPS = (
         "fields": (
             ("currency", "Always USD. Amounts are numbers, not formatted strings."),
             ("window", "all_time unless a date filter is set. Bills match on issue date."),
-            ("total_bills", "Count and amount for every bill in scope."),
-            ("active_quotes", "Quotes that are not archived. Active means not archived, matching the overview."),
-            ("active_invoices", "Invoices that are not archived, including paid invoices."),
-            ("archived_invoices", "Invoices whose status is archived."),
-            ("invoices_awaiting_approval", "Public invoices that have not been approved."),
+            ("total_bills", "Paid bills only (status paid). Count and amount."),
+            ("active_quotes", "Quotes that are neither paid nor archived."),
+            ("active_invoices", "Invoices that are neither paid nor archived."),
+            ("internal_invoices", "Invoices for clients with an internal affiliation."),
+            ("external_invoices", "Invoices for clients with an external affiliation."),
         ),
     },
     {
@@ -842,10 +866,18 @@ def _project_counts(project_statuses):
     return total, counts
 
 
-def _quote_totals(bounds, project_statuses, bill_type, type_required=None, archived=None, awaiting=False):
+def _quote_totals(
+    bounds,
+    project_statuses,
+    bill_type,
+    type_required=None,
+    paid=None,
+    active=None,
+    affiliation_internal=None,
+):
     if bill_type and type_required and bill_type != type_required:
         return {"count": 0, "amount": 0.0}
-    if awaiting and bill_type and bill_type != "invoice":
+    if affiliation_internal is not None and bill_type and bill_type != "invoice":
         return {"count": 0, "amount": 0.0}
 
     query = db.session.query(
@@ -857,17 +889,14 @@ def _quote_totals(bounds, project_statuses, bill_type, type_required=None, archi
     use_type = bill_type or type_required
     if use_type:
         query = query.filter(Quote.bill_type == use_type)
-    if archived is True:
-        query = query.filter(Quote.status == "archived")
-    elif archived is False:
-        query = query.filter(Quote.status != "archived")
-    if awaiting:
-        query = query.filter(
-            Quote.bill_type == "invoice",
-            Quote.is_public.is_(True),
-            Quote.approved_by_name.is_(None),
-            Quote.approved_at.is_(None),
-        )
+    if paid is True:
+        query = query.filter(Quote.status == "paid")
+    if active is True:
+        query = query.filter(Quote.status.notin_(("paid", "archived")))
+    if affiliation_internal is not None:
+        query = query.join(Client, Client.id == Quote.client_id).join(
+            Affiliation, Affiliation.id == Client.affiliation_id
+        ).filter(Affiliation.is_internal.is_(bool(affiliation_internal)))
     if bounds is not None and bounds.start_date is not None:
         query = query.filter(Quote.issue_date >= bounds.start_date)
     if bounds is not None and bounds.end_date is not None:
@@ -908,14 +937,22 @@ def _build_scope(parsed):
         joined = ", ".join(project_statuses)
         sentences.append(
             "Project status filter: "
-            f"{joined}. It applies to time, project counts, project rankings, billing, "
-            "and profited or projected bills."
+            f"{joined}. It applies to time, client counts with a date filter, project counts, "
+            "project rankings, billing, and profited or projected bills."
         )
     if bill_type:
         sentences.append(
             f"Billing is limited to {bill_type} records. Profited and projected bills follow that limit."
         )
-    sentences.append("Summary, client counts, and membership figures stay current and ignore these filters.")
+    if window.applied:
+        sentences.append(
+            "Client counts are distinct clients with an effort log in the date window. "
+            "Membership figures and active membership or project summary cards stay current."
+        )
+    else:
+        sentences.append(
+            "Summary, client counts, and membership figures stay current and ignore these filters."
+        )
     if "projection" in parsed["sections"]:
         if window.applied and window.label not in {"fiscal_year", "all_time"}:
             sentences.append(
@@ -941,11 +978,36 @@ def _active_membership_count(now):
     )
 
 
-def _build_summary():
+def _clients_with_effort_query(bounds, project_statuses, affiliation_internal=None):
+    """Distinct clients that have at least one effort log in scope."""
+    query = (
+        db.session.query(func.count(func.distinct(Client.id)))
+        .select_from(Client)
+        .join(Project, Project.client_id == Client.id)
+        .join(Log, Log.project_id == Project.id)
+    )
+    if affiliation_internal is not None:
+        query = query.join(Affiliation, Affiliation.id == Client.affiliation_id).filter(
+            Affiliation.is_internal.is_(bool(affiliation_internal))
+        )
+    if project_statuses:
+        query = query.filter(Project.status.in_(project_statuses))
+    if bounds is not None and bounds.start is not None:
+        query = query.filter(Log.created_at >= bounds.start)
+    if bounds is not None and bounds.end is not None:
+        query = query.filter(Log.created_at < bounds.end)
+    return int(query.scalar() or 0)
+
+
+def _build_summary(parsed, bounds):
+    if bounds is not None:
+        client_count = _clients_with_effort_query(bounds, parsed["project_statuses"])
+    else:
+        client_count = int(Client.query.count())
     return {
         "active_memberships": _active_membership_count(get_current_time()),
         "active_projects": int(Project.query.filter_by(status="Active").count()),
-        "clients": int(Client.query.count()),
+        "clients": client_count,
     }
 
 
@@ -1021,13 +1083,29 @@ def _build_projects(parsed, ranking_bounds, logged_bounds):
     }
 
 
-def _build_clients():
-    total = int(Client.query.count())
-    with_membership = int(Client.query.filter(Client.membership_id.isnot(None)).count())
+def _build_clients(parsed, bounds):
+    statuses = parsed["project_statuses"]
+    if bounds is not None:
+        total = _clients_with_effort_query(bounds, statuses)
+        internal = _clients_with_effort_query(bounds, statuses, affiliation_internal=True)
+        external = _clients_with_effort_query(bounds, statuses, affiliation_internal=False)
+    else:
+        total = int(Client.query.count())
+        internal = int(
+            Client.query.join(Affiliation, Affiliation.id == Client.affiliation_id)
+            .filter(Affiliation.is_internal.is_(True))
+            .count()
+        )
+        external = int(
+            Client.query.join(Affiliation, Affiliation.id == Client.affiliation_id)
+            .filter(Affiliation.is_internal.is_(False))
+            .count()
+        )
     return {
         "total": total,
-        "with_membership": with_membership,
-        "without_membership": total - with_membership,
+        "internal": internal,
+        "external": external,
+        "window": _window_payload(bounds if bounds is not None else Bounds(label="all_time", applied=False)),
     }
 
 
@@ -1037,11 +1115,15 @@ def _build_billing(parsed, bounds):
     return {
         "currency": "USD",
         "window": _window_payload(bounds),
-        "total_bills": _quote_totals(bounds, statuses, bill_type),
-        "active_quotes": _quote_totals(bounds, statuses, bill_type, type_required="quote", archived=False),
-        "active_invoices": _quote_totals(bounds, statuses, bill_type, type_required="invoice", archived=False),
-        "archived_invoices": _quote_totals(bounds, statuses, bill_type, type_required="invoice", archived=True),
-        "invoices_awaiting_approval": _quote_totals(bounds, statuses, bill_type, awaiting=True),
+        "total_bills": _quote_totals(bounds, statuses, bill_type, paid=True),
+        "active_quotes": _quote_totals(bounds, statuses, bill_type, type_required="quote", active=True),
+        "active_invoices": _quote_totals(bounds, statuses, bill_type, type_required="invoice", active=True),
+        "internal_invoices": _quote_totals(
+            bounds, statuses, bill_type, type_required="invoice", affiliation_internal=True
+        ),
+        "external_invoices": _quote_totals(
+            bounds, statuses, bill_type, type_required="invoice", affiliation_internal=False
+        ),
     }
 
 
@@ -1407,13 +1489,13 @@ def _build_payload(parsed):
     }
     sections = set(parsed["sections"])
     if "summary" in sections:
-        payload["summary"] = _build_summary()
+        payload["summary"] = _build_summary(parsed, time_bounds)
     if "time" in sections:
         payload["time"] = _build_time(parsed, time_bounds)
     if "projects" in sections:
         payload["projects"] = _build_projects(parsed, ranking_bounds, logged_bounds)
     if "clients" in sections:
-        payload["clients"] = _build_clients()
+        payload["clients"] = _build_clients(parsed, time_bounds)
     if "billing" in sections:
         payload["billing"] = _build_billing(parsed, billing_bounds)
     if "memberships" in sections:

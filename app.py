@@ -59,7 +59,7 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
 # Import models and db
-from models import db, User, Client, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME, Quote, QuoteLineItem, Checklist, ChecklistItem, FinanceSettings, Site, SitePageview, SiteDaily, SiteDailyPage, SiteDailyReferrer
+from models import db, User, Client, Affiliation, Membership, MembershipFunding, Project, Task, Log, UserProjectPin, UserTaskFlag, TIMEZONE, get_current_time, Equipment, UserPreferences, ActivityLog, SchedulingSettings, EquipmentOperatingHours, EquipmentBlockedDate, EquipmentAppointment, GENERAL_PROJECT_NAME, Quote, QuoteLineItem, Checklist, ChecklistItem, FinanceSettings, Site, SitePageview, SiteDaily, SiteDailyPage, SiteDailyReferrer
 from analytics_api import analytics_public_bp
 
 # Initialize extensions
@@ -1439,9 +1439,11 @@ def dashboard():
     awaiting_projects = Project.query.filter(Project.status == 'Awaiting', Project.is_default == False).order_by(Project.name.asc()).all()
     paused_projects = Project.query.filter(Project.status == 'Paused', Project.is_default == False).order_by(Project.name.asc()).all()
     
-    # Get clients and users for project forms
+    # Get clients and users for project/client forms
     clients = Client.query.order_by(Client.name.asc()).all()
     users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
+    memberships = Membership.query.order_by(Membership.title.asc()).all()
+    affiliations = Affiliation.query.order_by(Affiliation.name.asc()).all()
     
     # Get current day of week for greeting
     day_of_week = now_central.strftime('%A')
@@ -1460,7 +1462,9 @@ def dashboard():
                          paused_projects=paused_projects,
                          # Form data
                          clients=clients,
-                         users=users)
+                         users=users,
+                         memberships=memberships,
+                         affiliations=affiliations)
 
 @app.route('/logout')
 def logout():
@@ -2868,10 +2872,17 @@ def clients():
         return redirect(url_for('login'))
     
     clients = Client.query.order_by(Client.name.asc()).all()
-    memberships = Membership.query.all()
+    memberships = Membership.query.order_by(Membership.title.asc()).all()
+    affiliations = Affiliation.query.order_by(Affiliation.name.asc()).all()
     users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     
-    return render_template('clients.html', clients=clients, memberships=memberships, users=users)
+    return render_template(
+        'clients.html',
+        clients=clients,
+        memberships=memberships,
+        affiliations=affiliations,
+        users=users,
+    )
 
 @app.route('/client/<int:client_id>')
 def client_detail(client_id):
@@ -2898,8 +2909,9 @@ def client_detail(client_id):
         Project.client_id == client_id
     ).order_by(Log.created_at.desc()).all()
     
-    # Get memberships for dropdown
-    memberships = Membership.query.all()
+    # Get memberships/affiliations for dropdown
+    memberships = Membership.query.order_by(Membership.title.asc()).all()
+    affiliations = Affiliation.query.order_by(Affiliation.name.asc()).all()
     users = User.query.filter_by(role='admin').order_by(User.first_name.asc()).all()
     clients = Client.query.order_by(Client.name.asc()).all()
     
@@ -2909,6 +2921,7 @@ def client_detail(client_id):
                          tasks=serialized_tasks,
                          logs=logs,
                          memberships=memberships,
+                         affiliations=affiliations,
                          users=users,
                          clients=clients)
 
@@ -2919,6 +2932,7 @@ def add_client():
     
     name = request.form.get('name', '').strip()
     membership_id = request.form.get('membership_id')
+    affiliation_id = request.form.get('affiliation_id')
     notes = request.form.get('notes', '').strip()
     contact_name = request.form.get('contact_name', '').strip() or None
     contact_email = request.form.get('contact_email', '').strip() or None
@@ -2938,6 +2952,7 @@ def add_client():
     client = Client(
         name=name,
         membership_id=int(membership_id) if membership_id else None,
+        affiliation_id=int(affiliation_id) if affiliation_id else None,
         notes=notes,
         contact_name=contact_name,
         contact_email=contact_email,
@@ -2968,7 +2983,8 @@ def add_client():
         entity_id=client.id,
         new_value={
             'name': client.name,
-            'membership_id': client.membership_id
+            'membership_id': client.membership_id,
+            'affiliation_id': client.affiliation_id,
         }
     )
     db.session.commit()
@@ -2985,6 +3001,7 @@ def edit_client(client_id):
     
     name = request.form.get('name', '').strip()
     membership_id = request.form.get('membership_id')
+    affiliation_id = request.form.get('affiliation_id')
     notes = request.form.get('notes', '').strip()
     contact_name = request.form.get('contact_name', '').strip() or None
     contact_email = request.form.get('contact_email', '').strip() or None
@@ -3003,6 +3020,7 @@ def edit_client(client_id):
     
     client.name = name
     client.membership_id = int(membership_id) if membership_id else None
+    client.affiliation_id = int(affiliation_id) if affiliation_id else None
     client.notes = notes
     client.contact_name = contact_name
     client.contact_email = contact_email
@@ -3642,6 +3660,33 @@ def finances_redirect():
     return redirect(url_for('finances'))
 
 
+def _affiliation_inflow_bucket(client):
+    """Map a client to internal/external/unassigned for projection inflow breakdown."""
+    affiliation = getattr(client, 'affiliation', None) if client else None
+    if affiliation is None:
+        return 'unassigned'
+    return 'internal' if affiliation.is_internal else 'external'
+
+
+def _add_inflow_affiliation(buckets, amount, client=None, membership=None):
+    """Attribute inflow dollars to affiliation buckets."""
+    if not amount:
+        return
+    if client is not None:
+        buckets[_affiliation_inflow_bucket(client)] += float(amount)
+        return
+    if membership is not None:
+        clients = membership.clients.all()
+        if not clients:
+            buckets['unassigned'] += float(amount)
+            return
+        share = float(amount) / len(clients)
+        for membership_client in clients:
+            buckets[_affiliation_inflow_bucket(membership_client)] += share
+        return
+    buckets['unassigned'] += float(amount)
+
+
 @app.route('/projection')
 def finances():
     auth_error = require_admin()
@@ -3661,6 +3706,7 @@ def finances():
     funding_items = [[] for _ in range(12)]
     paid_items = [[] for _ in range(12)]
     projected_items = [[] for _ in range(12)]
+    inflow_affiliation = {'internal': 0.0, 'external': 0.0, 'unassigned': 0.0}
 
     # Membership funding: upfront lands in the start month; monthly splits evenly
     # across calendar months from start through end (inclusive).
@@ -3682,6 +3728,9 @@ def finances():
                     'detail': 'Upfront',
                     'amount': amount,
                 })
+                _add_inflow_affiliation(
+                    inflow_affiliation, amount, membership=funding.membership
+                )
         else:
             end_local = (funding.end_date or funding.start_date).astimezone(TIMEZONE)
             n_months = months_between(start_local, end_local)
@@ -3698,6 +3747,9 @@ def finances():
                         'detail': f'Monthly ({n_months} mo)',
                         'amount': share,
                     })
+                    _add_inflow_affiliation(
+                        inflow_affiliation, share, membership=funding.membership
+                    )
 
     # Profiting paid bills land in the month they were marked paid (fallback: issue date).
     # Amount counted is bill total × profit_percent / 100.
@@ -3723,6 +3775,7 @@ def finances():
                 'detail': detail,
                 'amount': amount,
             })
+            _add_inflow_affiliation(inflow_affiliation, amount, client=quote.client)
 
     # Open Profiting bills only (Payback excluded from Finances and Projected Bills UI).
     open_bills = Quote.query.filter(
@@ -3745,6 +3798,7 @@ def finances():
             'detail': detail,
             'amount': amount,
         })
+        _add_inflow_affiliation(inflow_affiliation, amount, client=quote.client)
 
     salaried_admins = User.query.filter(
         User.role == 'admin',
@@ -3813,6 +3867,23 @@ def finances():
     totals['outflow'] = totals['salaries'] + totals['fixed_costs']
     totals['net'] = totals['inflow'] - totals['outflow']
 
+    inflow_total = float(totals['inflow'] or 0)
+    inflow_affiliation_rows = []
+    for key, label in (
+        ('internal', 'Internal'),
+        ('external', 'External'),
+        ('unassigned', 'Unassigned'),
+    ):
+        amount = float(inflow_affiliation.get(key) or 0)
+        if key == 'unassigned' and amount <= 0:
+            continue
+        pct = (amount / inflow_total * 100.0) if inflow_total else 0.0
+        inflow_affiliation_rows.append({
+            'label': label,
+            'amount': amount,
+            'pct': pct,
+        })
+
     return render_template(
         'finances.html',
         fy_label=f'FY{(fy_start_year + 1) % 100}',
@@ -3825,6 +3896,7 @@ def finances():
         open_bills=open_bills,
         salary_people=salary_people,
         salary_monthly_total=salary_monthly_total,
+        inflow_affiliation_rows=inflow_affiliation_rows,
     )
 
 
@@ -3884,6 +3956,93 @@ def finances_restart_fy():
     db.session.commit()
     flash(f'Fiscal year restarted for FY{(fy_start_year + 1) % 100}. Fixed costs were cleared.', 'success')
     return redirect(url_for('finances'))
+
+
+# AFFILIATIONS ROUTES
+@app.route('/affiliations')
+def affiliations():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    affiliations_list = Affiliation.query.order_by(Affiliation.name.asc()).all()
+    clients_list = Client.query.order_by(Client.name.asc()).all()
+    return render_template(
+        'affiliations.html',
+        affiliations=affiliations_list,
+        clients=clients_list,
+    )
+
+
+@app.route('/add_affiliation', methods=['POST'])
+def add_affiliation():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    name = request.form.get('name', '').strip()
+    is_internal = request.form.get('is_internal') == 'on'
+
+    if not name:
+        flash('Affiliation name is required', 'error')
+        return redirect(url_for('affiliations'))
+
+    affiliation = Affiliation(name=name, is_internal=is_internal)
+    db.session.add(affiliation)
+    db.session.commit()
+    flash('Affiliation created successfully', 'success')
+    return redirect(url_for('affiliations'))
+
+
+@app.route('/edit_affiliation/<int:affiliation_id>', methods=['POST'])
+def edit_affiliation(affiliation_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    affiliation = Affiliation.query.get_or_404(affiliation_id)
+    name = request.form.get('name', '').strip()
+    is_internal = request.form.get('is_internal') == 'on'
+
+    if not name:
+        flash('Affiliation name is required', 'error')
+        return redirect(url_for('affiliations'))
+
+    affiliation.name = name
+    affiliation.is_internal = is_internal
+    db.session.commit()
+    flash('Affiliation updated successfully', 'success')
+    return redirect(url_for('affiliations'))
+
+
+@app.route('/delete_affiliation/<int:affiliation_id>', methods=['POST'])
+def delete_affiliation(affiliation_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    affiliation = Affiliation.query.get_or_404(affiliation_id)
+    # Clients keep working via ON DELETE SET NULL
+    for client in affiliation.clients.all():
+        client.affiliation_id = None
+    db.session.delete(affiliation)
+    db.session.commit()
+    flash('Affiliation deleted successfully', 'success')
+    return redirect(url_for('affiliations'))
+
+
+@app.route('/affiliations/assign_clients', methods=['POST'])
+def assign_client_affiliations():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    clients_list = Client.query.all()
+    for client in clients_list:
+        field = f'affiliation_id_{client.id}'
+        if field not in request.form:
+            continue
+        raw = request.form.get(field, '').strip()
+        client.affiliation_id = int(raw) if raw else None
+
+    db.session.commit()
+    flash('Client affiliations saved', 'success')
+    return redirect(url_for('affiliations'))
 
 
 # MEMBERSHIPS ROUTES
@@ -4254,9 +4413,17 @@ def analytics():
         Log.project_id.isnot(None),
     ).scalar() or 0
 
-    # Clients
-    clients_with_membership = Client.query.filter(Client.membership_id.isnot(None)).count()
-    clients_without_membership = total_clients - clients_with_membership
+    # Clients (internal/external via Affiliation.is_internal)
+    internal_clients = Client.query.join(
+        Affiliation, Affiliation.id == Client.affiliation_id
+    ).filter(
+        Affiliation.is_internal.is_(True)
+    ).count()
+    external_clients = Client.query.join(
+        Affiliation, Affiliation.id == Client.affiliation_id
+    ).filter(
+        Affiliation.is_internal.is_(False)
+    ).count()
 
     top_clients_by_hours = db.session.query(
         Client.name,
@@ -4270,34 +4437,31 @@ def analytics():
     ).order_by(desc('hours')).limit(5).all()
 
     # Billing
-    def quote_totals_filtered(bill_type=None, archived=None, extra_filters=None):
+    def quote_totals_filtered(bill_type=None, paid=None, active=None, affiliation_internal=None):
         query = db.session.query(
             func.count(Quote.id),
             func.coalesce(func.sum(Quote.total_amount), 0),
         )
         if bill_type:
             query = query.filter(Quote.bill_type == bill_type)
-        if archived is True:
-            query = query.filter(Quote.status == 'archived')
-        elif archived is False:
-            query = query.filter(Quote.status != 'archived')
-        if extra_filters is not None:
-            query = query.filter(extra_filters)
+        if paid is True:
+            query = query.filter(Quote.status == 'paid')
+        if active is True:
+            query = query.filter(Quote.status.notin_(('paid', 'archived')))
+        if affiliation_internal is not None:
+            query = query.join(Client, Client.id == Quote.client_id).join(
+                Affiliation, Affiliation.id == Client.affiliation_id
+            ).filter(Affiliation.is_internal.is_(bool(affiliation_internal)))
         return query.one()
 
-    invoice_awaiting_filter = and_(
-        Quote.bill_type == 'invoice',
-        Quote.is_public.is_(True),
-        Quote.approved_by_name.is_(None),
-        Quote.approved_at.is_(None),
+    total_bills_count, total_bills_amount = quote_totals_filtered(paid=True)
+    active_quotes_count, active_quotes_amount = quote_totals_filtered('quote', active=True)
+    active_invoices_count, active_invoices_amount = quote_totals_filtered('invoice', active=True)
+    internal_invoices_count, internal_invoices_amount = quote_totals_filtered(
+        'invoice', affiliation_internal=True
     )
-
-    total_bills_count, total_bills_amount = quote_totals_filtered()
-    active_quotes_count, active_quotes_amount = quote_totals_filtered('quote', archived=False)
-    active_invoices_count, active_invoices_amount = quote_totals_filtered('invoice', archived=False)
-    archived_invoices_count, archived_invoices_amount = quote_totals_filtered('invoice', archived=True)
-    invoices_awaiting_count, invoices_awaiting_amount = quote_totals_filtered(
-        'invoice', extra_filters=invoice_awaiting_filter
+    external_invoices_count, external_invoices_amount = quote_totals_filtered(
+        'invoice', affiliation_internal=False
     )
 
     top_clients_invoiced = db.session.query(
@@ -4402,8 +4566,8 @@ def analytics():
             'link_url': url_for('clients'),
             'metrics': [
                 {'label': 'Total', 'value': total_clients},
-                {'label': 'With membership', 'value': clients_with_membership},
-                {'label': 'Without membership', 'value': clients_without_membership},
+                {'label': 'Internal Clients', 'value': internal_clients},
+                {'label': 'External Clients', 'value': external_clients},
             ],
             'top_label': 'Top all time hours',
             'top_columns': ['Client', 'Hours'],
@@ -4424,8 +4588,8 @@ def analytics():
                 {'label': 'Total bills', 'value': f'{total_bills_count} ({fmt_currency(total_bills_amount)})'},
                 {'label': 'Active quotes', 'value': f'{active_quotes_count} ({fmt_currency(active_quotes_amount)})'},
                 {'label': 'Active invoices', 'value': f'{active_invoices_count} ({fmt_currency(active_invoices_amount)})'},
-                {'label': 'Archived invoices', 'value': f'{archived_invoices_count} ({fmt_currency(archived_invoices_amount)})'},
-                {'label': 'Invoices awaiting approval', 'value': f'{invoices_awaiting_count} ({fmt_currency(invoices_awaiting_amount)})'},
+                {'label': 'Internal invoices', 'value': f'{internal_invoices_count} ({fmt_currency(internal_invoices_amount)})'},
+                {'label': 'External invoices', 'value': f'{external_invoices_count} ({fmt_currency(external_invoices_amount)})'},
             ],
             'top_label': 'Top clients by billed amount (invoices)',
             'top_columns': ['Client', 'Billed'],

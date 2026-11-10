@@ -86,6 +86,22 @@ class User(db.Model):
         """Helper property to maintain compatibility"""
         return self.role == 'admin'
 
+class Affiliation(db.Model):
+    __tablename__ = 'affiliations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    is_internal = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=get_current_time, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=get_current_time, onupdate=get_current_time, nullable=False)
+
+    # Relationships
+    clients = db.relationship('Client', backref='affiliation', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<Affiliation {self.name}>'
+
+
 class Membership(db.Model):
     __tablename__ = 'memberships'
     
@@ -225,6 +241,7 @@ class Client(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     membership_id = db.Column(db.Integer, db.ForeignKey('memberships.id'), nullable=True)
+    affiliation_id = db.Column(db.Integer, db.ForeignKey('affiliations.id', ondelete='SET NULL'), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     contact_name = db.Column(db.String(120), nullable=True)
     contact_email = db.Column(db.String(120), nullable=True)

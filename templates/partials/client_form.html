@@ -32,6 +32,22 @@
                         {% endif %}
                     </div>
                     <div class="mb-3">
+                        <label for="addClientAffiliation" class="form-label">Affiliation</label>
+                        <select class="form-select" id="addClientAffiliation" name="affiliation_id">
+                            <option value="">None</option>
+                            {% for affiliation in affiliations %}
+                                <option value="{{ affiliation.id }}">
+                                    {{ affiliation.name }}{% if not affiliation.is_internal %} (External){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if not affiliations %}
+                            <div class="form-text text-muted">
+                                No affiliations yet. <a href="{{ url_for('affiliations') }}">Manage affiliations</a>.
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
                         <label for="addClientNotes" class="form-label">Notes</label>
                         <textarea class="form-control" id="addClientNotes" name="notes" rows="3" placeholder="Optional client notes..."></textarea>
                     </div>
@@ -114,6 +130,17 @@
                                     {{ membership.title }}
                                     {% if membership.start_date %} - {{ membership.start_date.strftime('%b %d, %Y') }}{% endif %}
                                     {% if membership.is_annual %} (Annual){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editClientAffiliation" class="form-label">Affiliation</label>
+                        <select class="form-select" id="editClientAffiliation" name="affiliation_id">
+                            <option value="">None</option>
+                            {% for affiliation in affiliations %}
+                                <option value="{{ affiliation.id }}">
+                                    {{ affiliation.name }}{% if not affiliation.is_internal %} (External){% endif %}
                                 </option>
                             {% endfor %}
                         </select>
@@ -235,10 +262,11 @@
 </div>
 
 <script>
-function editClient(id, name, membershipId, notes, contactName, contactEmail, contactPhone, billToOrg, billToAddress1, billToAddress2, billToCity, billToState, billToPostalCode, billToCountry) {
+function editClient(id, name, membershipId, affiliationId, notes, contactName, contactEmail, contactPhone, billToOrg, billToAddress1, billToAddress2, billToCity, billToState, billToPostalCode, billToCountry) {
     document.getElementById('editClientForm').action = `/edit_client/${id}`;
     document.getElementById('editClientName').value = name;
     document.getElementById('editClientMembership').value = membershipId || '';
+    document.getElementById('editClientAffiliation').value = affiliationId || '';
     document.getElementById('editClientNotes').value = notes;
     document.getElementById('editClientContactName').value = contactName || '';
     document.getElementById('editClientContactEmail').value = contactEmail || '';
@@ -299,6 +327,7 @@ function editClientFromData(button) {
     const clientId = button.dataset.clientId;
     const name = button.dataset.clientName;
     const membershipId = button.dataset.clientMembershipId || '';
+    const affiliationId = button.dataset.clientAffiliationId || '';
     const notes = button.dataset.clientNotes;
     const contactName = button.dataset.clientContactName || '';
     const contactEmail = button.dataset.clientContactEmail || '';
@@ -311,7 +340,7 @@ function editClientFromData(button) {
     const billToPostalCode = button.dataset.clientBillToPostalCode || '';
     const billToCountry = button.dataset.clientBillToCountry || '';
     
-    editClient(clientId, name, membershipId, notes, contactName, contactEmail, contactPhone, billToOrg, billToAddress1, billToAddress2, billToCity, billToState, billToPostalCode, billToCountry);
+    editClient(clientId, name, membershipId, affiliationId, notes, contactName, contactEmail, contactPhone, billToOrg, billToAddress1, billToAddress2, billToCity, billToState, billToPostalCode, billToCountry);
 }
 
 function addProjectForClientFromData(button) {
