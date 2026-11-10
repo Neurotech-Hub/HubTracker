@@ -4424,6 +4424,12 @@ def analytics():
     ).filter(
         Affiliation.is_internal.is_(False)
     ).count()
+    internal_affiliations = Affiliation.query.filter(
+        Affiliation.is_internal.is_(True)
+    ).count()
+    external_affiliations = Affiliation.query.filter(
+        Affiliation.is_internal.is_(False)
+    ).count()
 
     top_clients_by_hours = db.session.query(
         Client.name,
@@ -4566,8 +4572,11 @@ def analytics():
             'link_url': url_for('clients'),
             'metrics': [
                 {'label': 'Total', 'value': total_clients},
+                {'label': 'Affiliations', 'value': internal_affiliations + external_affiliations, 'indent': True},
                 {'label': 'Internal Clients', 'value': internal_clients},
+                {'label': 'Affiliations', 'value': internal_affiliations, 'indent': True},
                 {'label': 'External Clients', 'value': external_clients},
+                {'label': 'Affiliations', 'value': external_affiliations, 'indent': True},
             ],
             'top_label': 'Top all time hours',
             'top_columns': ['Client', 'Hours'],
